@@ -1,13 +1,63 @@
-/**
- * Define your database schema here using Drizzle ORM.
- * Avoid conflicting with potential other schema files in the same directory.
- *
- * Example:
- * import { pgTable, text, timestamp, uuid } from 'drizzle-orm/pg-core';
- *
- * export const notes = pgTable('notes', {
- *   id: uuid('id').primaryKey().defaultRandom(),
- *   name: text('name').notNull(),
- *   createdAt: timestamp('created_at').notNull().defaultNow(),
- * });
- */
+import {
+  pgTable,
+  text,
+  boolean,
+  uuid,
+  timestamp,
+  unique,
+  foreignKey,
+} from 'drizzle-orm/pg-core';
+
+export const userPreferences = pgTable(
+  'user_preferences',
+  {
+    email: text('email').primaryKey(),
+    acceptMessages: boolean('accept_messages').default(true).notNull(),
+    showEmail: boolean('show_email').default(false).notNull(),
+    showPhone: boolean('show_phone').default(false).notNull(),
+    showCompany: boolean('show_company').default(true).notNull(),
+    showTitle: boolean('show_title').default(true).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  }
+);
+
+export const conversations = pgTable(
+  'conversations',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    participant1Email: text('participant1_email').notNull(),
+    participant2Email: text('participant2_email').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique('unique_participants').on(
+      table.participant1Email,
+      table.participant2Email
+    ),
+  ]
+);
+
+export const messages = pgTable(
+  'messages',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    conversationId: uuid('conversation_id')
+      .notNull()
+      .references(() => conversations.id, { onDelete: 'cascade' }),
+    senderEmail: text('sender_email').notNull(),
+    content: text('content').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  }
+);
