@@ -213,4 +213,16 @@ describe("API Integration Tests", () => {
     );
     await expectStatus(res, 404);
   });
+
+  // Attendees Directory
+  test("GET /api/attendees-directory - should return attendees directory", async () => {
+    const res = await api("/api/attendees-directory");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.attendees !== undefined || data.error !== undefined).toBe(true);
+    if (data.attendees !== undefined) {
+      expect(Array.isArray(data.attendees)).toBe(true);
+    }
+  });
 });

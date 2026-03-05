@@ -6,6 +6,8 @@ import * as floorplanRoutes from './routes/floorplan.js';
 import * as preferencesRoutes from './routes/preferences.js';
 import * as conversationsRoutes from './routes/conversations.js';
 import * as networkingRoutes from './routes/networking.js';
+import * as attendeesDirectoryRoutes from './routes/attendeesDirectory.js';
+import * as authRoutes from './routes/auth.js';
 
 // Create application with schema for full database type support
 export const app = await createApplication(schema);
@@ -21,6 +23,8 @@ floorplanRoutes.register(app, app.fastify);
 preferencesRoutes.register(app, app.fastify);
 conversationsRoutes.register(app, app.fastify);
 networkingRoutes.register(app, app.fastify);
+attendeesDirectoryRoutes.register(app, app.fastify);
+authRoutes.register(app, app.fastify);
 
 await app.run();
 app.logger.info('Application running');

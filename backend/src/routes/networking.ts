@@ -2,14 +2,7 @@ import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { eq } from 'drizzle-orm';
 import * as schema from '../db/schema/schema.js';
 import type { App } from '../index.js';
-
-interface AttendeeDetail {
-  email: string;
-  name: string;
-  title?: string;
-  company?: string;
-  registration_type?: string;
-}
+import { getAttendeesDirectory, type Attendee } from '../services/attendeeDirectory.js';
 
 interface AttendeeListItem {
   email: string;
@@ -18,36 +11,12 @@ interface AttendeeListItem {
   title?: string;
 }
 
-const mockAttendees: AttendeeDetail[] = [
-  {
-    email: 'participant1@example.com',
-    name: 'Alice Johnson',
-    title: 'Director',
-    company: 'Tech Corp',
-    registration_type: 'Standard',
-  },
-  {
-    email: 'participant2@example.com',
-    name: 'Bob Smith',
-    title: 'Engineer',
-    company: 'Innovation Inc',
-    registration_type: 'VIP',
-  },
-  {
-    email: 'charlie@example.com',
-    name: 'Charlie Brown',
-    title: 'Manager',
-    company: 'Future Systems',
-    registration_type: 'Standard',
-  },
-  {
-    email: 'diana@example.com',
-    name: 'Diana Prince',
-    title: 'CEO',
-    company: 'Global Ventures',
-    registration_type: 'Sponsor',
-  },
-];
+function buildName(firstName?: string, lastName?: string): string {
+  const parts = [];
+  if (firstName) parts.push(firstName);
+  if (lastName) parts.push(lastName);
+  return parts.join(' ') || 'Unknown';
+}
 
 function sortAttendees(attendees: AttendeeListItem[]): AttendeeListItem[] {
   return attendees.sort((a, b) => {
@@ -104,9 +73,16 @@ export function register(app: App, fastify: FastifyInstance) {
         'Fetching attendees list'
       );
 
-      let attendees: AttendeeListItem[] = mockAttendees.map((att) => ({
-        email: att.email,
-        name: att.name,
+      const result = await getAttendeesDirectory();
+
+      if (result.error) {
+        app.logger.warn({ error: result.error }, 'Failed to fetch attendees');
+        return [];
+      }
+
+      let attendees: AttendeeListItem[] = result.attendees.map((att) => ({
+        email: att.email || '',
+        name: buildName(att.firstName, att.lastName),
         company: att.company,
         title: att.title,
       }));
@@ -188,7 +164,16 @@ export function register(app: App, fastify: FastifyInstance) {
         'Fetching attendee detail'
       );
 
-      const attendee = mockAttendees.find((att) => att.email === email);
+      const result = await getAttendeesDirectory();
+
+      if (result.error) {
+        app.logger.warn({ error: result.error }, 'Failed to fetch attendees');
+        return reply.status(404).send({ error: 'Attendee not found' });
+      }
+
+      const attendee = result.attendees.find(
+        (att) => att.emailLower === email.toLowerCase()
+      );
 
       if (!attendee) {
         app.logger.warn({ email }, 'Attendee not found');
@@ -196,12 +181,12 @@ export function register(app: App, fastify: FastifyInstance) {
       }
 
       let preferences = await app.db.query.userPreferences.findFirst({
-        where: eq(schema.userPreferences.email, email),
+        where: eq(schema.userPreferences.email, attendee.email || ''),
       });
 
       if (!preferences) {
         preferences = {
-          email,
+          email: attendee.email || '',
           acceptMessages: true,
           showEmail: false,
           showPhone: false,
@@ -214,7 +199,7 @@ export function register(app: App, fastify: FastifyInstance) {
 
       const detail: any = {
         email: attendee.email,
-        name: attendee.name,
+        name: buildName(attendee.firstName, attendee.lastName),
       };
 
       if (preferences.showTitle) {
@@ -225,7 +210,7 @@ export function register(app: App, fastify: FastifyInstance) {
         detail.company = attendee.company;
       }
 
-      detail.registration_type = attendee.registration_type;
+      detail.registration_type = attendee.registrationType;
 
       app.logger.info(
         { email, viewer_email },
