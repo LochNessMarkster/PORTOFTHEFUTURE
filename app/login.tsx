@@ -11,7 +11,6 @@ import {
   ScrollView,
   ActivityIndicator,
   useColorScheme,
-  Image,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -49,7 +48,8 @@ export default function LoginScreen() {
       router.replace('/(tabs)/(home)/');
     } catch (err: any) {
       console.error('Login error:', err);
-      setError(err.message || 'Login failed');
+      const errorMessage = err.message || 'Login failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

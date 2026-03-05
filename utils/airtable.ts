@@ -1,6 +1,6 @@
 
 // Airtable data fetching utilities for Port of the Future Conference
-// NOTE: Ports, Presentations, Floor Plan, Networking, Preferences, and Messaging
+// NOTE: Ports, Presentations, Floor Plan, Networking, Preferences, Messaging, and Attendees
 // are now served by the Specular backend (see SPECULAR BACKEND API section at the bottom).
 // This file retains Speakers, Activities, Exhibitors, Sponsors, and Announcements from Airtable.
 
@@ -358,63 +358,18 @@ export const fetchPresentations = async (): Promise<Presentation[]> => {
   return presentations;
 };
 
-// Attendee Types (for Networking)
-export interface RawAttendeeFields {
-  'First Name': string;
-  'Last Name': string;
-  'Email': string;
-  'Company'?: string;
-  'Title'?: string;
-  'Phone'?: string;
-  'Registration Type'?: string;
-}
-
+// Attendee Types (for Login and Networking)
 export interface Attendee {
-  id: string;
   firstName: string;
   lastName: string;
   email: string;
-  company?: string;
-  title?: string;
-  phone?: string;
-  registrationType?: string;
+  company: string;
+  title: string;
+  phone: string;
+  registrationType: string;
+  emailLower: string;
   displayName: string;
 }
-
-export const mapAirtableAttendee = (record: AirtableRecord<RawAttendeeFields>): Attendee => {
-  const fields = record.fields;
-  const firstName = fields['First Name'] || '';
-  const lastName = fields['Last Name'] || '';
-  const displayName = `${firstName} ${lastName}`.trim();
-
-  return {
-    id: record.id,
-    firstName,
-    lastName,
-    email: fields.Email || '',
-    company: fields.Company,
-    title: fields.Title,
-    phone: fields.Phone,
-    registrationType: fields['Registration Type'],
-    displayName,
-  };
-};
-
-export const fetchAttendees = async (): Promise<Attendee[]> => {
-  console.log('Fetching attendees...');
-  const rawRecords = await fetchPaginatedAirtableData<RawAttendeeFields>('tblIwt4FWHtNm01Z4');
-  const attendees = rawRecords.map(mapAirtableAttendee);
-
-  // Sort by Last Name A-Z, then First Name A-Z
-  attendees.sort((a, b) => {
-    const lastNameCompare = a.lastName.localeCompare(b.lastName);
-    if (lastNameCompare !== 0) return lastNameCompare;
-    return a.firstName.localeCompare(b.firstName);
-  });
-
-  console.log('Attendees sorted:', attendees.length);
-  return attendees;
-};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // SPECULAR BACKEND API
@@ -535,6 +490,20 @@ export interface ConversationMessage {
 }
 
 // ─── Backend API Functions ────────────────────────────────────────────────────
+
+/**
+ * Fetch attendees directory from backend proxy (replaces direct Airtable calls)
+ * This endpoint handles Airtable pagination, caching, and CORS issues.
+ * The backend returns { attendees: [...], error?: string }
+ */
+export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
+  console.log('[API] Fetching attendees directory from backend proxy');
+  const result = await apiGet<{ attendees: Attendee[]; error?: string }>('/api/attendees-directory');
+  if (result.error) {
+    console.warn('[API] Attendees directory returned error:', result.error);
+  }
+  return result.attendees || [];
+};
 
 export const fetchBackendPorts = (search?: string): Promise<BackendPort[]> =>
   apiGet<BackendPort[]>(
