@@ -130,7 +130,25 @@ export default function HomeScreen() {
 
   const handleCardPress = (card: NavigationCard) => {
     console.log('Navigation card pressed:', card.title);
-    // TODO: Implement navigation to specific screens
+    
+    // Navigate to the appropriate screen based on card title
+    switch (card.title) {
+      case 'Speakers':
+        router.push('/speakers');
+        break;
+      case 'Activities':
+        router.push('/activities');
+        break;
+      case 'Exhibitors':
+        router.push('/exhibitors');
+        break;
+      case 'Sponsors':
+        router.push('/sponsors');
+        break;
+      default:
+        console.log('Navigation not yet implemented for:', card.title);
+        break;
+    }
   };
 
   const handleAnnouncementPress = (announcement: Announcement) => {
