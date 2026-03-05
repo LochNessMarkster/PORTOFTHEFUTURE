@@ -154,6 +154,13 @@ export async function getAttendeesDirectory(): Promise<{
 
     if (attendees.length === 0) {
       attendees.push(...mockAttendeesData);
+    } else {
+      const mockEmails = new Set(mockAttendeesData.map(a => a.emailLower));
+      const fetchedEmails = new Set(attendees.map(a => a.emailLower));
+      const missingMockAttendees = mockAttendeesData.filter(
+        a => !fetchedEmails.has(a.emailLower)
+      );
+      attendees.push(...missingMockAttendees);
     }
 
     return { attendees };

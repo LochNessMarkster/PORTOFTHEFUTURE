@@ -225,4 +225,44 @@ describe("API Integration Tests", () => {
       expect(Array.isArray(data.attendees)).toBe(true);
     }
   });
+
+  // Login
+  test("POST /api/login - should login with valid credentials", async () => {
+    const res = await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: participant1Email,
+        password: "POTF2026",
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.attendee).toBeDefined();
+    expect(data.attendee.email).toBe(participant1Email);
+  });
+
+  test("POST /api/login - should return 401 for invalid credentials", async () => {
+    const res = await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: participant1Email,
+        password: "wrongpassword",
+      }),
+    });
+    await expectStatus(res, 401);
+  });
+
+  // Announcements
+  test("GET /api/announcements - should return announcements", async () => {
+    const res = await api("/api/announcements");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(Array.isArray(data.announcements)).toBe(true);
+  });
 });
