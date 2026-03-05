@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -41,11 +41,7 @@ export default function ConversationScreen() {
   const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
   const cardBg = isDark ? colors.cardDark : colors.card;
 
-  useEffect(() => {
-    loadMessages();
-  }, [conversationId]);
-
-  const loadMessages = async () => {
+  const loadMessages = useCallback(async () => {
     console.log('[API] Loading messages for conversation:', conversationId);
     try {
       setLoading(true);
@@ -59,7 +55,11 @@ export default function ConversationScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [conversationId]);
+
+  useEffect(() => {
+    loadMessages();
+  }, [loadMessages]);
 
   const handleSendMessage = async () => {
     if (!messageText.trim() || !user?.email) {

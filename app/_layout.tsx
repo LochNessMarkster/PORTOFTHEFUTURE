@@ -1,4 +1,5 @@
 
+
 import * as SplashScreen from "expo-splash-screen";
 import { SystemBars } from "react-native-edge-to-edge";
 import { useColorScheme } from "react-native";
@@ -40,7 +41,7 @@ function RootLayoutNav() {
       console.log('Redirecting to home');
       router.replace('/(tabs)/(home)/');
     }
-  }, [user, segments, isLoading]);
+  }, [user, segments, isLoading, router]);
 
   return (
     <ThemeProvider value={colorScheme === "dark" ? DarkTheme : DefaultTheme}>

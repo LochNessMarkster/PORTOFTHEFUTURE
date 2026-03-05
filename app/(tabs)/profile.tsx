@@ -1,3 +1,4 @@
+
 import React, { useState, useCallback } from "react";
 import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Switch, ActivityIndicator, useColorScheme } from "react-native";
 
@@ -27,15 +28,7 @@ export default function ProfileScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  useFocusEffect(
-    useCallback(() => {
-      if (user?.email) {
-        loadPreferences();
-      }
-    }, [user?.email])
-  );
-
-  const loadPreferences = async () => {
+  const loadPreferences = useCallback(async () => {
     if (!user?.email) return;
     console.log('[API] Loading preferences for profile:', user.email);
     try {
@@ -50,7 +43,15 @@ export default function ProfileScreen() {
     } finally {
       setLoadingPrefs(false);
     }
-  };
+  }, [user?.email]);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (user?.email) {
+        loadPreferences();
+      }
+    }, [user?.email, loadPreferences])
+  );
 
   const handleToggle = async (key: keyof Omit<UserPreferences, 'email'>, value: boolean) => {
     if (!user?.email || !preferences) return;
@@ -95,7 +96,7 @@ export default function ProfileScreen() {
           headerTintColor: textColor,
         }}
       />
-
+      <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
 
 

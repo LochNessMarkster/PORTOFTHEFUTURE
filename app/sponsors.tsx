@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -47,37 +47,7 @@ export default function SponsorsScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  useEffect(() => {
-    loadSponsors();
-  }, []);
-
-  useEffect(() => {
-    filterSponsors();
-  }, [searchQuery, sections]);
-
-  const loadSponsors = async () => {
-    console.log('Loading sponsors...');
-    try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchSponsors();
-      console.log('Sponsors loaded:', data.length);
-      setSponsors(data);
-      
-      // Group by level
-      const grouped = groupByLevel(data);
-      setSections(grouped);
-      setFilteredSections(grouped);
-    } catch (err) {
-      console.error('Error loading sponsors:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load sponsors';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const groupByLevel = (sponsorList: Sponsor[]): SponsorSection[] => {
+  const groupByLevel = useCallback((sponsorList: Sponsor[]): SponsorSection[] => {
     const levelMap = new Map<string, Sponsor[]>();
     
     sponsorList.forEach(sponsor => {
@@ -97,9 +67,35 @@ export default function SponsorsScreen() {
     });
 
     return sectionsArray;
-  };
+  }, []);
 
-  const filterSponsors = () => {
+  const loadSponsors = useCallback(async () => {
+    console.log('Loading sponsors...');
+    try {
+      setLoading(true);
+      setError(null);
+      const data = await fetchSponsors();
+      console.log('Sponsors loaded:', data.length);
+      setSponsors(data);
+      
+      // Group by level
+      const grouped = groupByLevel(data);
+      setSections(grouped);
+      setFilteredSections(grouped);
+    } catch (err) {
+      console.error('Error loading sponsors:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load sponsors';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [groupByLevel]);
+
+  useEffect(() => {
+    loadSponsors();
+  }, [loadSponsors]);
+
+  const filterSponsors = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredSections(sections);
       return;
@@ -113,7 +109,11 @@ export default function SponsorsScreen() {
 
     console.log('Filtered sponsor sections:', filtered.length);
     setFilteredSections(filtered);
-  };
+  }, [searchQuery, sections]);
+
+  useEffect(() => {
+    filterSponsors();
+  }, [filterSponsors]);
 
   const handleSponsorPress = (sponsor: Sponsor) => {
     console.log('Sponsor pressed:', sponsor.name);

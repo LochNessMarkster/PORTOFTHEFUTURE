@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -41,15 +41,7 @@ export default function PortsScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  useEffect(() => {
-    loadPorts();
-  }, []);
-
-  useEffect(() => {
-    filterPorts();
-  }, [searchQuery, ports]);
-
-  const loadPorts = async () => {
+  const loadPorts = useCallback(async () => {
     console.log('[API] Loading ports from backend...');
     try {
       setLoading(true);
@@ -65,9 +57,13 @@ export default function PortsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filterPorts = () => {
+  useEffect(() => {
+    loadPorts();
+  }, [loadPorts]);
+
+  const filterPorts = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredPorts(ports);
       return;
@@ -82,7 +78,11 @@ export default function PortsScreen() {
 
     console.log('Filtered ports:', filtered.length, 'from', ports.length);
     setFilteredPorts(filtered);
-  };
+  }, [searchQuery, ports]);
+
+  useEffect(() => {
+    filterPorts();
+  }, [filterPorts]);
 
   const handlePortPress = (port: Port) => {
     console.log('Port pressed:', port.name);

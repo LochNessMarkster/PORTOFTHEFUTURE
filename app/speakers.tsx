@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -41,15 +41,7 @@ export default function SpeakersScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  useEffect(() => {
-    loadSpeakers();
-  }, []);
-
-  useEffect(() => {
-    filterSpeakers();
-  }, [searchQuery, speakers]);
-
-  const loadSpeakers = async () => {
+  const loadSpeakers = useCallback(async () => {
     console.log('Loading speakers...');
     try {
       setLoading(true);
@@ -65,9 +57,13 @@ export default function SpeakersScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filterSpeakers = () => {
+  useEffect(() => {
+    loadSpeakers();
+  }, [loadSpeakers]);
+
+  const filterSpeakers = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredSpeakers(speakers);
       return;
@@ -83,7 +79,11 @@ export default function SpeakersScreen() {
 
     console.log('Filtered speakers:', filtered.length, 'from', speakers.length);
     setFilteredSpeakers(filtered);
-  };
+  }, [searchQuery, speakers]);
+
+  useEffect(() => {
+    filterSpeakers();
+  }, [filterSpeakers]);
 
   const handleSpeakerPress = (speaker: Speaker) => {
     console.log('Speaker pressed:', speaker.name_display);

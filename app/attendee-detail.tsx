@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -46,11 +46,7 @@ export default function AttendeeDetailScreen() {
   const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
   const cardBg = isDark ? colors.cardDark : colors.card;
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     console.log('[API] Loading attendee detail and preferences for:', email);
     try {
       setLoadingPreferences(true);
@@ -77,7 +73,11 @@ export default function AttendeeDetailScreen() {
     } finally {
       setLoadingPreferences(false);
     }
-  };
+  }, [email, user?.email]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleEmailPress = () => {
     if (attendeeDetail?.email && preferences?.show_email) {

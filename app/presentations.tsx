@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -33,15 +33,7 @@ export default function PresentationsScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  useEffect(() => {
-    loadPresentations();
-  }, []);
-
-  useEffect(() => {
-    filterPresentations();
-  }, [searchQuery, presentations]);
-
-  const loadPresentations = async () => {
+  const loadPresentations = useCallback(async () => {
     console.log('[API] Loading presentations from backend...');
     try {
       setLoading(true);
@@ -57,9 +49,13 @@ export default function PresentationsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filterPresentations = () => {
+  useEffect(() => {
+    loadPresentations();
+  }, [loadPresentations]);
+
+  const filterPresentations = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredPresentations(presentations);
       return;
@@ -74,7 +70,11 @@ export default function PresentationsScreen() {
 
     console.log('Filtered presentations:', filtered.length, 'from', presentations.length);
     setFilteredPresentations(filtered);
-  };
+  }, [searchQuery, presentations]);
+
+  useEffect(() => {
+    filterPresentations();
+  }, [filterPresentations]);
 
   const handleDownloadPress = (presentation: Presentation) => {
     if (presentation.file_url) {

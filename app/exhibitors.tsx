@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -41,15 +41,7 @@ export default function ExhibitorsScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  useEffect(() => {
-    loadExhibitors();
-  }, []);
-
-  useEffect(() => {
-    filterExhibitors();
-  }, [searchQuery, exhibitors]);
-
-  const loadExhibitors = async () => {
+  const loadExhibitors = useCallback(async () => {
     console.log('Loading exhibitors...');
     try {
       setLoading(true);
@@ -65,9 +57,13 @@ export default function ExhibitorsScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filterExhibitors = () => {
+  useEffect(() => {
+    loadExhibitors();
+  }, [loadExhibitors]);
+
+  const filterExhibitors = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredExhibitors(exhibitors);
       return;
@@ -81,7 +77,11 @@ export default function ExhibitorsScreen() {
 
     console.log('Filtered exhibitors:', filtered.length, 'from', exhibitors.length);
     setFilteredExhibitors(filtered);
-  };
+  }, [searchQuery, exhibitors]);
+
+  useEffect(() => {
+    filterExhibitors();
+  }, [filterExhibitors]);
 
   const handleExhibitorPress = (exhibitor: Exhibitor) => {
     console.log('Exhibitor pressed:', exhibitor.name);

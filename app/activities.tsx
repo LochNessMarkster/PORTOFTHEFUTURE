@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -41,15 +41,7 @@ export default function ActivitiesScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  useEffect(() => {
-    loadActivities();
-  }, []);
-
-  useEffect(() => {
-    filterActivities();
-  }, [searchQuery, activities]);
-
-  const loadActivities = async () => {
+  const loadActivities = useCallback(async () => {
     console.log('Loading activities...');
     try {
       setLoading(true);
@@ -65,9 +57,13 @@ export default function ActivitiesScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filterActivities = () => {
+  useEffect(() => {
+    loadActivities();
+  }, [loadActivities]);
+
+  const filterActivities = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredActivities(activities);
       return;
@@ -83,7 +79,11 @@ export default function ActivitiesScreen() {
 
     console.log('Filtered activities:', filtered.length, 'from', activities.length);
     setFilteredActivities(filtered);
-  };
+  }, [searchQuery, activities]);
+
+  useEffect(() => {
+    filterActivities();
+  }, [filterActivities]);
 
   const handleActivityPress = (activity: Activity) => {
     console.log('Activity pressed:', activity.name);

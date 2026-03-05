@@ -50,22 +50,7 @@ export default function NetworkingScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  useEffect(() => {
-    loadAttendees();
-  }, []);
-
-  useEffect(() => {
-    filterAttendees();
-  }, [searchQuery, attendees]);
-
-  // Reload conversations when switching to messages tab
-  useEffect(() => {
-    if (activeTab === 'messages' && user?.email) {
-      loadConversations();
-    }
-  }, [activeTab, user?.email]);
-
-  const loadAttendees = async () => {
+  const loadAttendees = useCallback(async () => {
     console.log('[API] Loading attendees for networking from backend...');
     try {
       setLoading(true);
@@ -81,9 +66,13 @@ export default function NetworkingScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const filterAttendees = () => {
+  useEffect(() => {
+    loadAttendees();
+  }, [loadAttendees]);
+
+  const filterAttendees = useCallback(() => {
     if (!searchQuery.trim()) {
       setFilteredAttendees(attendees);
       return;
@@ -99,9 +88,13 @@ export default function NetworkingScreen() {
 
     console.log('[API] Filtered attendees:', filtered.length, 'from', attendees.length);
     setFilteredAttendees(filtered);
-  };
+  }, [searchQuery, attendees]);
 
-  const loadConversations = async () => {
+  useEffect(() => {
+    filterAttendees();
+  }, [filterAttendees]);
+
+  const loadConversations = useCallback(async () => {
     if (!user?.email) return;
     console.log('[API] Loading conversations for:', user.email);
     try {
@@ -116,7 +109,14 @@ export default function NetworkingScreen() {
     } finally {
       setLoadingConversations(false);
     }
-  };
+  }, [user?.email]);
+
+  // Reload conversations when switching to messages tab
+  useEffect(() => {
+    if (activeTab === 'messages' && user?.email) {
+      loadConversations();
+    }
+  }, [activeTab, user?.email, loadConversations]);
 
   const getInitials = (name: string): string => {
     const parts = name.trim().split(' ');
