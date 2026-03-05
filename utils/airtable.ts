@@ -1,5 +1,12 @@
 
 // Airtable data fetching utilities for Port of the Future Conference
+// NOTE: Ports, Presentations, Floor Plan, Networking, Preferences, and Messaging
+// are now served by the Specular backend (see SPECULAR BACKEND API section at the bottom).
+// This file retains Speakers, Activities, Exhibitors, Sponsors, and Announcements from Airtable.
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AIRTABLE CACHE (Speakers, Activities, Exhibitors, Sponsors, Announcements)
+// ─────────────────────────────────────────────────────────────────────────────
 
 const AIRTABLE_BASE_URL = 'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd';
 
@@ -257,3 +264,340 @@ export const fetchSponsors = async (): Promise<Sponsor[]> => {
   console.log('Sponsors sorted:', sponsors.length);
   return sponsors;
 };
+
+// Port Types
+export interface RawPortFields {
+  'Port Name': string;
+  'Intro'?: string;
+  'Port Bio'?: string;
+  'Port URL'?: string;
+  'Logo graphic'?: { url: string; thumbnails?: { large: { url: string } } }[];
+  'Featured Port Graphic'?: { url: string; thumbnails?: { large: { url: string } } }[];
+}
+
+export interface Port {
+  id: string;
+  name: string;
+  intro?: string;
+  bio?: string;
+  url?: string;
+  logo_url?: string;
+  featured_image_url?: string;
+}
+
+export const mapAirtablePort = (record: AirtableRecord<RawPortFields>): Port => {
+  const fields = record.fields;
+  const logo = fields['Logo graphic']?.[0];
+  const featuredImage = fields['Featured Port Graphic']?.[0];
+
+  return {
+    id: record.id,
+    name: fields['Port Name'] || '',
+    intro: fields.Intro,
+    bio: fields['Port Bio'],
+    url: fields['Port URL'],
+    logo_url: logo?.thumbnails?.large?.url || logo?.url,
+    featured_image_url: featuredImage?.thumbnails?.large?.url || featuredImage?.url,
+  };
+};
+
+export const fetchPorts = async (): Promise<Port[]> => {
+  console.log('Fetching ports...');
+  const rawRecords = await fetchPaginatedAirtableData<RawPortFields>('tblrXosiVXKhJHYLu');
+  const ports = rawRecords.map(mapAirtablePort);
+
+  // Sort A-Z by name
+  ports.sort((a, b) => a.name.localeCompare(b.name));
+
+  console.log('Ports sorted:', ports.length);
+  return ports;
+};
+
+// Presentation Types
+export interface RawPresentationFields {
+  'Presentation Title'?: string;
+  'Description'?: string;
+  'File URL'?: string;
+  'Published'?: boolean;
+}
+
+export interface Presentation {
+  id: string;
+  title: string;
+  description?: string;
+  file_url?: string;
+}
+
+export const mapAirtablePresentation = (record: AirtableRecord<RawPresentationFields>): Presentation => {
+  const fields = record.fields;
+
+  return {
+    id: record.id,
+    title: fields['Presentation Title'] || '',
+    description: fields.Description,
+    file_url: fields['File URL'],
+  };
+};
+
+export const fetchPresentations = async (): Promise<Presentation[]> => {
+  console.log('Fetching presentations...');
+  const rawRecords = await fetchPaginatedAirtableData<RawPresentationFields>('tblm5YCpC7ZwRSYWy');
+  
+  // Filter: only show records where Presentation Title exists AND Published == true
+  const publishedRecords = rawRecords.filter(
+    record => record.fields['Presentation Title'] && record.fields.Published === true
+  );
+  console.log('Published presentations:', publishedRecords.length);
+  
+  const presentations = publishedRecords.map(mapAirtablePresentation);
+
+  // Sort A-Z by title
+  presentations.sort((a, b) => a.title.localeCompare(b.title));
+
+  console.log('Presentations sorted:', presentations.length);
+  return presentations;
+};
+
+// Attendee Types (for Networking)
+export interface RawAttendeeFields {
+  'First Name': string;
+  'Last Name': string;
+  'Email': string;
+  'Company'?: string;
+  'Title'?: string;
+  'Phone'?: string;
+  'Registration Type'?: string;
+}
+
+export interface Attendee {
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  company?: string;
+  title?: string;
+  phone?: string;
+  registrationType?: string;
+  displayName: string;
+}
+
+export const mapAirtableAttendee = (record: AirtableRecord<RawAttendeeFields>): Attendee => {
+  const fields = record.fields;
+  const firstName = fields['First Name'] || '';
+  const lastName = fields['Last Name'] || '';
+  const displayName = `${firstName} ${lastName}`.trim();
+
+  return {
+    id: record.id,
+    firstName,
+    lastName,
+    email: fields.Email || '',
+    company: fields.Company,
+    title: fields.Title,
+    phone: fields.Phone,
+    registrationType: fields['Registration Type'],
+    displayName,
+  };
+};
+
+export const fetchAttendees = async (): Promise<Attendee[]> => {
+  console.log('Fetching attendees...');
+  const rawRecords = await fetchPaginatedAirtableData<RawAttendeeFields>('tblIwt4FWHtNm01Z4');
+  const attendees = rawRecords.map(mapAirtableAttendee);
+
+  // Sort by Last Name A-Z, then First Name A-Z
+  attendees.sort((a, b) => {
+    const lastNameCompare = a.lastName.localeCompare(b.lastName);
+    if (lastNameCompare !== 0) return lastNameCompare;
+    return a.firstName.localeCompare(b.firstName);
+  });
+
+  console.log('Attendees sorted:', attendees.length);
+  return attendees;
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPECULAR BACKEND API
+// All endpoints below use the deployed backend at the URL in app.json extra.backendUrl
+// ─────────────────────────────────────────────────────────────────────────────
+
+import Constants from 'expo-constants';
+
+export const BACKEND_URL: string =
+  (Constants.expoConfig?.extra?.backendUrl as string) ||
+  'https://bx6j3d44584xqpqwnmp8vpuneqcrrymr.app.specular.dev';
+
+async function apiGet<T>(path: string): Promise<T> {
+  console.log(`[API] GET ${BACKEND_URL}${path}`);
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    method: 'GET',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`GET ${path} failed (${response.status}): ${errorBody}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+async function apiPost<T>(path: string, body: unknown): Promise<T> {
+  console.log(`[API] POST ${BACKEND_URL}${path}`);
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`POST ${path} failed (${response.status}): ${errorBody}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  console.log(`[API] PUT ${BACKEND_URL}${path}`);
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`PUT ${path} failed (${response.status}): ${errorBody}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+// ─── Backend Types ────────────────────────────────────────────────────────────
+
+export interface BackendPort {
+  id: string;
+  name: string;
+  intro?: string;
+  bio?: string;
+  url?: string;
+  logo_url?: string;
+  featured_image_url?: string;
+}
+
+export interface BackendPresentation {
+  id: string;
+  title: string;
+  description?: string;
+  file_url?: string;
+}
+
+export interface FloorPlan {
+  image_url: string;
+  venue_notes: string;
+}
+
+export interface UserPreferences {
+  email: string;
+  accept_messages: boolean;
+  show_email: boolean;
+  show_phone: boolean;
+  show_company: boolean;
+  show_title: boolean;
+}
+
+export interface NetworkingAttendee {
+  email: string;
+  name: string;
+  company?: string;
+  title?: string;
+}
+
+export interface AttendeeDetail {
+  email: string;
+  name: string;
+  title?: string;
+  company?: string;
+  registration_type?: string;
+}
+
+export interface Conversation {
+  id: string;
+  participant1_email: string;
+  participant2_email: string;
+  last_message?: string;
+  last_message_at?: string;
+  other_participant_name?: string;
+  created_at: string;
+}
+
+export interface ConversationMessage {
+  id: string;
+  conversation_id?: string;
+  sender_email: string;
+  content: string;
+  created_at: string;
+}
+
+// ─── Backend API Functions ────────────────────────────────────────────────────
+
+export const fetchBackendPorts = (search?: string): Promise<BackendPort[]> =>
+  apiGet<BackendPort[]>(
+    search ? `/api/ports?search=${encodeURIComponent(search)}` : '/api/ports'
+  );
+
+export const fetchBackendPortById = (id: string): Promise<BackendPort> =>
+  apiGet<BackendPort>(`/api/ports/${encodeURIComponent(id)}`);
+
+export const fetchBackendPresentations = (search?: string): Promise<BackendPresentation[]> =>
+  apiGet<BackendPresentation[]>(
+    search ? `/api/presentations?search=${encodeURIComponent(search)}` : '/api/presentations'
+  );
+
+export const fetchFloorPlan = (): Promise<FloorPlan> =>
+  apiGet<FloorPlan>('/api/floor-plan');
+
+export const fetchPreferences = (email: string): Promise<UserPreferences> =>
+  apiGet<UserPreferences>(`/api/preferences/${encodeURIComponent(email)}`);
+
+export const updatePreferences = (
+  email: string,
+  prefs: Partial<Omit<UserPreferences, 'email'>>
+): Promise<UserPreferences> =>
+  apiPut<UserPreferences>(`/api/preferences/${encodeURIComponent(email)}`, prefs);
+
+export const fetchNetworkingAttendees = (search?: string): Promise<NetworkingAttendee[]> =>
+  apiGet<NetworkingAttendee[]>(
+    search
+      ? `/api/networking/attendees?search=${encodeURIComponent(search)}`
+      : '/api/networking/attendees'
+  );
+
+export const fetchAttendeeDetail = (
+  email: string,
+  viewerEmail?: string
+): Promise<AttendeeDetail> =>
+  apiGet<AttendeeDetail>(
+    viewerEmail
+      ? `/api/networking/attendees/${encodeURIComponent(email)}?viewer_email=${encodeURIComponent(viewerEmail)}`
+      : `/api/networking/attendees/${encodeURIComponent(email)}`
+  );
+
+export const fetchConversations = (email: string): Promise<Conversation[]> =>
+  apiGet<Conversation[]>(`/api/conversations?email=${encodeURIComponent(email)}`);
+
+export const createOrGetConversation = (
+  participant1_email: string,
+  participant2_email: string
+): Promise<{ id: string; participant1_email: string; participant2_email: string; created_at: string }> =>
+  apiPost('/api/conversations', { participant1_email, participant2_email });
+
+export const fetchMessages = (conversationId: string): Promise<ConversationMessage[]> =>
+  apiGet<ConversationMessage[]>(
+    `/api/conversations/${encodeURIComponent(conversationId)}/messages`
+  );
+
+export const sendMessage = (
+  conversationId: string,
+  sender_email: string,
+  content: string
+): Promise<ConversationMessage> =>
+  apiPost<ConversationMessage>(
+    `/api/conversations/${encodeURIComponent(conversationId)}/messages`,
+    { sender_email, content }
+  );

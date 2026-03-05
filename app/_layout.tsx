@@ -48,6 +48,13 @@ function RootLayoutNav() {
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+        <Stack.Screen name="networking" options={{ headerShown: false }} />
+        <Stack.Screen name="attendee-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="conversation/[id]" options={{ headerShown: false }} />
+        <Stack.Screen name="ports" options={{ headerShown: false }} />
+        <Stack.Screen name="port-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="presentations" options={{ headerShown: false }} />
+        <Stack.Screen name="floor-plan" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />

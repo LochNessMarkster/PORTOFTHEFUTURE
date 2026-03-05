@@ -145,6 +145,18 @@ export default function HomeScreen() {
       case 'Sponsors':
         router.push('/sponsors');
         break;
+      case 'Ports':
+        router.push('/ports');
+        break;
+      case 'Floor Plan':
+        router.push('/floor-plan');
+        break;
+      case 'Networking':
+        router.push('/networking');
+        break;
+      case 'Presentations':
+        router.push('/presentations');
+        break;
       default:
         console.log('Navigation not yet implemented for:', card.title);
         break;

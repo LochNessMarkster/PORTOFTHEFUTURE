@@ -129,6 +129,27 @@ export default function MoreScreen() {
             <Text style={[styles.sectionTitle, { color: secondaryTextColor }]}>
               ACCOUNT
             </Text>
+
+            <TouchableOpacity
+              style={[styles.menuItem, { backgroundColor: cardBg }]}
+              onPress={() => router.push('/(tabs)/profile')}
+            >
+              <IconSymbol
+                ios_icon_name="person.circle.fill"
+                android_material_icon_name="account-circle"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[styles.menuText, { color: textColor }]}>
+                My Profile & Privacy
+              </Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="arrow-forward"
+                size={20}
+                color={secondaryTextColor}
+              />
+            </TouchableOpacity>
             
             <TouchableOpacity 
               style={[styles.menuItem, { backgroundColor: cardBg }]}
