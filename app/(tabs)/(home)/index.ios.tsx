@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, Text, ScrollView, useColorScheme, TouchableOpacity, Image, ActivityIndicator, ImageSourcePropType } from "react-native";
+import { StyleSheet, View, Text, ScrollView, useColorScheme, TouchableOpacity, Image, ActivityIndicator, ImageSourcePropType, RefreshControl } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
+import { fetchAnnouncements, type AnnouncementItem } from "@/utils/airtable";
 
 // Helper to resolve image sources (handles both local require() and remote URLs)
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
@@ -14,15 +15,7 @@ function resolveImageSource(source: string | number | ImageSourcePropType | unde
   return source as ImageSourcePropType;
 }
 
-interface Announcement {
-  id: string;
-  title: string;
-  content: string;
-  alert_tag?: string;
-  date: string;
-  time_display?: string;
-  image_url?: string;
-}
+type Announcement = AnnouncementItem;
 
 interface NavigationCard {
   id: string;
@@ -54,6 +47,7 @@ export default function HomeScreen() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
@@ -62,70 +56,37 @@ export default function HomeScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   useEffect(() => {
-    fetchAnnouncements();
+    loadAnnouncements();
   }, []);
 
-  const fetchAnnouncements = async () => {
-    console.log('Fetching announcements from Airtable...');
+  const loadAnnouncements = async () => {
+    console.log('[API] Fetching announcements from backend proxy...');
     try {
-      setLoading(true);
+      if (!refreshing) {
+        setLoading(true);
+      }
       setError(null);
-      
-      let allRecords: any[] = [];
-      let offset: string | undefined = undefined;
 
-      do {
-        const url = offset 
-          ? `https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tbl1eqc3UiYaO1pSq?offset=${offset}`
-          : 'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tbl1eqc3UiYaO1pSq';
-        
-        console.log('Fetching announcements page:', url);
-        const response = await fetch(url);
-        
-        if (!response.ok) {
-          throw new Error(`Failed to fetch announcements: ${response.status}`);
-        }
+      const data = await fetchAnnouncements();
+      console.log('[API] Received announcements from backend:', data.announcements?.length || 0, 'records');
+      console.log('[API] Source used:', data.source_used);
+      console.log('[API] Updated at:', data.updated_at);
 
-        const data = await response.json();
-        console.log('Received announcements page:', data.records?.length || 0, 'records');
-        
-        allRecords = allRecords.concat(data.records || []);
-        offset = data.offset;
-      } while (offset);
-
-      console.log('Total announcements fetched:', allRecords.length);
-
-      const mapped = allRecords.map((record: any) => {
-        const fields = record.fields;
-        const imageUrl = fields.Image?.[0]?.thumbnails?.large?.url || fields.Image?.[0]?.url;
-        
-        return {
-          id: record.id,
-          title: fields.Title || '',
-          content: fields.Content || '',
-          alert_tag: fields.Alert || undefined,
-          date: fields.Date || '',
-          time_display: fields.Time || undefined,
-          image_url: imageUrl,
-        };
-      });
-
-      // Sort by date descending (newest first)
-      mapped.sort((a, b) => {
-        const dateA = new Date(a.date).getTime();
-        const dateB = new Date(b.date).getTime();
-        return dateB - dateA;
-      });
-
-      console.log('Announcements processed and sorted:', mapped.length);
-      setAnnouncements(mapped);
+      setAnnouncements(data.announcements || []);
     } catch (err) {
-      console.error('Error fetching announcements:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load announcements';
-      setError(errorMessage);
+      console.error('[API] Error fetching announcements:', err);
+      setError('Announcements unavailable. Pull to refresh.');
+      setAnnouncements([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
+  };
+
+  const onRefresh = () => {
+    console.log('[API] User initiated refresh');
+    setRefreshing(true);
+    loadAnnouncements();
   };
 
   const handleCardPress = (card: NavigationCard) => {
@@ -164,17 +125,17 @@ export default function HomeScreen() {
   };
 
   const handleAnnouncementPress = (announcement: Announcement) => {
-    console.log('Announcement pressed:', announcement.title);
+    console.log('Announcement pressed:', announcement.Title);
     router.push({
       pathname: '/announcement-detail',
       params: {
         id: announcement.id,
-        title: announcement.title,
-        content: announcement.content,
-        alert_tag: announcement.alert_tag || '',
-        date: announcement.date,
-        time_display: announcement.time_display || '',
-        image_url: announcement.image_url || '',
+        title: announcement.Title,
+        content: announcement.Content,
+        alert_tag: announcement.Alert || '',
+        date: announcement.Date,
+        time_display: announcement.Time || '',
+        image_url: announcement.ImageUrl || '',
       },
     });
   };
@@ -210,7 +171,18 @@ export default function HomeScreen() {
         }} 
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+        <ScrollView 
+          style={styles.scrollView} 
+          contentContainerStyle={styles.scrollContent}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        >
           {/* Hero Image */}
           <View style={styles.heroContainer}>
             <Image
@@ -260,7 +232,7 @@ export default function HomeScreen() {
               <Text style={[styles.sectionTitle, { color: textColor }]}>Announcements</Text>
             </View>
 
-            {loading ? (
+            {loading && !refreshing ? (
               <View style={styles.loadingContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading announcements...</Text>
@@ -276,7 +248,7 @@ export default function HomeScreen() {
                 <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
                 <TouchableOpacity
                   style={[styles.retryButton, { backgroundColor: colors.primary }]}
-                  onPress={fetchAnnouncements}
+                  onPress={loadAnnouncements}
                 >
                   <Text style={styles.retryButtonText}>Retry</Text>
                 </TouchableOpacity>
@@ -293,8 +265,8 @@ export default function HomeScreen() {
               </View>
             ) : (
               announcements.map((announcement) => {
-                const formattedDate = formatDate(announcement.date);
-                const preview = getPreview(announcement.content);
+                const formattedDate = formatDate(announcement.Date);
+                const preview = getPreview(announcement.Content);
                 
                 return (
                   <TouchableOpacity
@@ -306,12 +278,12 @@ export default function HomeScreen() {
                     <View style={styles.announcementContent}>
                       <View style={styles.announcementHeader}>
                         <Text style={[styles.announcementTitle, { color: textColor }]} numberOfLines={2}>
-                          {announcement.title}
+                          {announcement.Title}
                         </Text>
-                        {announcement.alert_tag && (
+                        {announcement.Alert && (
                           <View style={[styles.alertChip, { backgroundColor: colors.error + '20' }]}>
                             <Text style={[styles.alertChipText, { color: colors.error }]}>
-                              {announcement.alert_tag}
+                              {announcement.Alert}
                             </Text>
                           </View>
                         )}
@@ -327,11 +299,11 @@ export default function HomeScreen() {
                         <Text style={[styles.dateText, { color: secondaryTextColor }]}>
                           {formattedDate}
                         </Text>
-                        {announcement.time_display && (
+                        {announcement.Time && (
                           <>
                             <Text style={[styles.dateSeparator, { color: secondaryTextColor }]}>•</Text>
                             <Text style={[styles.timeText, { color: secondaryTextColor }]}>
-                              {announcement.time_display}
+                              {announcement.Time}
                             </Text>
                           </>
                         )}
@@ -342,9 +314,9 @@ export default function HomeScreen() {
                       </Text>
                     </View>
 
-                    {announcement.image_url && (
+                    {announcement.ImageUrl && (
                       <Image
-                        source={resolveImageSource(announcement.image_url)}
+                        source={resolveImageSource(announcement.ImageUrl)}
                         style={styles.announcementThumbnail}
                         resizeMode="cover"
                       />

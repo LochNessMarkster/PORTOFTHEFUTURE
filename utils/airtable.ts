@@ -570,3 +570,29 @@ export const sendMessage = (
     `/api/conversations/${encodeURIComponent(conversationId)}/messages`,
     { sender_email, content }
   );
+
+// ─── Announcements ────────────────────────────────────────────────────────────
+
+export interface AnnouncementItem {
+  id: string;
+  Title: string;
+  Content: string;
+  Alert?: string;
+  Date: string;
+  Time?: string;
+  ImageUrl?: string;
+}
+
+export interface AnnouncementsResponse {
+  updated_at: string;
+  source_used: 'airtablecache' | 'airtable_api';
+  announcements: AnnouncementItem[];
+}
+
+/**
+ * Fetch announcements from the backend proxy endpoint.
+ * The backend handles caching (1h TTL), Airtable pagination, and fallback logic.
+ * Returns announcements sorted newest-first.
+ */
+export const fetchAnnouncements = (): Promise<AnnouncementsResponse> =>
+  apiGet<AnnouncementsResponse>('/api/announcements');
