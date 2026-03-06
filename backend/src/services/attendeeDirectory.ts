@@ -46,7 +46,12 @@ function mapAttendee(record: AirtableRecord): Attendee {
 
 async function fetchFromUrl(url: string, headers?: Record<string, string>): Promise<AirtableResponse | null> {
   try {
-    const response = await fetch(url, { headers });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    const response = await fetch(url, { headers, signal: controller.signal });
+    clearTimeout(timeoutId);
+
     if (!response.ok) {
       return null;
     }

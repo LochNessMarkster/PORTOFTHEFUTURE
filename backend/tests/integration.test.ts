@@ -265,4 +265,15 @@ describe("API Integration Tests", () => {
     expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
     expect(Array.isArray(data.announcements)).toBe(true);
   });
+
+  // Agenda
+  test("GET /api/agenda - should return agenda", async () => {
+    const res = await api("/api/agenda");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(Array.isArray(data.agenda)).toBe(true);
+  });
 });

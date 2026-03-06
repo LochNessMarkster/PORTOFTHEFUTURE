@@ -38,9 +38,15 @@ interface PortResponse {
 
 async function fetchAirtableData(): Promise<PortResponse[]> {
   try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
     const response = await fetch(
-      'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblrXosiVXKhJHYLu'
+      'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblrXosiVXKhJHYLu',
+      { signal: controller.signal }
     );
+
+    clearTimeout(timeoutId);
     const data = (await response.json()) as { records: AirtableRecord[] };
 
     return data.records
