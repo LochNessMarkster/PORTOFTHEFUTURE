@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, Text, ScrollView, useColorScheme, TouchableOpacity, Image, ActivityIndicator, ImageSourcePropType, RefreshControl } from "react-native";
+import { StyleSheet, View, Text, ScrollView, useColorScheme, TouchableOpacity, Image, ActivityIndicator, ImageSourcePropType, RefreshControl, Dimensions } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
@@ -208,22 +208,25 @@ export default function HomeScreen() {
           {/* Navigation Cards Grid - 3x3 Layout */}
           <View style={styles.gridContainer}>
             {navigationCards.map((card, index) => (
-              <TouchableOpacity
-                key={card.id}
-                style={styles.navCard}
-                onPress={() => handleCardPress(card)}
-                activeOpacity={0.7}
-              >
-                <IconSymbol
-                  ios_icon_name={card.ios_icon}
-                  android_material_icon_name={card.android_icon}
-                  size={28}
-                  color={colors.accent}
-                />
-                <Text style={styles.navCardTitle}>
-                  {card.title}
-                </Text>
-              </TouchableOpacity>
+              <View key={card.id} style={styles.navCardWrapper}>
+                <TouchableOpacity
+                  style={styles.navCard}
+                  onPress={() => handleCardPress(card)}
+                  activeOpacity={0.7}
+                >
+                  <View style={styles.iconContainer}>
+                    <IconSymbol
+                      ios_icon_name={card.ios_icon}
+                      android_material_icon_name={card.android_icon}
+                      size={32}
+                      color={colors.accent}
+                    />
+                  </View>
+                  <Text style={styles.navCardTitle}>
+                    {card.title}
+                  </Text>
+                </TouchableOpacity>
+              </View>
             ))}
           </View>
 
@@ -414,29 +417,39 @@ const styles = StyleSheet.create({
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 16,
-    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    justifyContent: 'space-between',
+  },
+  navCardWrapper: {
+    width: '31%',
+    marginBottom: 12,
   },
   navCard: {
-    width: 'calc(33.333% - 8px)',
     backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 100,
+    minHeight: 110,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
   },
+  iconContainer: {
+    width: 48,
+    height: 48,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 8,
+  },
   navCardTitle: {
     fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
     color: colors.text,
-    marginTop: 8,
   },
   myScheduleContainer: {
     paddingHorizontal: 16,
