@@ -30,6 +30,16 @@ export default function MoreScreen() {
     }
   };
 
+  const handleVenuePress = () => {
+    console.log('User tapped Venue button');
+    router.push('/venue');
+  };
+
+  const handleSpeakersPress = () => {
+    console.log('User tapped Speakers button');
+    router.push('/speakers');
+  };
+
   return (
     <>
       <Stack.Screen 
@@ -88,10 +98,13 @@ export default function MoreScreen() {
               />
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: cardBg }]}>
+            <TouchableOpacity
+              style={[styles.menuItem, { backgroundColor: cardBg }]}
+              onPress={handleVenuePress}
+            >
               <IconSymbol
-                ios_icon_name="map"
-                android_material_icon_name="map"
+                ios_icon_name="building.2.fill"
+                android_material_icon_name="location-city"
                 size={24}
                 color={colors.primary}
               />
@@ -106,7 +119,10 @@ export default function MoreScreen() {
               />
             </TouchableOpacity>
 
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: cardBg }]}>
+            <TouchableOpacity
+              style={[styles.menuItem, { backgroundColor: cardBg }]}
+              onPress={handleSpeakersPress}
+            >
               <IconSymbol
                 ios_icon_name="person.2"
                 android_material_icon_name="group"
