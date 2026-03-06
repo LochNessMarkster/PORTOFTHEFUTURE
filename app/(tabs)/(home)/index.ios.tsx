@@ -25,6 +25,7 @@ interface NavigationCard {
   route?: string;
 }
 
+// 9 navigation cards for 3x3 grid
 const navigationCards: NavigationCard[] = [
   { id: '1', title: 'Agenda', ios_icon: 'calendar', android_icon: 'calendar-today' },
   { id: '2', title: 'Exhibitors', ios_icon: 'building.2.fill', android_icon: 'store' },
@@ -35,7 +36,6 @@ const navigationCards: NavigationCard[] = [
   { id: '7', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
   { id: '8', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
   { id: '9', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
-  { id: '10', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
 ];
 
 const CONFERENCE_DATES = "March 24 - 25, 2026";
@@ -92,9 +92,6 @@ export default function HomeScreen() {
       case 'Agenda':
         router.push('/agenda');
         break;
-      case 'My Schedule':
-        router.push('/my-schedule');
-        break;
       case 'Speakers':
         router.push('/speakers');
         break;
@@ -123,6 +120,11 @@ export default function HomeScreen() {
         console.log('Navigation not yet implemented for:', card.title);
         break;
     }
+  };
+
+  const handleMySchedulePress = () => {
+    console.log('My Schedule button pressed');
+    router.push('/my-schedule');
   };
 
   const handleAnnouncementPress = (announcement: Announcement) => {
@@ -199,7 +201,7 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Navigation Cards Grid - 2 Column Layout */}
+          {/* Navigation Cards Grid - 3x3 Layout */}
           <View style={styles.gridContainer}>
             {navigationCards.map((card, index) => (
               <TouchableOpacity
@@ -211,7 +213,7 @@ export default function HomeScreen() {
                 <IconSymbol
                   ios_icon_name={card.ios_icon}
                   android_material_icon_name={card.android_icon}
-                  size={32}
+                  size={28}
                   color={colors.accent}
                 />
                 <Text style={styles.navCardTitle}>
@@ -219,6 +221,23 @@ export default function HomeScreen() {
                 </Text>
               </TouchableOpacity>
             ))}
+          </View>
+
+          {/* My Schedule Button - Full Width */}
+          <View style={styles.myScheduleContainer}>
+            <TouchableOpacity
+              style={styles.myScheduleButton}
+              onPress={handleMySchedulePress}
+              activeOpacity={0.7}
+            >
+              <IconSymbol
+                ios_icon_name="bookmark.fill"
+                android_material_icon_name="bookmark"
+                size={24}
+                color={colors.text}
+              />
+              <Text style={styles.myScheduleButtonText}>My Schedule</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Announcements Section */}
@@ -395,10 +414,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   navCard: {
-    width: 'calc(50% - 6px)',
+    width: 'calc(33.333% - 8px)',
     backgroundColor: colors.card,
     borderRadius: 16,
-    padding: 20,
+    padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 100,
@@ -409,15 +428,39 @@ const styles = StyleSheet.create({
     elevation: 3,
   },
   navCardTitle: {
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '600',
     textAlign: 'center',
     color: colors.text,
-    marginTop: 12,
+    marginTop: 8,
+  },
+  myScheduleContainer: {
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  myScheduleButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  myScheduleButtonText: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    marginLeft: 12,
   },
   announcementsSection: {
     paddingHorizontal: 16,
-    marginTop: 8,
+    marginTop: 16,
   },
   sectionHeader: {
     flexDirection: 'row',
