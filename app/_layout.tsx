@@ -28,16 +28,17 @@ function RootLayoutNav() {
   useEffect(() => {
     if (isLoading) return;
 
-    const inAuthGroup = segments[0] === '(tabs)';
+    // Check if user is on the login screen
+    const isOnLoginScreen = segments[0] === 'login';
 
-    console.log('Auth state changed. User:', user?.displayName, 'In auth group:', inAuthGroup);
+    console.log('Auth state changed. User:', user?.displayName, 'On login screen:', isOnLoginScreen, 'Segments:', segments);
 
-    if (!user && inAuthGroup) {
-      // User is not logged in but trying to access protected routes
+    if (!user && !isOnLoginScreen) {
+      // User is not logged in and not on login screen - redirect to login
       console.log('Redirecting to login');
       router.replace('/login');
-    } else if (user && !inAuthGroup) {
-      // User is logged in but on login screen
+    } else if (user && isOnLoginScreen) {
+      // User is logged in but on login screen - redirect to home
       console.log('Redirecting to home');
       router.replace('/(tabs)/(home)/');
     }
@@ -56,6 +57,18 @@ function RootLayoutNav() {
         <Stack.Screen name="port-detail" options={{ headerShown: false }} />
         <Stack.Screen name="presentations" options={{ headerShown: false }} />
         <Stack.Screen name="floor-plan" options={{ headerShown: false }} />
+        <Stack.Screen name="agenda" options={{ headerShown: false }} />
+        <Stack.Screen name="agenda-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="my-schedule" options={{ headerShown: false }} />
+        <Stack.Screen name="speakers" options={{ headerShown: false }} />
+        <Stack.Screen name="speaker-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="activities" options={{ headerShown: false }} />
+        <Stack.Screen name="activity-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="exhibitors" options={{ headerShown: false }} />
+        <Stack.Screen name="exhibitor-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="sponsors" options={{ headerShown: false }} />
+        <Stack.Screen name="sponsor-detail" options={{ headerShown: false }} />
+        <Stack.Screen name="announcement-detail" options={{ headerShown: false }} />
         <Stack.Screen name="+not-found" />
       </Stack>
       <StatusBar style={colorScheme === "dark" ? "light" : "dark"} />
@@ -89,3 +102,4 @@ export default function RootLayout() {
     </GestureHandlerRootView>
   );
 }
+
