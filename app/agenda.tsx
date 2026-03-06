@@ -348,12 +348,18 @@ export default function AgendaScreen() {
 
   const formatDate = (dateString: string): string => {
     if (!dateString) return '';
-    const date = new Date(dateString);
+    // Parse YYYY-MM-DD directly without timezone conversion
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const day = parseInt(parts[2], 10);
+    
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    return `${month} ${day}, ${year}`;
+    const monthName = months[month];
+    
+    return `${monthName} ${day}, ${year}`;
   };
 
   const renderSessionCard = ({ item }: { item: AgendaItem }) => {

@@ -164,26 +164,39 @@ export default function MyScheduleScreen() {
 
   const formatDate = (dateString: string) => {
     if (!dateString) return '';
-    const date = new Date(dateString);
+    // Parse YYYY-MM-DD directly without timezone conversion
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const day = parseInt(parts[2], 10);
+    
     const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
     
+    // Create date in local timezone
+    const date = new Date(year, month, day);
     const weekday = weekdays[date.getDay()];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
+    const monthName = months[month];
     
-    return `${weekday}, ${month} ${day}, ${year}`;
+    return `${weekday}, ${monthName} ${day}, ${year}`;
   };
 
   const formatShortDate = (dateString: string): string => {
     if (!dateString) return '';
-    const date = new Date(dateString);
+    // Parse YYYY-MM-DD directly without timezone conversion
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const day = parseInt(parts[2], 10);
+    
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    const month = months[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    return `${month} ${day}, ${year}`;
+    const monthName = months[month];
+    
+    return `${monthName} ${day}, ${year}`;
   };
 
   const handleSessionPress = (item: AgendaItem) => {
