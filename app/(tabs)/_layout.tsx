@@ -12,9 +12,27 @@ export default function TabLayout() {
       label: 'Home',
     },
     {
+      name: 'agenda',
+      route: '/agenda',
+      icon: 'calendar-today',
+      label: 'Agenda',
+    },
+    {
+      name: 'my-schedule',
+      route: '/my-schedule',
+      icon: 'bookmark',
+      label: 'My Schedule',
+    },
+    {
+      name: 'speakers',
+      route: '/speakers',
+      icon: 'mic',
+      label: 'Speakers',
+    },
+    {
       name: 'more',
       route: '/(tabs)/more',
-      icon: 'menu',
+      icon: 'apps',
       label: 'More',
     },
   ];
