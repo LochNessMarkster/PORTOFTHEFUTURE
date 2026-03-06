@@ -132,7 +132,7 @@ export interface Exhibitor {
 
 export interface ExhibitorsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable';
+  source_used: 'airtablecache' | 'airtable_api' | 'error';
   exhibitors: Exhibitor[];
 }
 
@@ -159,7 +159,7 @@ export interface Sponsor {
 
 export interface SponsorsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable';
+  source_used: 'airtablecache' | 'airtable_api' | 'error';
   sponsors: Sponsor[];
 }
 

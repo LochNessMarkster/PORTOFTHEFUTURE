@@ -1,10 +1,10 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
-  SectionList,
+  FlatList,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -12,6 +12,7 @@ import {
   Image,
   ImageSourcePropType,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,10 +26,17 @@ function resolveImageSource(source: string | number | ImageSourcePropType | unde
   return source as ImageSourcePropType;
 }
 
-interface SponsorSection {
-  title: string;
-  data: Sponsor[];
-}
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+// Sponsor tier colors for badges
+const TIER_COLORS: { [key: string]: string } = {
+  'Presenting Sponsor': '#FFD700',
+  'Platinum Sponsor': '#E5E4E2',
+  'Gold Sponsor': '#FFBF00',
+  'Silver Sponsor': '#C0C0C0',
+  'Bronze Sponsor': '#CD7F32',
+  'Supporting Sponsor': '#A9A9A9',
+};
 
 export default function SponsorsScreen() {
   const colorScheme = useColorScheme();
@@ -36,12 +44,12 @@ export default function SponsorsScreen() {
   const router = useRouter();
 
   const [sponsors, setSponsors] = useState<Sponsor[]>([]);
-  const [sections, setSections] = useState<SponsorSection[]>([]);
-  const [filteredSections, setFilteredSections] = useState<SponsorSection[]>([]);
+  const [filteredSponsors, setFilteredSponsors] = useState<Sponsor[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
@@ -49,84 +57,66 @@ export default function SponsorsScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  const groupByLevel = useCallback((sponsorList: Sponsor[]): SponsorSection[] => {
-    const levelMap = new Map<string, Sponsor[]>();
-    
-    sponsorList.forEach(sponsor => {
-      const level = sponsor.level || 'Other';
-      if (!levelMap.has(level)) {
-        levelMap.set(level, []);
-      }
-      levelMap.get(level)!.push(sponsor);
-    });
-
-    const sectionsArray: SponsorSection[] = [];
-    levelMap.forEach((sponsorsInLevel, level) => {
-      sectionsArray.push({
-        title: level,
-        data: sponsorsInLevel,
-      });
-    });
-
-    return sectionsArray;
-  }, []);
-
   const loadSponsors = useCallback(async () => {
-    console.log('[API] Loading sponsors from backend proxy...');
+    console.log('[Sponsors] Loading sponsors from backend proxy...');
     try {
       setError(null);
       const response = await fetchSponsors();
-      console.log('[API] Sponsors loaded:', response.sponsors.length, 'source:', response.source_used);
+      console.log('[Sponsors] Loaded:', response.sponsors.length, 'source:', response.source_used);
       setSponsors(response.sponsors);
-      
-      const grouped = groupByLevel(response.sponsors);
-      setSections(grouped);
-      setFilteredSections(grouped);
+      setFilteredSponsors(response.sponsors);
     } catch (err) {
-      console.error('[API] Error loading sponsors:', err);
+      console.error('[Sponsors] Error loading sponsors:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unable to load sponsors. Pull to refresh.';
       setError(errorMessage);
       setSponsors([]);
-      setSections([]);
-      setFilteredSections([]);
+      setFilteredSponsors([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [groupByLevel]);
+  }, []);
 
   useEffect(() => {
     loadSponsors();
   }, [loadSponsors]);
 
   const onRefresh = useCallback(() => {
-    console.log('Refreshing sponsors...');
+    console.log('[Sponsors] Refreshing sponsors...');
     setRefreshing(true);
     loadSponsors();
   }, [loadSponsors]);
 
   const filterSponsors = useCallback(() => {
-    if (!searchQuery.trim()) {
-      setFilteredSections(sections);
-      return;
+    let filtered = sponsors;
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(sponsor => {
+        const nameMatch = sponsor.name.toLowerCase().includes(query);
+        const levelMatch = sponsor.level?.toLowerCase().includes(query);
+        return nameMatch || levelMatch;
+      });
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = sections.map(section => ({
-      title: section.title,
-      data: section.data.filter(sponsor => sponsor.name.toLowerCase().includes(query)),
-    })).filter(section => section.data.length > 0);
+    // Filter by selected letter
+    if (selectedLetter) {
+      filtered = filtered.filter(sponsor => 
+        sponsor.name.toUpperCase().startsWith(selectedLetter)
+      );
+    }
 
-    console.log('Filtered sponsor sections:', filtered.length);
-    setFilteredSections(filtered);
-  }, [searchQuery, sections]);
+    console.log('[Sponsors] Filtered:', filtered.length, 'from', sponsors.length);
+    setFilteredSponsors(filtered);
+  }, [searchQuery, selectedLetter, sponsors]);
 
   useEffect(() => {
     filterSponsors();
   }, [filterSponsors]);
 
   const handleSponsorPress = (sponsor: Sponsor) => {
-    console.log('Sponsor pressed:', sponsor.name);
+    console.log('[Sponsors] Sponsor pressed:', sponsor.name);
     router.push({
       pathname: '/sponsor-detail',
       params: {
@@ -135,7 +125,36 @@ export default function SponsorsScreen() {
     });
   };
 
+  const handleLetterPress = (letter: string) => {
+    console.log('[Sponsors] Letter pressed:', letter);
+    if (selectedLetter === letter) {
+      setSelectedLetter(null);
+    } else {
+      setSelectedLetter(letter);
+    }
+  };
+
+  const availableLetters = useMemo(() => {
+    const letters = new Set<string>();
+    sponsors.forEach(sponsor => {
+      const firstLetter = sponsor.name.charAt(0).toUpperCase();
+      if (ALPHABET.includes(firstLetter)) {
+        letters.add(firstLetter);
+      }
+    });
+    return letters;
+  }, [sponsors]);
+
+  const getTierBadgeColor = (tier: string | undefined): string => {
+    if (!tier) return colors.primary;
+    return TIER_COLORS[tier] || colors.primary;
+  };
+
   const renderSponsorCard = ({ item }: { item: Sponsor }) => {
+    const tierLabel = item.level || 'Sponsor';
+    const tierColor = getTierBadgeColor(item.level);
+    const hasTier = Boolean(item.level);
+
     return (
       <TouchableOpacity
         style={[styles.sponsorCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
@@ -163,20 +182,19 @@ export default function SponsorsScreen() {
         <Text style={[styles.sponsorName, { color: textColor }]} numberOfLines={2}>
           {item.name}
         </Text>
+        {hasTier && (
+          <View style={[styles.tierBadge, { backgroundColor: tierColor + '30', borderColor: tierColor }]}>
+            <Text style={[styles.tierText, { color: isDark ? '#FFFFFF' : '#000000' }]}>
+              {tierLabel}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
 
-  const renderSectionHeader = ({ section }: { section: SponsorSection }) => {
-    return (
-      <View style={[styles.sectionHeader, { backgroundColor: bgColor }]}>
-        <Text style={[styles.sectionHeaderText, { color: textColor }]}>{section.title}</Text>
-      </View>
-    );
-  };
-
   const loadingText = 'Loading sponsors...';
-  const emptyText = searchQuery ? 'No sponsors found' : 'No sponsors available';
+  const emptyText = searchQuery || selectedLetter ? 'No sponsors found' : 'No sponsors available';
 
   return (
     <>
@@ -219,6 +237,65 @@ export default function SponsorsScreen() {
           </View>
         </View>
 
+        {/* Alphabet Navigation */}
+        <View style={styles.alphabetContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.alphabetScroll}
+          >
+            {ALPHABET.map((letter) => {
+              const isAvailable = availableLetters.has(letter);
+              const isSelected = selectedLetter === letter;
+              
+              return (
+                <TouchableOpacity
+                  key={letter}
+                  style={[
+                    styles.letterButton,
+                    { 
+                      backgroundColor: isSelected ? colors.primary : cardBg,
+                      borderColor: borderColorValue,
+                      opacity: isAvailable ? 1 : 0.3,
+                    }
+                  ]}
+                  onPress={() => handleLetterPress(letter)}
+                  disabled={!isAvailable}
+                  activeOpacity={0.7}
+                >
+                  <Text 
+                    style={[
+                      styles.letterText, 
+                      { color: isSelected ? '#FFFFFF' : textColor }
+                    ]}
+                  >
+                    {letter}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {selectedLetter && (
+          <View style={styles.filterIndicator}>
+            <Text style={[styles.filterText, { color: secondaryTextColor }]}>
+              Showing sponsors starting with
+            </Text>
+            <Text style={[styles.filterLetter, { color: colors.primary }]}>
+              {selectedLetter}
+            </Text>
+            <TouchableOpacity onPress={() => setSelectedLetter(null)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="cancel"
+                size={20}
+                color={secondaryTextColor}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -240,7 +317,7 @@ export default function SponsorsScreen() {
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
-        ) : filteredSections.length === 0 ? (
+        ) : filteredSponsors.length === 0 ? (
           <View style={styles.centerContainer}>
             <IconSymbol
               ios_icon_name="heart.slash"
@@ -253,14 +330,14 @@ export default function SponsorsScreen() {
             </Text>
           </View>
         ) : (
-          <SectionList
-            sections={filteredSections}
+          <FlatList
+            data={filteredSponsors}
             renderItem={renderSponsorCard}
-            renderSectionHeader={renderSectionHeader}
             keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.row}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            stickySectionHeadersEnabled={true}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -282,7 +359,8 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   searchBar: {
     flexDirection: 'row',
@@ -296,6 +374,39 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
+  },
+  alphabetContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  alphabetScroll: {
+    gap: 8,
+  },
+  letterButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  letterText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  filterText: {
+    fontSize: 14,
+  },
+  filterLetter: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   centerContainer: {
     flex: 1,
@@ -331,20 +442,15 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  sectionHeader: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
-  },
-  sectionHeaderText: {
-    fontSize: 20,
-    fontWeight: 'bold',
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   sponsorCard: {
+    flex: 1,
+    maxWidth: '48%',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 12,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -355,12 +461,12 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     width: '100%',
-    height: 100,
+    height: 80,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   logo: {
     width: '90%',
@@ -374,8 +480,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   sponsorName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
+    marginBottom: 6,
+    minHeight: 36,
+  },
+  tierBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  tierText: {
+    fontSize: 11,
+    fontWeight: '600',
   },
 });
