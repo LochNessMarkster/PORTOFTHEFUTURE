@@ -4,7 +4,7 @@
     "slug": "port-of-the-future",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/images/poflogoappicon.png",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -14,7 +14,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.placeholder.app",
+      "bundleIdentifier": "com.portofthefutureconference.theportofthefuturecon",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
