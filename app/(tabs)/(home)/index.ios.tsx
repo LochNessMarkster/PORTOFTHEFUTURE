@@ -24,17 +24,18 @@ interface NavigationCard {
   ios_icon: string;
   android_icon: string;
   route?: string;
+  section: 'primary' | 'more';
 }
 
 const navigationCards: NavigationCard[] = [
-  { id: '1', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
-  { id: '2', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
-  { id: '3', title: 'Sponsors', ios_icon: 'award.fill', android_icon: 'star' },
-  { id: '4', title: 'Activities', ios_icon: 'ticket.fill', android_icon: 'event' },
-  { id: '5', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
-  { id: '6', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
-  { id: '7', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
-  { id: '8', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
+  { id: '1', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group', section: 'primary' },
+  { id: '2', title: 'Exhibitors', ios_icon: 'building.2.fill', android_icon: 'store', section: 'primary' },
+  { id: '3', title: 'Sponsors', ios_icon: 'heart.fill', android_icon: 'favorite', section: 'primary' },
+  { id: '4', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star', section: 'primary' },
+  { id: '5', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat', section: 'more' },
+  { id: '6', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description', section: 'more' },
+  { id: '7', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map', section: 'more' },
+  { id: '8', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark', section: 'more' },
 ];
 
 export default function HomeScreen() {
@@ -85,6 +86,9 @@ export default function HomeScreen() {
     console.log('Navigation card pressed:', card.title);
     
     switch (card.title) {
+      case 'Agenda':
+        router.push('/agenda');
+        break;
       case 'My Schedule':
         router.push('/my-schedule');
         break;
@@ -93,6 +97,9 @@ export default function HomeScreen() {
         break;
       case 'Activities':
         router.push('/activities');
+        break;
+      case 'Exhibitors':
+        router.push('/exhibitors');
         break;
       case 'Sponsors':
         router.push('/sponsors');
@@ -112,15 +119,6 @@ export default function HomeScreen() {
       default:
         console.log('Navigation not yet implemented for:', card.title);
         break;
-    }
-  };
-
-  const handleHeroButtonPress = (action: string) => {
-    console.log('Hero button pressed:', action);
-    if (action === 'agenda') {
-      router.push('/agenda');
-    } else if (action === 'exhibitors') {
-      router.push('/exhibitors');
     }
   };
 
@@ -160,6 +158,9 @@ export default function HomeScreen() {
   const dateText = 'March 24–25, 2026';
   const locationText = 'Houston, Texas';
 
+  const primaryCards = navigationCards.filter(card => card.section === 'primary');
+  const moreCards = navigationCards.filter(card => card.section === 'more');
+
   return (
     <>
       <Stack.Screen 
@@ -180,15 +181,15 @@ export default function HomeScreen() {
             />
           }
         >
-          {/* Hero Section with new design */}
+          {/* Hero Section */}
           <View style={styles.heroContainer}>
             <Image
-              source={resolveImageSource(require('@/assets/images/eeac7290-d562-46fd-817e-fd72642133f1.jpeg'))}
+              source={resolveImageSource(require('@/assets/images/1db53cbe-3e23-4820-b100-eef2e3151600.png'))}
               style={styles.heroImage}
               resizeMode="cover"
             />
             <LinearGradient
-              colors={['rgba(0, 0, 0, 0.55)', 'rgba(0, 0, 0, 0.75)']}
+              colors={['rgba(0, 0, 0, 0.4)', 'rgba(0, 0, 0, 0.7)']}
               style={styles.heroGradient}
             >
               <View style={styles.heroContent}>
@@ -199,68 +200,78 @@ export default function HomeScreen() {
                 />
                 <Text style={styles.heroDate}>{dateText}</Text>
                 <Text style={styles.heroLocation}>{locationText}</Text>
-                
-                {/* Hero Action Buttons */}
-                <View style={styles.heroButtonsContainer}>
-                  <TouchableOpacity
-                    style={styles.heroButton}
-                    onPress={() => handleHeroButtonPress('agenda')}
-                    activeOpacity={0.8}
-                  >
-                    <IconSymbol
-                      ios_icon_name="calendar"
-                      android_material_icon_name="calendar-today"
-                      size={24}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.heroButtonText}>View Agenda</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.heroButton}
-                    onPress={() => handleHeroButtonPress('exhibitors')}
-                    activeOpacity={0.8}
-                  >
-                    <IconSymbol
-                      ios_icon_name="building.2.fill"
-                      android_material_icon_name="store"
-                      size={24}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.heroButtonText}>Exhibitors</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             </LinearGradient>
           </View>
 
-          {/* PRIMARY Section Label */}
-          <View style={styles.sectionLabelContainer}>
-            <Text style={styles.sectionLabel}>PRIMARY</Text>
+          {/* Hero Action Buttons */}
+          <View style={styles.heroActionsContainer}>
+            <TouchableOpacity
+              style={styles.heroActionButton}
+              onPress={() => router.push('/agenda')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.heroActionButtonText}>View Agenda</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.heroActionButton}
+              onPress={() => router.push('/exhibitors')}
+              activeOpacity={0.8}
+            >
+              <IconSymbol
+                ios_icon_name="building.2.fill"
+                android_material_icon_name="store"
+                size={20}
+                color={colors.text}
+              />
+              <Text style={styles.heroActionButtonText}>Exhibitors</Text>
+            </TouchableOpacity>
           </View>
 
-          {/* Navigation Cards Grid - 2 columns */}
-          <View style={styles.gridContainer}>
-            {navigationCards.map((card) => (
-              <TouchableOpacity
-                key={card.id}
-                style={styles.navCard}
-                onPress={() => handleCardPress(card)}
-                activeOpacity={0.7}
-              >
-                <View style={styles.iconContainer}>
+          {/* PRIMARY Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionLabel}>PRIMARY</Text>
+            <View style={styles.gridContainer}>
+              {primaryCards.map((card) => (
+                <TouchableOpacity
+                  key={card.id}
+                  style={styles.navCard}
+                  onPress={() => handleCardPress(card)}
+                  activeOpacity={0.7}
+                >
                   <IconSymbol
                     ios_icon_name={card.ios_icon}
                     android_material_icon_name={card.android_icon}
-                    size={40}
+                    size={36}
                     color="#5EEBFF"
                   />
-                </View>
-                <Text style={styles.navCardTitle} numberOfLines={2}>
-                  {card.title}
-                </Text>
-              </TouchableOpacity>
-            ))}
+                  <Text style={styles.navCardTitle}>{card.title}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* MORE Section */}
+          <View style={styles.sectionContainer}>
+            <Text style={styles.sectionLabel}>MORE</Text>
+            <View style={styles.gridContainer}>
+              {moreCards.map((card) => (
+                <TouchableOpacity
+                  key={card.id}
+                  style={styles.navCard}
+                  onPress={() => handleCardPress(card)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name={card.ios_icon}
+                    android_material_icon_name={card.android_icon}
+                    size={36}
+                    color="#5EEBFF"
+                  />
+                  <Text style={styles.navCardTitle}>{card.title}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
           </View>
 
           {/* Announcements Section */}
@@ -270,7 +281,7 @@ export default function HomeScreen() {
                 ios_icon_name="megaphone.fill"
                 android_material_icon_name="campaign"
                 size={24}
-                color={colors.primary}
+                color="#5EEBFF"
               />
               <Text style={styles.sectionTitle}>Announcements</Text>
             </View>
@@ -378,7 +389,7 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
+    backgroundColor: '#0D2438',
   },
   scrollView: {
     flex: 1,
@@ -388,7 +399,7 @@ const styles = StyleSheet.create({
   },
   heroContainer: {
     width: '100%',
-    height: 420,
+    height: 340,
     position: 'relative',
   },
   heroImage: {
@@ -408,108 +419,101 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    width: '100%',
   },
   heroLogo: {
-    width: 280,
-    height: 100,
-    marginBottom: 16,
+    width: 320,
+    height: 140,
+    marginBottom: 20,
   },
   heroDate: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text,
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 6,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
   heroLocation: {
-    fontSize: 18,
-    fontWeight: '500',
-    color: colors.text,
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#FFFFFF',
     textAlign: 'center',
-    marginBottom: 24,
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowColor: 'rgba(0, 0, 0, 0.8)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  heroButtonsContainer: {
+  heroActionsContainer: {
     flexDirection: 'row',
-    width: '100%',
     paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 12,
     gap: 12,
   },
-  heroButton: {
+  heroActionButton: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(30, 144, 255, 0.85)',
+    backgroundColor: '#1A5F7A',
+    borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 20,
-    borderRadius: 14,
-    gap: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
+    shadowOffset: { width: 0, height: 3 },
     shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
+    shadowRadius: 6,
+    elevation: 5,
   },
-  heroButtonText: {
-    fontSize: 16,
+  heroActionButtonText: {
+    fontSize: 17,
     fontWeight: '700',
     color: '#FFFFFF',
-    textAlign: 'center',
   },
-  sectionLabelContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 12,
+  sectionContainer: {
+    paddingHorizontal: 16,
+    marginTop: 20,
   },
   sectionLabel: {
     fontSize: 14,
     fontWeight: '700',
-    color: colors.textMuted,
+    color: '#5EEBFF',
+    marginBottom: 12,
     letterSpacing: 1.2,
   },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
     gap: 12,
   },
   navCard: {
     width: 'calc(50% - 6px)',
-    height: 140,
     backgroundColor: '#1A3A52',
     borderRadius: 16,
-    padding: 16,
+    paddingVertical: 28,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(94, 235, 255, 0.2)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
     shadowRadius: 6,
     elevation: 4,
   },
-  iconContainer: {
-    marginBottom: 12,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   navCardTitle: {
-    fontSize: 15,
-    fontWeight: '600',
+    fontSize: 16,
+    fontWeight: '700',
     textAlign: 'center',
-    color: colors.text,
+    color: '#FFFFFF',
+    marginTop: 12,
   },
   announcementsSection: {
     paddingHorizontal: 16,
-    paddingTop: 24,
+    marginTop: 28,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -519,8 +523,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    marginLeft: 8,
-    color: colors.text,
+    marginLeft: 10,
+    color: '#FFFFFF',
   },
   loadingContainer: {
     padding: 40,
@@ -535,9 +539,9 @@ const styles = StyleSheet.create({
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: '#1A3A52',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(94, 235, 255, 0.2)',
   },
   errorText: {
     fontSize: 15,
@@ -561,9 +565,9 @@ const styles = StyleSheet.create({
     padding: 40,
     borderRadius: 16,
     alignItems: 'center',
-    backgroundColor: colors.card,
+    backgroundColor: '#1A3A52',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(94, 235, 255, 0.2)',
   },
   emptyText: {
     fontSize: 15,
@@ -575,9 +579,9 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 18,
     marginBottom: 12,
-    backgroundColor: colors.card,
+    backgroundColor: '#1A3A52',
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: 'rgba(94, 235, 255, 0.2)',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.3,
@@ -595,7 +599,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     marginBottom: 6,
-    color: colors.text,
+    color: '#FFFFFF',
   },
   alertChip: {
     alignSelf: 'flex-start',
