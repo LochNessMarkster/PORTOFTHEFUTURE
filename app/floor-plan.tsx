@@ -15,9 +15,8 @@ import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { GestureHandlerRootView, PinchGestureHandler, PinchGestureHandlerGestureEvent } from 'react-native-gesture-handler';
+import { GestureHandlerRootView, GestureDetector, Gesture } from 'react-native-gesture-handler';
 import Animated, {
-  useAnimatedGestureHandler,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -51,11 +50,12 @@ export default function FloorPlanScreen() {
   const venuePhone = '832-531-6300';
   const venueName = 'Hilton University Houston';
 
-  const pinchHandler = useAnimatedGestureHandler<PinchGestureHandlerGestureEvent>({
-    onActive: (event) => {
+  // Modern Gesture API for pinch-to-zoom
+  const pinchGesture = Gesture.Pinch()
+    .onUpdate((event) => {
       scale.value = savedScale.value * event.scale;
-    },
-    onEnd: () => {
+    })
+    .onEnd(() => {
       savedScale.value = scale.value;
       // Limit zoom range
       if (scale.value < 1) {
@@ -65,8 +65,7 @@ export default function FloorPlanScreen() {
         scale.value = withTiming(4);
         savedScale.value = 4;
       }
-    },
-  });
+    });
 
   const animatedStyle = useAnimatedStyle(() => {
     return {
@@ -123,7 +122,7 @@ export default function FloorPlanScreen() {
 
           {/* Floor Plan Image with Pinch-to-Zoom - NOW AT THE TOP */}
           <View style={[styles.floorPlanContainer, { backgroundColor: cardBg }]}>
-            <PinchGestureHandler onGestureEvent={pinchHandler}>
+            <GestureDetector gesture={pinchGesture}>
               <Animated.View style={[styles.imageWrapper, animatedStyle]}>
                 <Image
                   key={resetZoom}
@@ -132,7 +131,7 @@ export default function FloorPlanScreen() {
                   resizeMode="contain"
                 />
               </Animated.View>
-            </PinchGestureHandler>
+            </GestureDetector>
           </View>
 
           {/* Reset Zoom Button */}
