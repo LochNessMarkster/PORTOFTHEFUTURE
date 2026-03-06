@@ -264,7 +264,7 @@ export default function SpeakersScreen() {
             {displayName}
           </Text>
           {displayTitle && (
-            <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={2}>
+            <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={3}>
               {displayTitle}
             </Text>
           )}
@@ -546,7 +546,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    minHeight: 200,
+    minHeight: 215,
   },
   photoContainer: {
     alignItems: 'center',
@@ -579,7 +579,7 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 4,
-    lineHeight: 17,
+    lineHeight: 16,
   },
   speakerOrganization: {
     fontSize: 12,
