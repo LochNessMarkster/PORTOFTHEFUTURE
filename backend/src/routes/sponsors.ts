@@ -44,13 +44,17 @@ export function register(app: App, fastify: FastifyInstance) {
     async (request) => {
       app.logger.info('Fetching sponsors');
 
-      const result = await getSponsors();
+      const result = await getSponsors({
+        info: (msg, obj) => app.logger.info(obj, msg),
+        error: (msg, obj) => app.logger.error(obj, msg),
+      });
+
       app.logger.info(
         {
           source: result.source_used,
           count: result.sponsors.length,
         },
-        'Sponsors fetched successfully'
+        'Sponsors endpoint completed'
       );
       return result;
     }
