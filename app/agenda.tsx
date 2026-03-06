@@ -31,6 +31,25 @@ const TRACK_COLORS: Record<string, string> = {
   'Emergency Management': '#F59E0B',
 };
 
+// Predefined track/type options
+const TRACK_OPTIONS = [
+  'All Tracks',
+  'Track 1 - Ensuring America\'s Maritime Security',
+  'Track 2 - Developing Ports',
+  'Track 3 - Intermodal Connectivity',
+  'Track 4 - Enhancing Ports\' Operational Efficiencies',
+  'Track 5 - Port Infrastructure 4.0',
+  'Track 6 - Decarbonization and Alternative Fuels',
+  'Track 7 - Port Energy and Sustainability',
+  'Track 8 - Port Security, Cybersecurity, & Emergency Management',
+  'Special Event',
+  'Pre-Conference / Social',
+  'Keynote & Plenary',
+  'Break',
+  'Luncheon (By Invitation)',
+  'Pre-Conference',
+];
+
 export default function AgendaScreen() {
   const colorScheme = useColorScheme();
   const router = useRouter();
@@ -41,8 +60,8 @@ export default function AgendaScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
-  // Day selector state - default to March 24
-  const [selectedDay, setSelectedDay] = useState<'2026-03-23' | '2026-03-24' | '2026-03-25'>('2026-03-24');
+  // Day selector state - default to 'All'
+  const [selectedDay, setSelectedDay] = useState<'All' | '2026-03-23' | '2026-03-24' | '2026-03-25'>('All');
   
   // Track filter state
   const [selectedTrack, setSelectedTrack] = useState<string>('All Tracks');
@@ -152,26 +171,6 @@ export default function AgendaScreen() {
     loadAgenda();
   }, []);
 
-  // Get available tracks for the selected day
-  const availableTracks = useMemo(() => {
-    const tracksForDay = new Set<string>();
-    allSessions.forEach(session => {
-      if (session.Date === selectedDay && session.TypeTrack) {
-        tracksForDay.add(session.TypeTrack);
-      }
-    });
-    
-    // Sort tracks numerically if they start with numbers
-    const sortedTracks = Array.from(tracksForDay).sort((a, b) => {
-      const numA = parseInt(a.match(/^\d+/)?.[0] || '999');
-      const numB = parseInt(b.match(/^\d+/)?.[0] || '999');
-      if (numA !== numB) return numA - numB;
-      return a.localeCompare(b);
-    });
-    
-    return ['All Tracks', ...sortedTracks];
-  }, [allSessions, selectedDay]);
-
   // Filter sessions by day, track, and search
   // Note: allSessions is already sorted by Date → StartTime → Title from fetchAgenda()
   const filteredSessions = useMemo(() => {
@@ -179,8 +178,10 @@ export default function AgendaScreen() {
     
     let filtered = allSessions;
     
-    // Filter by selected day
-    filtered = filtered.filter(session => session.Date === selectedDay);
+    // Filter by selected day (if not 'All')
+    if (selectedDay !== 'All') {
+      filtered = filtered.filter(session => session.Date === selectedDay);
+    }
     
     // Filter by track
     if (selectedTrack !== 'All Tracks') {
@@ -349,7 +350,7 @@ export default function AgendaScreen() {
             </TouchableOpacity>
           </View>
           <ScrollView style={styles.dropdownScroll}>
-            {availableTracks.map((track, index) => {
+            {TRACK_OPTIONS.map((track, index) => {
               const isSelected = track === selectedTrack;
               const trackColor = getTrackColor(track === 'All Tracks' ? undefined : track);
               
@@ -446,12 +447,29 @@ export default function AgendaScreen() {
           <TouchableOpacity
             style={[
               styles.dayButton,
+              selectedDay === 'All' && styles.dayButtonSelected
+            ]}
+            onPress={() => {
+              console.log('Selected day: All');
+              setSelectedDay('All');
+            }}
+          >
+            <Text style={[
+              styles.dayButtonText,
+              selectedDay === 'All' && styles.dayButtonTextSelected
+            ]}>
+              All
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[
+              styles.dayButton,
               selectedDay === '2026-03-23' && styles.dayButtonSelected
             ]}
             onPress={() => {
               console.log('Selected day: March 23');
               setSelectedDay('2026-03-23');
-              setSelectedTrack('All Tracks'); // Reset track filter when changing day
             }}
           >
             <Text style={[
@@ -470,7 +488,6 @@ export default function AgendaScreen() {
             onPress={() => {
               console.log('Selected day: March 24');
               setSelectedDay('2026-03-24');
-              setSelectedTrack('All Tracks');
             }}
           >
             <Text style={[
@@ -489,7 +506,6 @@ export default function AgendaScreen() {
             onPress={() => {
               console.log('Selected day: March 25');
               setSelectedDay('2026-03-25');
-              setSelectedTrack('All Tracks');
             }}
           >
             <Text style={[
@@ -556,7 +572,7 @@ export default function AgendaScreen() {
               color={colors.textSecondary}
             />
             <Text style={styles.emptyText}>
-              {searchQuery ? 'No sessions found' : 'No sessions for this day'}
+              {searchQuery ? 'No sessions found' : 'No sessions match the selected filters'}
             </Text>
             {!searchQuery && (
               <Text style={styles.emptySubtext}>
@@ -624,7 +640,7 @@ const styles = StyleSheet.create({
   dayButton: {
     flex: 1,
     paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingHorizontal: 8,
     borderRadius: 12,
     backgroundColor: colors.cardAlt,
     alignItems: 'center',
