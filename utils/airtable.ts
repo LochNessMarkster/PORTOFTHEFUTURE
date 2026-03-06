@@ -5,7 +5,7 @@
 // This file retains Speakers, Activities, Exhibitors, Sponsors, and Announcements from Airtable.
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AIRTABLE CACHE (Speakers, Activities, Exhibitors, Sponsors, Announcements)
+// AIRTABLE CACHE (Speakers, Activities, Announcements)
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AIRTABLE_BASE_URL = 'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd';
@@ -140,88 +140,64 @@ export const fetchActivities = async (): Promise<Activity[]> => {
   return activities;
 };
 
-// Exhibitor Types
-export interface RawExhibitorFields {
-  'Name': string;
-  'Description'?: string;
-  'Logo Url'?: { url: string; thumbnails?: { large: { url: string } } }[];
-}
-
+// Exhibitor Types (now from backend proxy)
 export interface Exhibitor {
   id: string;
   name: string;
   description?: string;
-  logo_url?: string;
+  boothNumber?: string;
+  address?: string;
+  url?: string;
+  linkedIn?: string;
+  facebook?: string;
+  x?: string;
+  primaryContactName?: string;
+  primaryContactTitle?: string;
+  primaryContactEmail?: string;
+  primaryDirectPhone?: string;
+  adminPhoneBooth?: string;
+  logoUrl: string;
 }
 
-export const mapAirtableExhibitor = (record: AirtableRecord<RawExhibitorFields>): Exhibitor => {
-  const fields = record.fields;
-  const logo = fields['Logo Url']?.[0];
-
-  return {
-    id: record.id,
-    name: fields.Name || '',
-    description: fields.Description,
-    logo_url: logo?.thumbnails?.large?.url || logo?.url,
-  };
-};
-
-export const fetchExhibitors = async (): Promise<Exhibitor[]> => {
-  console.log('Fetching exhibitors...');
-  const rawRecords = await fetchPaginatedAirtableData<RawExhibitorFields>('tblzex4bjwEZh1021');
-  const exhibitors = rawRecords.map(mapAirtableExhibitor);
-
-  // Sort A-Z by name
-  exhibitors.sort((a, b) => a.name.localeCompare(b.name));
-
-  console.log('Exhibitors sorted:', exhibitors.length);
-  return exhibitors;
-};
-
-// Sponsor Types
-export interface RawSponsorFields {
-  'Sponsor Name': string;
-  'Sponsor Level': string;
-  'Sponsor Bio'?: string;
-  'LogoGraphic'?: { url: string; thumbnails?: { large: { url: string } } }[];
+export interface ExhibitorsResponse {
+  updated_at: string;
+  source_used: 'airtablecache' | 'airtable';
+  exhibitors: Exhibitor[];
 }
 
+/**
+ * Fetch exhibitors from the backend proxy endpoint.
+ * The backend handles caching (24h TTL), Airtable pagination, sorting (Name A-Z), and fallback logic.
+ */
+export const fetchExhibitors = (): Promise<ExhibitorsResponse> =>
+  apiGet<ExhibitorsResponse>('/api/exhibitors');
+
+// Sponsor Types (now from backend proxy)
 export interface Sponsor {
   id: string;
   name: string;
   level: string;
   bio?: string;
-  logo_url?: string;
+  companyUrl?: string;
+  email?: string;
+  linkedIn?: string;
+  facebook?: string;
+  x?: string;
+  logoUrl: string;
 }
 
-export const mapAirtableSponsor = (record: AirtableRecord<RawSponsorFields>): Sponsor => {
-  const fields = record.fields;
-  const logo = fields.LogoGraphic?.[0];
+export interface SponsorsResponse {
+  updated_at: string;
+  source_used: 'airtablecache' | 'airtable';
+  sponsors: Sponsor[];
+}
 
-  return {
-    id: record.id,
-    name: fields['Sponsor Name'] || '',
-    level: fields['Sponsor Level'] || '',
-    bio: fields['Sponsor Bio'],
-    logo_url: logo?.thumbnails?.large?.url || logo?.url,
-  };
-};
-
-export const fetchSponsors = async (): Promise<Sponsor[]> => {
-  console.log('Fetching sponsors...');
-  const rawRecords = await fetchPaginatedAirtableData<RawSponsorFields>('tblgWrwRvpdcVG8');
-  const sponsors = rawRecords.map(mapAirtableSponsor);
-
-  // Sort by level, then alphabetically within level
-  sponsors.sort((a, b) => {
-    const levelCompare = a.level.localeCompare(b.level);
-    if (levelCompare !== 0) return levelCompare;
-    return a.name.localeCompare(b.name);
-  });
-
-  console.log('Sponsors sorted:', sponsors.length);
-  return sponsors;
-};
+/**
+ * Fetch sponsors from the backend proxy endpoint.
+ * The backend handles caching (24h TTL), Airtable pagination, sorting (Level then Name), and fallback logic.
+ */
+export const fetchSponsors = (): Promise<SponsorsResponse> =>
+  apiGet<SponsorsResponse>('/api/sponsors');
 
 // Port Types
 export interface RawPortFields {

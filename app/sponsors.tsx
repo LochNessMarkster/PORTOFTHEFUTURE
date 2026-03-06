@@ -11,6 +11,7 @@ import {
   useColorScheme,
   Image,
   ImageSourcePropType,
+  RefreshControl,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,6 +39,7 @@ export default function SponsorsScreen() {
   const [sections, setSections] = useState<SponsorSection[]>([]);
   const [filteredSections, setFilteredSections] = useState<SponsorSection[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -70,28 +72,36 @@ export default function SponsorsScreen() {
   }, []);
 
   const loadSponsors = useCallback(async () => {
-    console.log('Loading sponsors...');
+    console.log('[API] Loading sponsors from backend proxy...');
     try {
-      setLoading(true);
       setError(null);
-      const data = await fetchSponsors();
-      console.log('Sponsors loaded:', data.length);
-      setSponsors(data);
+      const response = await fetchSponsors();
+      console.log('[API] Sponsors loaded:', response.sponsors.length, 'source:', response.source_used);
+      setSponsors(response.sponsors);
       
-      // Group by level
-      const grouped = groupByLevel(data);
+      const grouped = groupByLevel(response.sponsors);
       setSections(grouped);
       setFilteredSections(grouped);
     } catch (err) {
-      console.error('Error loading sponsors:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load sponsors';
+      console.error('[API] Error loading sponsors:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unable to load sponsors. Pull to refresh.';
       setError(errorMessage);
+      setSponsors([]);
+      setSections([]);
+      setFilteredSections([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, [groupByLevel]);
 
   useEffect(() => {
+    loadSponsors();
+  }, [loadSponsors]);
+
+  const onRefresh = useCallback(() => {
+    console.log('Refreshing sponsors...');
+    setRefreshing(true);
     loadSponsors();
   }, [loadSponsors]);
 
@@ -120,11 +130,7 @@ export default function SponsorsScreen() {
     router.push({
       pathname: '/sponsor-detail',
       params: {
-        id: sponsor.id,
-        name: sponsor.name,
-        level: sponsor.level,
-        bio: sponsor.bio || '',
-        logo_url: sponsor.logo_url || '',
+        sponsorData: JSON.stringify(sponsor),
       },
     });
   };
@@ -137,9 +143,9 @@ export default function SponsorsScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.logoContainer}>
-          {item.logo_url ? (
+          {item.logoUrl ? (
             <Image
-              source={resolveImageSource(item.logo_url)}
+              source={resolveImageSource(item.logoUrl)}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -169,6 +175,9 @@ export default function SponsorsScreen() {
     );
   };
 
+  const loadingText = 'Loading sponsors...';
+  const emptyText = searchQuery ? 'No sponsors found' : 'No sponsors available';
+
   return (
     <>
       <Stack.Screen
@@ -182,7 +191,6 @@ export default function SponsorsScreen() {
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
             <IconSymbol
@@ -214,7 +222,7 @@ export default function SponsorsScreen() {
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading sponsors...</Text>
+            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>{loadingText}</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
@@ -236,12 +244,12 @@ export default function SponsorsScreen() {
           <View style={styles.centerContainer}>
             <IconSymbol
               ios_icon_name="heart.slash"
-              android_material_icon_name="heart-broken"
+              android_material_icon_name="favorite"
               size={48}
               color={secondaryTextColor}
             />
             <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-              {searchQuery ? 'No sponsors found' : 'No sponsors available'}
+              {emptyText}
             </Text>
           </View>
         ) : (
@@ -253,6 +261,14 @@ export default function SponsorsScreen() {
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             stickySectionHeadersEnabled={true}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
           />
         )}
       </SafeAreaView>

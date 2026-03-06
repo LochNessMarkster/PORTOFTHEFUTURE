@@ -8,10 +8,14 @@ import {
   useColorScheme,
   Image,
   ImageSourcePropType,
+  TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
+import { IconSymbol } from '@/components/IconSymbol';
+import { Sponsor } from '@/utils/airtable';
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -26,12 +30,32 @@ export default function SponsorDetailScreen() {
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
-  const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
+  const cardBg = isDark ? colors.cardDark : colors.card;
+  const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  const name = params.name as string;
-  const level = params.level as string;
-  const bio = params.bio as string;
-  const logoUrl = params.logo_url as string;
+  const sponsor: Sponsor = JSON.parse(params.sponsorData as string);
+
+  const handleLinkPress = (url: string) => {
+    console.log('Opening URL:', url);
+    Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
+  };
+
+  const handleEmailPress = () => {
+    if (sponsor.email) {
+      const mailtoUrl = `mailto:${sponsor.email}`;
+      handleLinkPress(mailtoUrl);
+    }
+  };
+
+  const logoPlaceholderText = sponsor.name.charAt(0);
+  const hasLevel = Boolean(sponsor.level);
+  const hasBio = Boolean(sponsor.bio);
+  const hasCompanyUrl = Boolean(sponsor.companyUrl);
+  const hasEmail = Boolean(sponsor.email);
+  const hasLinkedIn = Boolean(sponsor.linkedIn);
+  const hasFacebook = Boolean(sponsor.facebook);
+  const hasX = Boolean(sponsor.x);
+  const hasLinks = hasCompanyUrl || hasEmail || hasLinkedIn || hasFacebook || hasX;
 
   return (
     <>
@@ -47,40 +71,153 @@ export default function SponsorDetailScreen() {
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          {/* Logo */}
           <View style={styles.logoSection}>
             <View style={styles.logoContainer}>
-              {logoUrl ? (
+              {sponsor.logoUrl ? (
                 <Image
-                  source={resolveImageSource(logoUrl)}
+                  source={resolveImageSource(sponsor.logoUrl)}
                   style={styles.logo}
                   resizeMode="contain"
                 />
               ) : (
                 <View style={styles.logoPlaceholder}>
                   <Text style={[styles.logoPlaceholderText, { color: colors.primary }]}>
-                    {name.charAt(0)}
+                    {logoPlaceholderText}
                   </Text>
                 </View>
               )}
             </View>
           </View>
 
-          {/* Name and Level */}
           <View style={styles.headerSection}>
-            <Text style={[styles.name, { color: textColor }]}>{name}</Text>
-            {level && (
+            <Text style={[styles.name, { color: textColor }]}>{sponsor.name}</Text>
+            {hasLevel && (
               <View style={[styles.levelBadge, { backgroundColor: colors.primary + '20' }]}>
-                <Text style={[styles.levelText, { color: colors.primary }]}>{level}</Text>
+                <Text style={[styles.levelText, { color: colors.primary }]}>{sponsor.level}</Text>
               </View>
             )}
           </View>
 
-          {/* Bio */}
-          {bio && (
+          {hasBio && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: textColor }]}>About</Text>
-              <Text style={[styles.bio, { color: textColor }]}>{bio}</Text>
+              <Text style={[styles.bio, { color: textColor }]}>{sponsor.bio}</Text>
+            </View>
+          )}
+
+          {hasLinks && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: textColor }]}>Connect</Text>
+
+              {hasCompanyUrl && (
+                <TouchableOpacity
+                  style={[styles.linkButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={() => handleLinkPress(sponsor.companyUrl!)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="globe"
+                    android_material_icon_name="language"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.linkButtonText, { color: colors.primary }]}>Visit Website</Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.right"
+                    android_material_icon_name="arrow-forward"
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+
+              {hasEmail && (
+                <TouchableOpacity
+                  style={[styles.linkButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={handleEmailPress}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="envelope.fill"
+                    android_material_icon_name="email"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.linkButtonText, { color: colors.primary }]}>Send Email</Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.right"
+                    android_material_icon_name="arrow-forward"
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+
+              {hasLinkedIn && (
+                <TouchableOpacity
+                  style={[styles.linkButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={() => handleLinkPress(sponsor.linkedIn!)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="link"
+                    android_material_icon_name="link"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.linkButtonText, { color: colors.primary }]}>LinkedIn</Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.right"
+                    android_material_icon_name="arrow-forward"
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+
+              {hasFacebook && (
+                <TouchableOpacity
+                  style={[styles.linkButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={() => handleLinkPress(sponsor.facebook!)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="link"
+                    android_material_icon_name="link"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.linkButtonText, { color: colors.primary }]}>Facebook</Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.right"
+                    android_material_icon_name="arrow-forward"
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+
+              {hasX && (
+                <TouchableOpacity
+                  style={[styles.linkButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={() => handleLinkPress(sponsor.x!)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="link"
+                    android_material_icon_name="link"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.linkButtonText, { color: colors.primary }]}>X (Twitter)</Text>
+                  <IconSymbol
+                    ios_icon_name="chevron.right"
+                    android_material_icon_name="arrow-forward"
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
             </View>
           )}
         </ScrollView>
@@ -160,5 +297,19 @@ const styles = StyleSheet.create({
   bio: {
     fontSize: 15,
     lineHeight: 22,
+  },
+  linkButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    borderWidth: 1,
+    gap: 12,
+  },
+  linkButtonText: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
   },
 });

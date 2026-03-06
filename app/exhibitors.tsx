@@ -11,6 +11,7 @@ import {
   useColorScheme,
   Image,
   ImageSourcePropType,
+  RefreshControl,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +33,7 @@ export default function ExhibitorsScreen() {
   const [exhibitors, setExhibitors] = useState<Exhibitor[]>([]);
   const [filteredExhibitors, setFilteredExhibitors] = useState<Exhibitor[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -42,24 +44,32 @@ export default function ExhibitorsScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadExhibitors = useCallback(async () => {
-    console.log('Loading exhibitors...');
+    console.log('[API] Loading exhibitors from backend proxy...');
     try {
-      setLoading(true);
       setError(null);
-      const data = await fetchExhibitors();
-      console.log('Exhibitors loaded:', data.length);
-      setExhibitors(data);
-      setFilteredExhibitors(data);
+      const response = await fetchExhibitors();
+      console.log('[API] Exhibitors loaded:', response.exhibitors.length, 'source:', response.source_used);
+      setExhibitors(response.exhibitors);
+      setFilteredExhibitors(response.exhibitors);
     } catch (err) {
-      console.error('Error loading exhibitors:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load exhibitors';
+      console.error('[API] Error loading exhibitors:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Unable to load exhibitors. Pull to refresh.';
       setError(errorMessage);
+      setExhibitors([]);
+      setFilteredExhibitors([]);
     } finally {
       setLoading(false);
+      setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
+    loadExhibitors();
+  }, [loadExhibitors]);
+
+  const onRefresh = useCallback(() => {
+    console.log('Refreshing exhibitors...');
+    setRefreshing(true);
     loadExhibitors();
   }, [loadExhibitors]);
 
@@ -72,7 +82,8 @@ export default function ExhibitorsScreen() {
     const query = searchQuery.toLowerCase();
     const filtered = exhibitors.filter(exhibitor => {
       const nameMatch = exhibitor.name.toLowerCase().includes(query);
-      return nameMatch;
+      const boothMatch = exhibitor.boothNumber?.toLowerCase().includes(query);
+      return nameMatch || boothMatch;
     });
 
     console.log('Filtered exhibitors:', filtered.length, 'from', exhibitors.length);
@@ -88,15 +99,15 @@ export default function ExhibitorsScreen() {
     router.push({
       pathname: '/exhibitor-detail',
       params: {
-        id: exhibitor.id,
-        name: exhibitor.name,
-        description: exhibitor.description || '',
-        logo_url: exhibitor.logo_url || '',
+        exhibitorData: JSON.stringify(exhibitor),
       },
     });
   };
 
   const renderExhibitorCard = ({ item }: { item: Exhibitor }) => {
+    const boothLabel = item.boothNumber ? `Booth ${item.boothNumber}` : '';
+    const hasBoothNumber = Boolean(item.boothNumber);
+
     return (
       <TouchableOpacity
         style={[styles.exhibitorCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
@@ -104,9 +115,9 @@ export default function ExhibitorsScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.logoContainer}>
-          {item.logo_url ? (
+          {item.logoUrl ? (
             <Image
-              source={resolveImageSource(item.logo_url)}
+              source={resolveImageSource(item.logoUrl)}
               style={styles.logo}
               resizeMode="contain"
             />
@@ -124,9 +135,19 @@ export default function ExhibitorsScreen() {
         <Text style={[styles.exhibitorName, { color: textColor }]} numberOfLines={2}>
           {item.name}
         </Text>
+        {hasBoothNumber && (
+          <View style={[styles.boothChip, { backgroundColor: colors.primary + '20' }]}>
+            <Text style={[styles.boothText, { color: colors.primary }]}>
+              {boothLabel}
+            </Text>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
+
+  const loadingText = 'Loading exhibitors...';
+  const emptyText = searchQuery ? 'No exhibitors found' : 'No exhibitors available';
 
   return (
     <>
@@ -141,7 +162,6 @@ export default function ExhibitorsScreen() {
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
             <IconSymbol
@@ -173,7 +193,7 @@ export default function ExhibitorsScreen() {
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading exhibitors...</Text>
+            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>{loadingText}</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
@@ -200,7 +220,7 @@ export default function ExhibitorsScreen() {
               color={secondaryTextColor}
             />
             <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-              {searchQuery ? 'No exhibitors found' : 'No exhibitors available'}
+              {emptyText}
             </Text>
           </View>
         ) : (
@@ -210,6 +230,14 @@ export default function ExhibitorsScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
           />
         )}
       </SafeAreaView>
@@ -308,5 +336,15 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  boothChip: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 12,
+  },
+  boothText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });
