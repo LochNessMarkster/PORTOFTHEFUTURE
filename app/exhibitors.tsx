@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Image,
   ImageSourcePropType,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,6 +26,8 @@ function resolveImageSource(source: string | number | ImageSourcePropType | unde
   return source as ImageSourcePropType;
 }
 
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
 export default function ExhibitorsScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -36,6 +39,7 @@ export default function ExhibitorsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
@@ -44,15 +48,15 @@ export default function ExhibitorsScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadExhibitors = useCallback(async () => {
-    console.log('[API] Loading exhibitors from backend proxy...');
+    console.log('[Exhibitors] Loading exhibitors from backend proxy...');
     try {
       setError(null);
       const response = await fetchExhibitors();
-      console.log('[API] Exhibitors loaded:', response.exhibitors.length, 'source:', response.source_used);
+      console.log('[Exhibitors] Loaded:', response.exhibitors.length, 'source:', response.source_used);
       setExhibitors(response.exhibitors);
       setFilteredExhibitors(response.exhibitors);
     } catch (err) {
-      console.error('[API] Error loading exhibitors:', err);
+      console.error('[Exhibitors] Error loading exhibitors:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unable to load exhibitors. Pull to refresh.';
       setError(errorMessage);
       setExhibitors([]);
@@ -68,34 +72,41 @@ export default function ExhibitorsScreen() {
   }, [loadExhibitors]);
 
   const onRefresh = useCallback(() => {
-    console.log('Refreshing exhibitors...');
+    console.log('[Exhibitors] Refreshing exhibitors...');
     setRefreshing(true);
     loadExhibitors();
   }, [loadExhibitors]);
 
   const filterExhibitors = useCallback(() => {
-    if (!searchQuery.trim()) {
-      setFilteredExhibitors(exhibitors);
-      return;
+    let filtered = exhibitors;
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(exhibitor => {
+        const nameMatch = exhibitor.name.toLowerCase().includes(query);
+        const boothMatch = exhibitor.boothNumber?.toLowerCase().includes(query);
+        return nameMatch || boothMatch;
+      });
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = exhibitors.filter(exhibitor => {
-      const nameMatch = exhibitor.name.toLowerCase().includes(query);
-      const boothMatch = exhibitor.boothNumber?.toLowerCase().includes(query);
-      return nameMatch || boothMatch;
-    });
+    // Filter by selected letter
+    if (selectedLetter) {
+      filtered = filtered.filter(exhibitor => 
+        exhibitor.name.toUpperCase().startsWith(selectedLetter)
+      );
+    }
 
-    console.log('Filtered exhibitors:', filtered.length, 'from', exhibitors.length);
+    console.log('[Exhibitors] Filtered:', filtered.length, 'from', exhibitors.length);
     setFilteredExhibitors(filtered);
-  }, [searchQuery, exhibitors]);
+  }, [searchQuery, selectedLetter, exhibitors]);
 
   useEffect(() => {
     filterExhibitors();
   }, [filterExhibitors]);
 
   const handleExhibitorPress = (exhibitor: Exhibitor) => {
-    console.log('Exhibitor pressed:', exhibitor.name);
+    console.log('[Exhibitors] Exhibitor pressed:', exhibitor.name);
     router.push({
       pathname: '/exhibitor-detail',
       params: {
@@ -103,6 +114,26 @@ export default function ExhibitorsScreen() {
       },
     });
   };
+
+  const handleLetterPress = (letter: string) => {
+    console.log('[Exhibitors] Letter pressed:', letter);
+    if (selectedLetter === letter) {
+      setSelectedLetter(null);
+    } else {
+      setSelectedLetter(letter);
+    }
+  };
+
+  const availableLetters = useMemo(() => {
+    const letters = new Set<string>();
+    exhibitors.forEach(exhibitor => {
+      const firstLetter = exhibitor.name.charAt(0).toUpperCase();
+      if (ALPHABET.includes(firstLetter)) {
+        letters.add(firstLetter);
+      }
+    });
+    return letters;
+  }, [exhibitors]);
 
   const renderExhibitorCard = ({ item }: { item: Exhibitor }) => {
     const boothLabel = item.boothNumber ? `Booth ${item.boothNumber}` : '';
@@ -136,7 +167,7 @@ export default function ExhibitorsScreen() {
           {item.name}
         </Text>
         {hasBoothNumber && (
-          <View style={[styles.boothChip, { backgroundColor: colors.primary + '20' }]}>
+          <View style={[styles.boothBadge, { backgroundColor: colors.primary + '20' }]}>
             <Text style={[styles.boothText, { color: colors.primary }]}>
               {boothLabel}
             </Text>
@@ -147,7 +178,7 @@ export default function ExhibitorsScreen() {
   };
 
   const loadingText = 'Loading exhibitors...';
-  const emptyText = searchQuery ? 'No exhibitors found' : 'No exhibitors available';
+  const emptyText = searchQuery || selectedLetter ? 'No exhibitors found' : 'No exhibitors available';
 
   return (
     <>
@@ -190,6 +221,65 @@ export default function ExhibitorsScreen() {
           </View>
         </View>
 
+        {/* Alphabet Navigation */}
+        <View style={styles.alphabetContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.alphabetScroll}
+          >
+            {ALPHABET.map((letter) => {
+              const isAvailable = availableLetters.has(letter);
+              const isSelected = selectedLetter === letter;
+              
+              return (
+                <TouchableOpacity
+                  key={letter}
+                  style={[
+                    styles.letterButton,
+                    { 
+                      backgroundColor: isSelected ? colors.primary : cardBg,
+                      borderColor: borderColorValue,
+                      opacity: isAvailable ? 1 : 0.3,
+                    }
+                  ]}
+                  onPress={() => handleLetterPress(letter)}
+                  disabled={!isAvailable}
+                  activeOpacity={0.7}
+                >
+                  <Text 
+                    style={[
+                      styles.letterText, 
+                      { color: isSelected ? '#FFFFFF' : textColor }
+                    ]}
+                  >
+                    {letter}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {selectedLetter && (
+          <View style={styles.filterIndicator}>
+            <Text style={[styles.filterText, { color: secondaryTextColor }]}>
+              Showing companies starting with
+            </Text>
+            <Text style={[styles.filterLetter, { color: colors.primary }]}>
+              {selectedLetter}
+            </Text>
+            <TouchableOpacity onPress={() => setSelectedLetter(null)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="cancel"
+                size={20}
+                color={secondaryTextColor}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -228,6 +318,8 @@ export default function ExhibitorsScreen() {
             data={filteredExhibitors}
             renderItem={renderExhibitorCard}
             keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.row}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -251,7 +343,8 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   searchBar: {
     flexDirection: 'row',
@@ -265,6 +358,39 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
+  },
+  alphabetContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  alphabetScroll: {
+    gap: 8,
+  },
+  letterButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  letterText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  filterText: {
+    fontSize: 14,
+  },
+  filterLetter: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   centerContainer: {
     flex: 1,
@@ -300,10 +426,15 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   exhibitorCard: {
+    flex: 1,
+    maxWidth: '48%',
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+    padding: 12,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
@@ -314,12 +445,12 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     width: '100%',
-    height: 100,
+    height: 80,
     backgroundColor: '#FFFFFF',
     borderRadius: 8,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   logo: {
     width: '90%',
@@ -333,18 +464,19 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   exhibitorName: {
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
+    minHeight: 36,
   },
-  boothChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  boothBadge: {
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderRadius: 12,
   },
   boothText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
   },
 });

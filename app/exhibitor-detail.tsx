@@ -37,8 +37,8 @@ export default function ExhibitorDetailScreen() {
   const exhibitor: Exhibitor = JSON.parse(params.exhibitorData as string);
 
   const handleLinkPress = (url: string) => {
-    console.log('Opening URL:', url);
-    Linking.openURL(url).catch(err => console.error('Failed to open URL:', err));
+    console.log('[ExhibitorDetail] Opening URL:', url);
+    Linking.openURL(url).catch(err => console.error('[ExhibitorDetail] Failed to open URL:', err));
   };
 
   const handleEmailPress = () => {
@@ -59,8 +59,7 @@ export default function ExhibitorDetailScreen() {
   const boothLabel = exhibitor.boothNumber ? `Booth ${exhibitor.boothNumber}` : '';
   const hasBoothNumber = Boolean(exhibitor.boothNumber);
   const hasDescription = Boolean(exhibitor.description);
-  const hasAddress = Boolean(exhibitor.address);
-  const hasUrl = Boolean(exhibitor.url);
+  const hasWebsite = Boolean(exhibitor.url);
   const hasLinkedIn = Boolean(exhibitor.linkedIn);
   const hasFacebook = Boolean(exhibitor.facebook);
   const hasX = Boolean(exhibitor.x);
@@ -68,8 +67,11 @@ export default function ExhibitorDetailScreen() {
   const hasContactTitle = Boolean(exhibitor.primaryContactTitle);
   const hasContactEmail = Boolean(exhibitor.primaryContactEmail);
   const hasContactPhone = Boolean(exhibitor.primaryDirectPhone);
-  const hasAdminPhone = Boolean(exhibitor.adminPhoneBooth);
-  const boothPhoneLabel = 'Booth Phone';
+  const hasBoothPhone = Boolean(exhibitor.adminPhoneBooth);
+  const hasAddress = Boolean(exhibitor.address);
+
+  const hasSocialLinks = hasLinkedIn || hasFacebook || hasX;
+  const hasContactInfo = hasContactName || hasContactTitle || hasContactEmail || hasContactPhone || hasBoothPhone;
 
   return (
     <>
@@ -85,6 +87,7 @@ export default function ExhibitorDetailScreen() {
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
+          {/* Logo Section */}
           <View style={styles.logoSection}>
             <View style={styles.logoContainer}>
               {exhibitor.logoUrl ? (
@@ -94,7 +97,7 @@ export default function ExhibitorDetailScreen() {
                   resizeMode="contain"
                 />
               ) : (
-                <View style={styles.logoPlaceholder}>
+                <View style={[styles.logoPlaceholder, { backgroundColor: colors.primary + '20' }]}>
                   <Text style={[styles.logoPlaceholderText, { color: colors.primary }]}>
                     {logoPlaceholderText}
                   </Text>
@@ -103,14 +106,15 @@ export default function ExhibitorDetailScreen() {
             </View>
           </View>
 
+          {/* Header Section */}
           <View style={styles.headerSection}>
-            <Text style={[styles.name, { color: textColor }]}>{exhibitor.name}</Text>
+            <Text style={[styles.companyName, { color: textColor }]}>{exhibitor.name}</Text>
             {hasBoothNumber && (
               <View style={[styles.boothBadge, { backgroundColor: colors.primary + '20' }]}>
                 <IconSymbol
                   ios_icon_name="mappin.circle.fill"
                   android_material_icon_name="place"
-                  size={16}
+                  size={18}
                   color={colors.primary}
                 />
                 <Text style={[styles.boothText, { color: colors.primary }]}>
@@ -120,6 +124,7 @@ export default function ExhibitorDetailScreen() {
             )}
           </View>
 
+          {/* Description Section */}
           {hasDescription && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, { color: textColor }]}>About</Text>
@@ -127,24 +132,12 @@ export default function ExhibitorDetailScreen() {
             </View>
           )}
 
-          <View style={styles.section}>
-            <Text style={[styles.sectionTitle, { color: textColor }]}>Contact Information</Text>
-
-            {hasAddress && (
-              <View style={[styles.contactItem, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
-                <IconSymbol
-                  ios_icon_name="location.fill"
-                  android_material_icon_name="location-on"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={[styles.contactText, { color: textColor }]}>{exhibitor.address}</Text>
-              </View>
-            )}
-
-            {hasUrl && (
+          {/* Website Section */}
+          {hasWebsite && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: textColor }]}>Website</Text>
               <TouchableOpacity
-                style={[styles.contactItem, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                style={[styles.linkButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
                 onPress={() => handleLinkPress(exhibitor.url!)}
                 activeOpacity={0.7}
               >
@@ -154,136 +147,190 @@ export default function ExhibitorDetailScreen() {
                   size={20}
                   color={colors.primary}
                 />
-                <Text style={[styles.contactTextLink, { color: colors.primary }]}>Visit Website</Text>
-              </TouchableOpacity>
-            )}
-
-            {hasLinkedIn && (
-              <TouchableOpacity
-                style={[styles.contactItem, { backgroundColor: cardBg, borderColor: borderColorValue }]}
-                onPress={() => handleLinkPress(exhibitor.linkedIn!)}
-                activeOpacity={0.7}
-              >
+                <Text style={[styles.linkText, { color: colors.primary }]} numberOfLines={1}>
+                  {exhibitor.url}
+                </Text>
                 <IconSymbol
-                  ios_icon_name="link"
-                  android_material_icon_name="link"
-                  size={20}
+                  ios_icon_name="arrow.up.right"
+                  android_material_icon_name="open-in-new"
+                  size={16}
                   color={colors.primary}
                 />
-                <Text style={[styles.contactTextLink, { color: colors.primary }]}>LinkedIn</Text>
               </TouchableOpacity>
-            )}
+            </View>
+          )}
 
-            {hasFacebook && (
-              <TouchableOpacity
-                style={[styles.contactItem, { backgroundColor: cardBg, borderColor: borderColorValue }]}
-                onPress={() => handleLinkPress(exhibitor.facebook!)}
-                activeOpacity={0.7}
-              >
-                <IconSymbol
-                  ios_icon_name="link"
-                  android_material_icon_name="link"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={[styles.contactTextLink, { color: colors.primary }]}>Facebook</Text>
-              </TouchableOpacity>
-            )}
+          {/* Contact Info Section */}
+          {hasContactInfo && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: textColor }]}>Contact Information</Text>
 
-            {hasX && (
-              <TouchableOpacity
-                style={[styles.contactItem, { backgroundColor: cardBg, borderColor: borderColorValue }]}
-                onPress={() => handleLinkPress(exhibitor.x!)}
-                activeOpacity={0.7}
-              >
-                <IconSymbol
-                  ios_icon_name="link"
-                  android_material_icon_name="link"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={[styles.contactTextLink, { color: colors.primary }]}>X (Twitter)</Text>
-              </TouchableOpacity>
-            )}
-
-            {(hasContactName || hasContactTitle) && (
-              <View style={[styles.contactItem, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
-                <IconSymbol
-                  ios_icon_name="person.fill"
-                  android_material_icon_name="person"
-                  size={20}
-                  color={colors.primary}
-                />
-                <View style={styles.contactTextContainer}>
-                  {hasContactName && (
-                    <Text style={[styles.contactText, { color: textColor }]}>
-                      {exhibitor.primaryContactName}
-                    </Text>
-                  )}
-                  {hasContactTitle && (
-                    <Text style={[styles.contactSubtext, { color: secondaryTextColor }]}>
-                      {exhibitor.primaryContactTitle}
-                    </Text>
-                  )}
+              {(hasContactName || hasContactTitle) && (
+                <View style={[styles.infoCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+                  <IconSymbol
+                    ios_icon_name="person.fill"
+                    android_material_icon_name="person"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <View style={styles.infoTextContainer}>
+                    {hasContactName && (
+                      <Text style={[styles.infoText, { color: textColor }]}>
+                        {exhibitor.primaryContactName}
+                      </Text>
+                    )}
+                    {hasContactTitle && (
+                      <Text style={[styles.infoSubtext, { color: secondaryTextColor }]}>
+                        {exhibitor.primaryContactTitle}
+                      </Text>
+                    )}
+                  </View>
                 </View>
-              </View>
-            )}
+              )}
 
-            {hasContactEmail && (
-              <TouchableOpacity
-                style={[styles.contactItem, { backgroundColor: cardBg, borderColor: borderColorValue }]}
-                onPress={handleEmailPress}
-                activeOpacity={0.7}
-              >
-                <IconSymbol
-                  ios_icon_name="envelope.fill"
-                  android_material_icon_name="email"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={[styles.contactTextLink, { color: colors.primary }]}>
-                  {exhibitor.primaryContactEmail}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {hasContactPhone && (
-              <TouchableOpacity
-                style={[styles.contactItem, { backgroundColor: cardBg, borderColor: borderColorValue }]}
-                onPress={handlePhonePress}
-                activeOpacity={0.7}
-              >
-                <IconSymbol
-                  ios_icon_name="phone.fill"
-                  android_material_icon_name="phone"
-                  size={20}
-                  color={colors.primary}
-                />
-                <Text style={[styles.contactTextLink, { color: colors.primary }]}>
-                  {exhibitor.primaryDirectPhone}
-                </Text>
-              </TouchableOpacity>
-            )}
-
-            {hasAdminPhone && (
-              <View style={[styles.contactItem, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
-                <IconSymbol
-                  ios_icon_name="phone.fill"
-                  android_material_icon_name="phone"
-                  size={20}
-                  color={colors.primary}
-                />
-                <View style={styles.contactTextContainer}>
-                  <Text style={[styles.contactText, { color: textColor }]}>
-                    {exhibitor.adminPhoneBooth}
+              {hasContactEmail && (
+                <TouchableOpacity
+                  style={[styles.infoCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={handleEmailPress}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="envelope.fill"
+                    android_material_icon_name="email"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.infoTextLink, { color: colors.primary }]}>
+                    {exhibitor.primaryContactEmail}
                   </Text>
-                  <Text style={[styles.contactSubtext, { color: secondaryTextColor }]}>
-                    {boothPhoneLabel}
+                </TouchableOpacity>
+              )}
+
+              {hasContactPhone && (
+                <TouchableOpacity
+                  style={[styles.infoCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={handlePhonePress}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="phone.fill"
+                    android_material_icon_name="phone"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.infoTextLink, { color: colors.primary }]}>
+                    {exhibitor.primaryDirectPhone}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {hasBoothPhone && (
+                <View style={[styles.infoCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+                  <IconSymbol
+                    ios_icon_name="phone.fill"
+                    android_material_icon_name="phone"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <View style={styles.infoTextContainer}>
+                    <Text style={[styles.infoText, { color: textColor }]}>
+                      {exhibitor.adminPhoneBooth}
+                    </Text>
+                    <Text style={[styles.infoSubtext, { color: secondaryTextColor }]}>
+                      Booth Phone
+                    </Text>
+                  </View>
+                </View>
+              )}
+
+              {hasAddress && (
+                <View style={[styles.infoCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+                  <IconSymbol
+                    ios_icon_name="location.fill"
+                    android_material_icon_name="location-on"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.infoText, { color: textColor }]}>
+                    {exhibitor.address}
                   </Text>
                 </View>
-              </View>
-            )}
-          </View>
+              )}
+            </View>
+          )}
+
+          {/* Social Links Section */}
+          {hasSocialLinks && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, { color: textColor }]}>Social Links</Text>
+
+              {hasLinkedIn && (
+                <TouchableOpacity
+                  style={[styles.socialButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={() => handleLinkPress(exhibitor.linkedIn!)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="link"
+                    android_material_icon_name="link"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.socialText, { color: colors.primary }]}>LinkedIn</Text>
+                  <IconSymbol
+                    ios_icon_name="arrow.up.right"
+                    android_material_icon_name="open-in-new"
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+
+              {hasFacebook && (
+                <TouchableOpacity
+                  style={[styles.socialButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={() => handleLinkPress(exhibitor.facebook!)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="link"
+                    android_material_icon_name="link"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.socialText, { color: colors.primary }]}>Facebook</Text>
+                  <IconSymbol
+                    ios_icon_name="arrow.up.right"
+                    android_material_icon_name="open-in-new"
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+
+              {hasX && (
+                <TouchableOpacity
+                  style={[styles.socialButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                  onPress={() => handleLinkPress(exhibitor.x!)}
+                  activeOpacity={0.7}
+                >
+                  <IconSymbol
+                    ios_icon_name="link"
+                    android_material_icon_name="link"
+                    size={20}
+                    color={colors.primary}
+                  />
+                  <Text style={[styles.socialText, { color: colors.primary }]}>X (Twitter)</Text>
+                  <IconSymbol
+                    ios_icon_name="arrow.up.right"
+                    android_material_icon_name="open-in-new"
+                    size={16}
+                    color={colors.primary}
+                  />
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </>
@@ -302,7 +349,7 @@ const styles = StyleSheet.create({
   },
   logoSection: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 20,
   },
   logoContainer: {
     width: 200,
@@ -324,6 +371,7 @@ const styles = StyleSheet.create({
   logoPlaceholder: {
     width: '100%',
     height: '100%',
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -335,8 +383,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: 24,
   },
-  name: {
-    fontSize: 28,
+  companyName: {
+    fontSize: 26,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 12,
@@ -350,7 +398,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   boothText: {
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
   },
   section: {
@@ -358,36 +406,63 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: '700',
     marginBottom: 12,
   },
   description: {
     fontSize: 15,
     lineHeight: 22,
   },
-  contactItem: {
+  linkButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    padding: 14,
+    borderRadius: 10,
+    borderWidth: 1,
+    gap: 10,
+  },
+  linkText: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
+  },
+  infoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 10,
     borderWidth: 1,
     gap: 12,
   },
-  contactText: {
+  infoTextContainer: {
+    flex: 1,
+  },
+  infoText: {
     fontSize: 15,
     flex: 1,
   },
-  contactTextLink: {
+  infoTextLink: {
     fontSize: 15,
     flex: 1,
     fontWeight: '500',
   },
-  contactTextContainer: {
-    flex: 1,
-  },
-  contactSubtext: {
+  infoSubtext: {
     fontSize: 13,
     marginTop: 2,
+  },
+  socialButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 10,
+    borderWidth: 1,
+    gap: 10,
+  },
+  socialText: {
+    fontSize: 15,
+    fontWeight: '500',
+    flex: 1,
   },
 });
