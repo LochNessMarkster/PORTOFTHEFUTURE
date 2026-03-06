@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,11 +10,13 @@ import {
   ImageSourcePropType,
   TouchableOpacity,
   Linking,
+  ActivityIndicator,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { fetchSpeakers, Speaker } from '@/utils/airtable';
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -28,22 +30,52 @@ export default function PortDetailScreen() {
   const params = useLocalSearchParams();
 
   const name = params.name as string;
+  const location = params.location as string;
   const intro = params.intro as string;
   const bio = params.bio as string;
   const url = params.url as string;
   const logoUrl = params.logo_url as string;
   const featuredImageUrl = params.featured_image_url as string;
 
+  const [speakers, setSpeakers] = useState<Speaker[]>([]);
+  const [loadingSpeakers, setLoadingSpeakers] = useState(true);
+
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
   const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
   const cardBg = isDark ? colors.cardDark : colors.card;
 
+  useEffect(() => {
+    loadSpeakersFromPort();
+  }, [name]);
+
+  const loadSpeakersFromPort = async () => {
+    console.log('[PortDetail] Loading speakers for port:', name);
+    try {
+      setLoadingSpeakers(true);
+      const response = await fetchSpeakers();
+      
+      // Filter speakers by port name (check company field or bio)
+      const portSpeakers = response.speakers.filter(speaker => {
+        const companyMatch = (speaker.company || '').toLowerCase().includes(name.toLowerCase());
+        const bioMatch = (speaker.bio || '').toLowerCase().includes(name.toLowerCase());
+        return companyMatch || bioMatch;
+      });
+
+      console.log('[PortDetail] Found speakers from this port:', portSpeakers.length);
+      setSpeakers(portSpeakers);
+    } catch (err) {
+      console.error('[PortDetail] Error loading speakers:', err);
+    } finally {
+      setLoadingSpeakers(false);
+    }
+  };
+
   const handleUrlPress = () => {
     if (url) {
-      console.log('Opening port URL:', url);
+      console.log('[PortDetail] Opening port URL:', url);
       Linking.openURL(url).catch(err => {
-        console.error('Failed to open URL:', err);
+        console.error('[PortDetail] Failed to open URL:', err);
       });
     }
   };
@@ -55,6 +87,50 @@ export default function PortDetailScreen() {
   };
 
   const bioParagraphs = formatBioWithParagraphs(bio);
+
+  const renderSpeakerCard = (speaker: Speaker) => {
+    const speakerName = `${speaker.firstName} ${speaker.lastName}`.trim();
+    const speakerTitle = speaker.title || '';
+    const speakerCompany = speaker.company || '';
+
+    return (
+      <View key={speaker.id} style={[styles.speakerCard, { backgroundColor: cardBg }]}>
+        <View style={styles.speakerPhotoContainer}>
+          {speaker.photoUrl ? (
+            <Image
+              source={resolveImageSource(speaker.photoUrl)}
+              style={styles.speakerPhoto}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={[styles.speakerPhotoPlaceholder, { backgroundColor: colors.primary + '20' }]}>
+              <IconSymbol
+                ios_icon_name="person.fill"
+                android_material_icon_name="person"
+                size={24}
+                color={colors.primary}
+              />
+            </View>
+          )}
+        </View>
+        <View style={styles.speakerInfo}>
+          <Text style={[styles.speakerName, { color: textColor }]} numberOfLines={1}>
+            {speakerName}
+          </Text>
+          {speakerTitle && (
+            <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={1}>
+              {speakerTitle}
+            </Text>
+          )}
+          {speakerCompany && (
+            <Text style={[styles.speakerCompany, { color: secondaryTextColor }]} numberOfLines={1}>
+              {speakerCompany}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  };
 
   return (
     <>
@@ -93,6 +169,18 @@ export default function PortDetailScreen() {
               </View>
             )}
             <Text style={[styles.portName, { color: textColor }]}>{name}</Text>
+            
+            {location && (
+              <View style={styles.locationRow}>
+                <IconSymbol
+                  ios_icon_name="location.fill"
+                  android_material_icon_name="place"
+                  size={18}
+                  color={colors.primary}
+                />
+                <Text style={[styles.locationText, { color: textColor }]}>{location}</Text>
+              </View>
+            )}
           </View>
 
           {/* Intro */}
@@ -102,7 +190,7 @@ export default function PortDetailScreen() {
             </View>
           )}
 
-          {/* Bio with paragraph breaks */}
+          {/* Full Description */}
           {bioParagraphs.length > 0 && (
             <View style={[styles.section, { backgroundColor: cardBg }]}>
               <View style={styles.sectionHeader}>
@@ -138,6 +226,37 @@ export default function PortDetailScreen() {
               <Text style={styles.urlButtonText}>Visit Website</Text>
             </TouchableOpacity>
           )}
+
+          {/* Speakers from this Port */}
+          {loadingSpeakers ? (
+            <View style={[styles.section, { backgroundColor: cardBg }]}>
+              <View style={styles.sectionHeader}>
+                <IconSymbol
+                  ios_icon_name="person.2.fill"
+                  android_material_icon_name="group"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={[styles.sectionTitle, { color: textColor }]}>Speakers</Text>
+              </View>
+              <ActivityIndicator size="small" color={colors.primary} style={styles.speakersLoader} />
+            </View>
+          ) : speakers.length > 0 ? (
+            <View style={[styles.section, { backgroundColor: cardBg }]}>
+              <View style={styles.sectionHeader}>
+                <IconSymbol
+                  ios_icon_name="person.2.fill"
+                  android_material_icon_name="group"
+                  size={20}
+                  color={colors.primary}
+                />
+                <Text style={[styles.sectionTitle, { color: textColor }]}>
+                  Speakers ({speakers.length})
+                </Text>
+              </View>
+              {speakers.map(renderSpeakerCard)}
+            </View>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </>
@@ -191,6 +310,17 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: 'bold',
     textAlign: 'center',
+    marginBottom: 8,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  locationText: {
+    fontSize: 16,
+    marginLeft: 6,
+    fontWeight: '500',
   },
   section: {
     marginHorizontal: 16,
@@ -242,5 +372,47 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     marginLeft: 8,
+  },
+  speakersLoader: {
+    marginVertical: 12,
+  },
+  speakerCard: {
+    flexDirection: 'row',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  speakerPhotoContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    overflow: 'hidden',
+    marginRight: 12,
+  },
+  speakerPhoto: {
+    width: '100%',
+    height: '100%',
+  },
+  speakerPhotoPlaceholder: {
+    width: '100%',
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  speakerInfo: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  speakerName: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 2,
+  },
+  speakerTitle: {
+    fontSize: 14,
+    marginBottom: 2,
+  },
+  speakerCompany: {
+    fontSize: 13,
   },
 });
