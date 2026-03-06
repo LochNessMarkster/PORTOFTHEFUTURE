@@ -27,13 +27,13 @@ interface NavigationCard {
 
 const navigationCards: NavigationCard[] = [
   { id: '1', title: 'Agenda', ios_icon: 'calendar', android_icon: 'calendar-today' },
-  { id: '2', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star' },
+  { id: '2', title: 'Exhibitors', ios_icon: 'building.2.fill', android_icon: 'store' },
   { id: '3', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
-  { id: '4', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
-  { id: '5', title: 'Exhibitors', ios_icon: 'building.2.fill', android_icon: 'store' },
+  { id: '4', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star' },
+  { id: '5', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
   { id: '6', title: 'Sponsors', ios_icon: 'heart.fill', android_icon: 'favorite' },
   { id: '7', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
-  { id: '8', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
+  { id: '8', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
   { id: '9', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
   { id: '10', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
 ];
@@ -199,24 +199,22 @@ export default function HomeScreen() {
             </View>
           </View>
 
-          {/* Navigation Cards Grid */}
+          {/* Navigation Cards Grid - 2 Column Layout */}
           <View style={styles.gridContainer}>
-            {navigationCards.map((card) => (
+            {navigationCards.map((card, index) => (
               <TouchableOpacity
                 key={card.id}
                 style={styles.navCard}
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
               >
-                <View style={styles.iconCircle}>
-                  <IconSymbol
-                    ios_icon_name={card.ios_icon}
-                    android_material_icon_name={card.android_icon}
-                    size={28}
-                    color={colors.accent}
-                  />
-                </View>
-                <Text style={styles.navCardTitle} numberOfLines={2}>
+                <IconSymbol
+                  ios_icon_name={card.ios_icon}
+                  android_material_icon_name={card.android_icon}
+                  size={32}
+                  color={colors.accent}
+                />
+                <Text style={styles.navCardTitle}>
                   {card.title}
                 </Text>
               </TouchableOpacity>
@@ -397,36 +395,29 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   navCard: {
-    width: '18%',
-    aspectRatio: 1,
+    width: 'calc(50% - 6px)',
     backgroundColor: colors.card,
     borderRadius: 16,
-    padding: 8,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
+    minHeight: 100,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
-  },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 4,
-    backgroundColor: 'rgba(25, 181, 216, 0.15)',
+    shadowRadius: 4,
+    elevation: 3,
   },
   navCardTitle: {
-    fontSize: 11,
+    fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
     color: colors.text,
+    marginTop: 12,
   },
   announcementsSection: {
     paddingHorizontal: 16,
+    marginTop: 8,
   },
   sectionHeader: {
     flexDirection: 'row',
