@@ -12,16 +12,12 @@ import {
   Image,
   ImageSourcePropType,
   RefreshControl,
-  ScrollView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { fetchBackendPorts, BackendPort as Port } from '@/utils/airtable';
-
-// Region filter options
-const REGIONS = ['All', 'USA', 'Canada', 'Caribbean', 'Europe', 'Asia', 'Other'];
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -39,7 +35,6 @@ export default function PortsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('All');
   const [refreshing, setRefreshing] = useState(false);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
@@ -98,31 +93,6 @@ export default function PortsScreen() {
     return '';
   };
 
-  // Determine region from location
-  const determineRegion = (port: Port): string => {
-    const location = extractLocation(port).toLowerCase();
-    const intro = (port.intro || '').toLowerCase();
-    const bio = (port.bio || '').toLowerCase();
-    const combined = `${location} ${intro} ${bio}`;
-
-    if (combined.match(/\b(usa|united states|america|california|florida|texas|new york|washington|oregon)\b/)) {
-      return 'USA';
-    }
-    if (combined.match(/\b(canada|canadian|toronto|vancouver|montreal|quebec)\b/)) {
-      return 'Canada';
-    }
-    if (combined.match(/\b(caribbean|jamaica|bahamas|puerto rico|trinidad|barbados)\b/)) {
-      return 'Caribbean';
-    }
-    if (combined.match(/\b(europe|european|uk|france|germany|spain|italy|netherlands|belgium)\b/)) {
-      return 'Europe';
-    }
-    if (combined.match(/\b(asia|asian|china|japan|singapore|korea|india|thailand)\b/)) {
-      return 'Asia';
-    }
-    return 'Other';
-  };
-
   const filterPorts = useCallback(() => {
     let filtered = ports;
 
@@ -137,14 +107,9 @@ export default function PortsScreen() {
       });
     }
 
-    // Apply region filter
-    if (selectedRegion !== 'All') {
-      filtered = filtered.filter(port => determineRegion(port) === selectedRegion);
-    }
-
     console.log('[Ports] Filtered:', filtered.length, 'from', ports.length);
     setFilteredPorts(filtered);
-  }, [searchQuery, selectedRegion, ports]);
+  }, [searchQuery, ports]);
 
   useEffect(() => {
     filterPorts();
@@ -235,45 +200,6 @@ export default function PortsScreen() {
     );
   };
 
-  const renderRegionFilter = () => {
-    return (
-      <View style={styles.regionFilterContainer}>
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.regionFilterContent}
-        >
-          {REGIONS.map((region) => {
-            const isSelected = selectedRegion === region;
-            return (
-              <TouchableOpacity
-                key={region}
-                style={[
-                  styles.regionButton,
-                  {
-                    backgroundColor: isSelected ? colors.primary : cardBg,
-                    borderColor: isSelected ? colors.primary : borderColorValue,
-                  },
-                ]}
-                onPress={() => setSelectedRegion(region)}
-                activeOpacity={0.7}
-              >
-                <Text
-                  style={[
-                    styles.regionButtonText,
-                    { color: isSelected ? '#FFFFFF' : textColor },
-                  ]}
-                >
-                  {region}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </ScrollView>
-      </View>
-    );
-  };
-
   return (
     <>
       <Stack.Screen
@@ -316,9 +242,6 @@ export default function PortsScreen() {
           </View>
         </View>
 
-        {/* Region Filter */}
-        {renderRegionFilter()}
-
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
@@ -349,7 +272,7 @@ export default function PortsScreen() {
               color={secondaryTextColor}
             />
             <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-              {searchQuery || selectedRegion !== 'All' ? 'No ports found' : 'No ports available'}
+              {searchQuery ? 'No ports found' : 'No ports available'}
             </Text>
           </View>
         ) : (
@@ -381,7 +304,7 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 16,
     paddingTop: 12,
-    paddingBottom: 8,
+    paddingBottom: 12,
   },
   searchBar: {
     flexDirection: 'row',
@@ -395,24 +318,6 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
-  },
-  regionFilterContainer: {
-    paddingBottom: 8,
-  },
-  regionFilterContent: {
-    paddingHorizontal: 16,
-    gap: 8,
-  },
-  regionButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    borderWidth: 1,
-    marginRight: 8,
-  },
-  regionButtonText: {
-    fontSize: 14,
-    fontWeight: '600',
   },
   centerContainer: {
     flex: 1,
