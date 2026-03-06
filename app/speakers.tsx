@@ -264,12 +264,12 @@ export default function SpeakersScreen() {
             {displayName}
           </Text>
           {displayTitle && (
-            <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={1}>
+            <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={2}>
               {displayTitle}
             </Text>
           )}
           {displayOrganization && (
-            <Text style={[styles.speakerOrganization, { color: secondaryTextColor }]} numberOfLines={1}>
+            <Text style={[styles.speakerOrganization, { color: secondaryTextColor }]} numberOfLines={2}>
               {displayOrganization}
             </Text>
           )}
@@ -546,6 +546,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+    minHeight: 200,
   },
   photoContainer: {
     alignItems: 'center',
@@ -565,20 +566,24 @@ const styles = StyleSheet.create({
   },
   speakerInfo: {
     alignItems: 'center',
+    flex: 1,
   },
   speakerName: {
     fontSize: 16,
     fontWeight: '600',
     textAlign: 'center',
-    marginBottom: 4,
+    marginBottom: 6,
+    lineHeight: 20,
   },
   speakerTitle: {
     fontSize: 13,
     textAlign: 'center',
-    marginBottom: 2,
+    marginBottom: 4,
+    lineHeight: 17,
   },
   speakerOrganization: {
     fontSize: 12,
     textAlign: 'center',
+    lineHeight: 16,
   },
 });
