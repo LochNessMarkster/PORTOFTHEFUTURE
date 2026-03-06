@@ -14,7 +14,7 @@ import {
   RefreshControl,
   ScrollView,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -72,57 +72,19 @@ export default function SponsorsScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadSponsors = useCallback(async () => {
-    console.log('[Sponsors] ========================================');
     console.log('[Sponsors] Loading sponsors from backend proxy...');
-    console.log('[Sponsors] Backend URL:', BACKEND_URL);
-    console.log('[Sponsors] Full endpoint:', `${BACKEND_URL}/api/sponsors`);
-    console.log('[Sponsors] ========================================');
     
     try {
       setError(null);
       const response = await fetchSponsors();
       
-      console.log('[Sponsors] ========================================');
-      console.log('[Sponsors] RESPONSE RECEIVED');
-      console.log('[Sponsors] ========================================');
-      console.log('[Sponsors] Full response:', JSON.stringify(response, null, 2));
-      console.log('[Sponsors] Response keys:', Object.keys(response));
+      console.log('[Sponsors] Response received');
       console.log('[Sponsors] Source used:', response.source_used);
-      console.log('[Sponsors] Updated at:', response.updated_at);
       console.log('[Sponsors] Sponsors array length:', response.sponsors?.length ?? 0);
-      console.log('[Sponsors] Sponsors array type:', Array.isArray(response.sponsors) ? 'Array' : typeof response.sponsors);
       
-      if (response.sponsors && response.sponsors.length > 0) {
-        console.log('[Sponsors] ========================================');
-        console.log('[Sponsors] FIRST SPONSOR DETAILS');
-        console.log('[Sponsors] ========================================');
-        console.log('[Sponsors] First sponsor:', JSON.stringify(response.sponsors[0], null, 2));
-        console.log('[Sponsors] First sponsor keys:', Object.keys(response.sponsors[0]));
-        console.log('[Sponsors] First sponsor name:', response.sponsors[0].name);
-        console.log('[Sponsors] First sponsor level:', response.sponsors[0].level);
-        console.log('[Sponsors] First sponsor logoUrl:', response.sponsors[0].logoUrl);
-      } else {
-        console.warn('[Sponsors] ========================================');
-        console.warn('[Sponsors] WARNING: No sponsors returned from backend');
-        console.warn('[Sponsors] Response structure:', JSON.stringify(response, null, 2));
-        console.warn('[Sponsors] ========================================');
-      }
-      
-      console.log('[Sponsors] Setting sponsors state with', response.sponsors?.length ?? 0, 'sponsors');
       setSponsors(response.sponsors || []);
-      
-      console.log('[Sponsors] ========================================');
-      console.log('[Sponsors] LOAD COMPLETE');
-      console.log('[Sponsors] ========================================');
     } catch (err) {
-      console.error('[Sponsors] ========================================');
-      console.error('[Sponsors] ERROR LOADING SPONSORS');
-      console.error('[Sponsors] ========================================');
-      console.error('[Sponsors] Error object:', err);
-      console.error('[Sponsors] Error type:', typeof err);
-      console.error('[Sponsors] Error message:', err instanceof Error ? err.message : String(err));
-      console.error('[Sponsors] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
-      console.error('[Sponsors] ========================================');
+      console.error('[Sponsors] Error loading sponsors:', err);
       
       const errorMessage = err instanceof Error ? err.message : 'Unable to load sponsors';
       setError(errorMessage);
@@ -344,95 +306,24 @@ export default function SponsorsScreen() {
   const errorMessage = "We're having trouble loading sponsors right now. Please try again in a moment.";
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Sponsors',
-          headerStyle: {
-            backgroundColor: isDark ? colors.backgroundDark : colors.background,
-          },
-          headerTintColor: textColor,
-        }}
-      />
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
-            <IconSymbol
-              ios_icon_name="magnifyingglass"
-              android_material_icon_name="search"
-              size={20}
-              color={secondaryTextColor}
-            />
-            <TextInput
-              style={[styles.searchInput, { color: textColor }]}
-              placeholder="Search sponsors..."
-              placeholderTextColor={secondaryTextColor}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <IconSymbol
-                  ios_icon_name="xmark.circle.fill"
-                  android_material_icon_name="cancel"
-                  size={20}
-                  color={secondaryTextColor}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Alphabet Navigation */}
-        <View style={styles.alphabetContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.alphabetScroll}
-          >
-            {ALPHABET.map((letter) => {
-              const isAvailable = availableLetters.has(letter);
-              const isSelected = selectedLetter === letter;
-              
-              return (
-                <TouchableOpacity
-                  key={letter}
-                  style={[
-                    styles.letterButton,
-                    { 
-                      backgroundColor: isSelected ? colors.primary : cardBg,
-                      borderColor: borderColorValue,
-                      opacity: isAvailable ? 1 : 0.3,
-                    }
-                  ]}
-                  onPress={() => handleLetterPress(letter)}
-                  disabled={!isAvailable}
-                  activeOpacity={0.7}
-                >
-                  <Text 
-                    style={[
-                      styles.letterText, 
-                      { color: isSelected ? '#FFFFFF' : textColor }
-                    ]}
-                  >
-                    {letter}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {selectedLetter && (
-          <View style={styles.filterIndicator}>
-            <Text style={[styles.filterText, { color: secondaryTextColor }]}>
-              Showing sponsors starting with
-            </Text>
-            <Text style={[styles.filterLetter, { color: colors.primary }]}>
-              {selectedLetter}
-            </Text>
-            <TouchableOpacity onPress={() => setSelectedLetter(null)}>
+    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
+      <View style={styles.searchContainer}>
+        <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+          <IconSymbol
+            ios_icon_name="magnifyingglass"
+            android_material_icon_name="search"
+            size={20}
+            color={secondaryTextColor}
+          />
+          <TextInput
+            style={[styles.searchInput, { color: textColor }]}
+            placeholder="Search sponsors..."
+            placeholderTextColor={secondaryTextColor}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="cancel"
@@ -440,60 +331,119 @@ export default function SponsorsScreen() {
                 color={secondaryTextColor}
               />
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
+      </View>
 
-        {loading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>{loadingText}</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centerContainer}>
+      {/* Alphabet Navigation */}
+      <View style={styles.alphabetContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.alphabetScroll}
+        >
+          {ALPHABET.map((letter) => {
+            const isAvailable = availableLetters.has(letter);
+            const isSelected = selectedLetter === letter;
+            
+            return (
+              <TouchableOpacity
+                key={letter}
+                style={[
+                  styles.letterButton,
+                  { 
+                    backgroundColor: isSelected ? colors.primary : cardBg,
+                    borderColor: borderColorValue,
+                    opacity: isAvailable ? 1 : 0.3,
+                  }
+                ]}
+                onPress={() => handleLetterPress(letter)}
+                disabled={!isAvailable}
+                activeOpacity={0.7}
+              >
+                <Text 
+                  style={[
+                    styles.letterText, 
+                    { color: isSelected ? '#FFFFFF' : textColor }
+                  ]}
+                >
+                  {letter}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {selectedLetter && (
+        <View style={styles.filterIndicator}>
+          <Text style={[styles.filterText, { color: secondaryTextColor }]}>
+            Showing sponsors starting with
+          </Text>
+          <Text style={[styles.filterLetter, { color: colors.primary }]}>
+            {selectedLetter}
+          </Text>
+          <TouchableOpacity onPress={() => setSelectedLetter(null)}>
             <IconSymbol
-              ios_icon_name="exclamationmark.triangle.fill"
-              android_material_icon_name="warning"
-              size={48}
-              color={colors.error}
-            />
-            <Text style={[styles.errorText, { color: textColor }]}>{errorMessage}</Text>
-            <TouchableOpacity
-              style={[styles.retryButton, { backgroundColor: colors.primary }]}
-              onPress={loadSponsors}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : groupedSponsors.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <IconSymbol
-              ios_icon_name="heart.slash"
-              android_material_icon_name="favorite"
-              size={48}
+              ios_icon_name="xmark.circle.fill"
+              android_material_icon_name="cancel"
+              size={20}
               color={secondaryTextColor}
             />
-            <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-              {emptyMessage}
-            </Text>
-          </View>
-        ) : (
-          <ScrollView
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            }
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>{loadingText}</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle.fill"
+            android_material_icon_name="warning"
+            size={48}
+            color={colors.error}
+          />
+          <Text style={[styles.errorText, { color: textColor }]}>{errorMessage}</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={loadSponsors}
           >
-            {groupedSponsors.map(section => renderSection(section))}
-          </ScrollView>
-        )}
-      </SafeAreaView>
-    </>
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : groupedSponsors.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="heart.slash"
+            android_material_icon_name="favorite"
+            size={48}
+            color={secondaryTextColor}
+          />
+          <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+            {emptyMessage}
+          </Text>
+        </View>
+      ) : (
+        <ScrollView
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        >
+          {groupedSponsors.map(section => renderSection(section))}
+        </ScrollView>
+      )}
+    </SafeAreaView>
   );
 }
 

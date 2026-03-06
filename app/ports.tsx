@@ -13,7 +13,7 @@ import {
   ImageSourcePropType,
   RefreshControl,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -201,99 +201,87 @@ export default function PortsScreen() {
   };
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Participating Ports',
-          headerStyle: {
-            backgroundColor: isDark ? colors.backgroundDark : colors.background,
-          },
-          headerTintColor: textColor,
-        }}
-      />
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
-            <IconSymbol
-              ios_icon_name="magnifyingglass"
-              android_material_icon_name="search"
-              size={20}
-              color={secondaryTextColor}
-            />
-            <TextInput
-              style={[styles.searchInput, { color: textColor }]}
-              placeholder="Search by name or location..."
-              placeholderTextColor={secondaryTextColor}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <IconSymbol
-                  ios_icon_name="xmark.circle.fill"
-                  android_material_icon_name="cancel"
-                  size={20}
-                  color={secondaryTextColor}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {loading ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading ports...</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centerContainer}>
-            <IconSymbol
-              ios_icon_name="exclamationmark.triangle.fill"
-              android_material_icon_name="warning"
-              size={48}
-              color={colors.error}
-            />
-            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-            <TouchableOpacity
-              style={[styles.retryButton, { backgroundColor: colors.primary }]}
-              onPress={loadPorts}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : filteredPorts.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <IconSymbol
-              ios_icon_name="ferry.fill"
-              android_material_icon_name="directions-boat"
-              size={48}
-              color={secondaryTextColor}
-            />
-            <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-              {searchQuery ? 'No ports found' : 'No ports available'}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            data={filteredPorts}
-            renderItem={renderPortCard}
-            keyExtractor={(item) => item.id}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
-              />
-            }
+    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+          <IconSymbol
+            ios_icon_name="magnifyingglass"
+            android_material_icon_name="search"
+            size={20}
+            color={secondaryTextColor}
           />
-        )}
-      </SafeAreaView>
-    </>
+          <TextInput
+            style={[styles.searchInput, { color: textColor }]}
+            placeholder="Search by name or location..."
+            placeholderTextColor={secondaryTextColor}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="cancel"
+                size={20}
+                color={secondaryTextColor}
+              />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {loading ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading ports...</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle.fill"
+            android_material_icon_name="warning"
+            size={48}
+            color={colors.error}
+          />
+          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={loadPorts}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : filteredPorts.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="ferry.fill"
+            android_material_icon_name="directions-boat"
+            size={48}
+            color={secondaryTextColor}
+          />
+          <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+            {searchQuery ? 'No ports found' : 'No ports available'}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          data={filteredPorts}
+          renderItem={renderPortCard}
+          keyExtractor={(item) => item.id}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
+            />
+          }
+        />
+      )}
+    </SafeAreaView>
   );
 }
 
