@@ -19,7 +19,7 @@ import {
 import { IconSymbol } from '@/components/IconSymbol';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { getSessionStatus, sessionsOverlap } from '@/utils/timeUtils';
+import { getSessionStatus, hasSameStartTime } from '@/utils/timeUtils';
 import { ConflictModal } from '@/components/ConflictModal';
 
 const BOOKMARKS_KEY = '@agenda_bookmarks';
@@ -116,7 +116,7 @@ export default function AgendaScreen() {
         if (Array.isArray(parsed)) {
           const bookmarks = new Set(parsed);
           setBookmarkedSessions(bookmarks);
-          console.log('[Agenda] Loaded bookmarks:', bookmarks.size);
+          console.log('[Agenda] Loaded bookmarks:', bookmarks.size, 'sessions');
         } else {
           console.warn('[Agenda] Bookmarks not an array, resetting');
           setBookmarkedSessions(new Set());
@@ -135,23 +135,29 @@ export default function AgendaScreen() {
     try {
       const bookmarksArray = Array.from(bookmarks);
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
-      console.log('[Agenda] Saved bookmarks:', bookmarksArray.length);
+      console.log('[Agenda] Saved bookmarks:', bookmarksArray.length, 'sessions');
     } catch (err) {
       console.error('[Agenda] Error saving bookmarks:', err);
     }
   };
 
   const checkForConflicts = (session: AgendaItem): AgendaItem | null => {
-    console.log('[Agenda] Checking conflicts for session:', session.Title);
-    console.log('[Agenda] Session details:', {
-      date: session.Date,
-      startTime: session.StartTime,
-      endTime: session.EndTime,
-    });
+    console.log('═══════════════════════════════════════════════════');
+    console.log('[Agenda] 🔍 CONFLICT CHECK STARTED');
+    console.log('[Agenda] Candidate session ID:', session.id);
+    console.log('[Agenda] Candidate session title:', session.Title);
+    console.log('[Agenda] Candidate session date:', session.Date);
+    console.log('[Agenda] Candidate session start time:', session.StartTime);
+    console.log('═══════════════════════════════════════════════════');
     
     // Check if new session has required time fields
-    if (!session.StartTime || !session.EndTime) {
-      console.warn('[Agenda] New session missing StartTime or EndTime, cannot check conflicts');
+    if (!session.StartTime) {
+      console.warn('[Agenda] ⚠️ Candidate session missing StartTime, cannot check conflicts');
+      return null;
+    }
+    
+    if (!session.Date) {
+      console.warn('[Agenda] ⚠️ Candidate session missing Date, cannot check conflicts');
       return null;
     }
     
@@ -160,87 +166,117 @@ export default function AgendaScreen() {
       bookmarkedSessions.has(s.id) && s.id !== session.id
     );
     
-    console.log('[Agenda] Checking against', bookmarkedSessionsList.length, 'bookmarked sessions');
+    console.log('[Agenda] 📚 Current saved My Schedule sessions:', bookmarkedSessionsList.length);
     
-    // Check for overlaps
-    for (const existing of bookmarkedSessionsList) {
-      console.log('[Agenda] Comparing with existing session:', existing.Title);
-      console.log('[Agenda] Existing session details:', {
-        date: existing.Date,
-        startTime: existing.StartTime,
-        endTime: existing.EndTime,
+    if (bookmarkedSessionsList.length === 0) {
+      console.log('[Agenda] ✅ No saved sessions to check against - no conflicts possible');
+      console.log('═══════════════════════════════════════════════════');
+      return null;
+    }
+    
+    // Log all saved sessions
+    bookmarkedSessionsList.forEach((saved, index) => {
+      console.log(`[Agenda] Saved session ${index + 1}:`, {
+        id: saved.id,
+        title: saved.Title,
+        date: saved.Date,
+        startTime: saved.StartTime,
       });
+    });
+    
+    // Check for same date + same start time conflicts
+    let matchCount = 0;
+    for (const existing of bookmarkedSessionsList) {
+      console.log('---------------------------------------------------');
+      console.log('[Agenda] Comparing with existing session:', existing.Title);
+      console.log('[Agenda] Existing session date:', existing.Date);
+      console.log('[Agenda] Existing session start time:', existing.StartTime);
       
-      // Skip if existing session is missing time fields
-      if (!existing.StartTime || !existing.EndTime) {
-        console.warn('[Agenda] Existing session missing StartTime or EndTime, skipping conflict check');
+      // Skip if existing session is missing required fields
+      if (!existing.StartTime || !existing.Date) {
+        console.warn('[Agenda] ⚠️ Existing session missing Date or StartTime, skipping');
         continue;
       }
       
-      const hasOverlap = sessionsOverlap(
+      // Check for EXACT same date and start time
+      const hasConflict = hasSameStartTime(
         session.Date,
         session.StartTime,
-        session.EndTime,
         existing.Date,
-        existing.StartTime,
-        existing.EndTime
+        existing.StartTime
       );
       
-      console.log('[Agenda] Overlap result:', hasOverlap);
-      
-      if (hasOverlap) {
-        console.log('[Agenda] CONFLICT DETECTED:', session.Title, 'overlaps with', existing.Title);
+      if (hasConflict) {
+        matchCount++;
+        console.log('[Agenda] 🚨 CONFLICT DETECTED!');
+        console.log('[Agenda] Number of matches with same date + start time:', matchCount);
+        console.log('[Agenda] Conflicting session:', existing.Title);
+        console.log('[Agenda] Modal trigger condition: REACHED ✅');
+        console.log('═══════════════════════════════════════════════════');
         return existing;
       }
     }
     
-    console.log('[Agenda] No conflicts found');
+    console.log('[Agenda] ✅ No conflicts found - all sessions have different date or start time');
+    console.log('[Agenda] Number of matches with same date + start time:', matchCount);
+    console.log('[Agenda] Modal trigger condition: NOT REACHED ❌');
+    console.log('═══════════════════════════════════════════════════');
     return null;
   };
 
   const toggleBookmark = (sessionId: string) => {
-    console.log('[Agenda] Toggling bookmark for session:', sessionId);
+    console.log('═══════════════════════════════════════════════════');
+    console.log('[Agenda] 📌 BOOKMARK TOGGLE INITIATED');
+    console.log('[Agenda] Session ID:', sessionId);
     
     const session = allSessions.find(s => s.id === sessionId);
     if (!session) {
-      console.warn('[Agenda] Session not found:', sessionId);
+      console.warn('[Agenda] ⚠️ Session not found:', sessionId);
+      console.log('═══════════════════════════════════════════════════');
       return;
     }
     
+    console.log('[Agenda] Session title:', session.Title);
+    console.log('[Agenda] Currently bookmarked?', bookmarkedSessions.has(sessionId));
+    
     // If already bookmarked, just remove it
     if (bookmarkedSessions.has(sessionId)) {
-      console.log('[Agenda] Removing bookmark');
+      console.log('[Agenda] ➖ Removing bookmark (no conflict check needed)');
       const newBookmarks = new Set(bookmarkedSessions);
       newBookmarks.delete(sessionId);
       setBookmarkedSessions(newBookmarks);
       saveBookmarks(newBookmarks);
+      console.log('═══════════════════════════════════════════════════');
       return;
     }
     
-    // Check for conflicts before adding
-    console.log('[Agenda] Adding bookmark, checking for conflicts...');
+    // Check for conflicts BEFORE adding
+    console.log('[Agenda] ➕ Adding bookmark - checking for conflicts FIRST...');
     const conflict = checkForConflicts(session);
     
     if (conflict) {
-      console.log('[Agenda] Showing conflict modal');
-      // Show conflict modal
+      console.log('[Agenda] 🚨 Conflict found - showing modal BEFORE saving');
+      console.log('[Agenda] Save is happening: NO ❌ (waiting for user choice)');
+      // Show conflict modal - DO NOT SAVE YET
       setPendingSession(session);
       setConflictingSession(conflict);
       setShowConflictModal(true);
     } else {
-      console.log('[Agenda] No conflict, adding bookmark');
+      console.log('[Agenda] ✅ No conflict - saving bookmark immediately');
+      console.log('[Agenda] Save is happening: YES ✅');
       // No conflict, add bookmark
       const newBookmarks = new Set(bookmarkedSessions);
       newBookmarks.add(sessionId);
       setBookmarkedSessions(newBookmarks);
       saveBookmarks(newBookmarks);
     }
+    console.log('═══════════════════════════════════════════════════');
   };
 
   const handleKeepBoth = () => {
     if (!pendingSession) return;
     
-    console.log('[Agenda] User chose to keep both sessions');
+    console.log('[Agenda] 👥 User chose: KEEP BOTH sessions');
     const newBookmarks = new Set(bookmarkedSessions);
     newBookmarks.add(pendingSession.id);
     setBookmarkedSessions(newBookmarks);
@@ -252,7 +288,7 @@ export default function AgendaScreen() {
   };
 
   const handleCancel = () => {
-    console.log('[Agenda] User cancelled bookmark');
+    console.log('[Agenda] ❌ User chose: CANCEL (do not save new session)');
     setShowConflictModal(false);
     setPendingSession(null);
     setConflictingSession(null);
@@ -261,7 +297,9 @@ export default function AgendaScreen() {
   const handleReplace = () => {
     if (!pendingSession || !conflictingSession) return;
     
-    console.log('[Agenda] User chose to replace existing session');
+    console.log('[Agenda] 🔄 User chose: REPLACE existing session');
+    console.log('[Agenda] Removing:', conflictingSession.Title);
+    console.log('[Agenda] Adding:', pendingSession.Title);
     const newBookmarks = new Set(bookmarkedSessions);
     newBookmarks.delete(conflictingSession.id);
     newBookmarks.add(pendingSession.id);

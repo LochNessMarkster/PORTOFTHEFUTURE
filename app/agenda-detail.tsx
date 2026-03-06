@@ -13,6 +13,9 @@ import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { fetchAgenda, AgendaItem } from '@/utils/airtable';
+import { hasSameStartTime } from '@/utils/timeUtils';
+import { ConflictModal } from '@/components/ConflictModal';
 
 const BOOKMARKS_KEY = '@agenda_bookmarks';
 
@@ -46,6 +49,12 @@ export default function AgendaDetailScreen() {
   const router = useRouter();
 
   const [isBookmarked, setIsBookmarked] = useState(false);
+  const [allSessions, setAllSessions] = useState<AgendaItem[]>([]);
+  const [bookmarkedSessions, setBookmarkedSessions] = useState<Set<string>>(new Set());
+  
+  // Conflict modal state
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictingSession, setConflictingSession] = useState<AgendaItem | null>(null);
 
   const sessionId = params.id as string;
   const title = params.title as string;
@@ -58,38 +67,213 @@ export default function AgendaDetailScreen() {
   const speakerNames = params.speakerNames as string;
 
   useEffect(() => {
-    loadBookmarkStatus();
+    loadData();
   }, [sessionId]);
+
+  const loadData = async () => {
+    await loadBookmarkStatus();
+    await loadAllSessions();
+  };
 
   const loadBookmarkStatus = async () => {
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
       if (stored) {
         const bookmarks = JSON.parse(stored);
+        const bookmarksSet = new Set(bookmarks);
+        setBookmarkedSessions(bookmarksSet);
         setIsBookmarked(bookmarks.includes(sessionId));
+        console.log('[AgendaDetail] Loaded bookmarks:', bookmarks.length, 'sessions');
       }
     } catch (err) {
-      console.error('Error loading bookmark status:', err);
+      console.error('[AgendaDetail] Error loading bookmark status:', err);
     }
   };
 
+  const loadAllSessions = async () => {
+    try {
+      const data = await fetchAgenda();
+      setAllSessions(data.agenda || []);
+      console.log('[AgendaDetail] Loaded all sessions:', data.agenda?.length || 0);
+    } catch (err) {
+      console.error('[AgendaDetail] Error loading sessions:', err);
+    }
+  };
+
+  const checkForConflicts = (): AgendaItem | null => {
+    console.log('═══════════════════════════════════════════════════');
+    console.log('[AgendaDetail] 🔍 CONFLICT CHECK STARTED');
+    console.log('[AgendaDetail] Candidate session ID:', sessionId);
+    console.log('[AgendaDetail] Candidate session title:', title);
+    console.log('[AgendaDetail] Candidate session date:', date);
+    console.log('[AgendaDetail] Candidate session start time:', startTime);
+    console.log('═══════════════════════════════════════════════════');
+    
+    // Check if new session has required time fields
+    if (!startTime) {
+      console.warn('[AgendaDetail] ⚠️ Candidate session missing StartTime, cannot check conflicts');
+      return null;
+    }
+    
+    if (!date) {
+      console.warn('[AgendaDetail] ⚠️ Candidate session missing Date, cannot check conflicts');
+      return null;
+    }
+    
+    // Find all bookmarked sessions
+    const bookmarkedSessionsList = allSessions.filter(s => 
+      bookmarkedSessions.has(s.id) && s.id !== sessionId
+    );
+    
+    console.log('[AgendaDetail] 📚 Current saved My Schedule sessions:', bookmarkedSessionsList.length);
+    
+    if (bookmarkedSessionsList.length === 0) {
+      console.log('[AgendaDetail] ✅ No saved sessions to check against - no conflicts possible');
+      console.log('═══════════════════════════════════════════════════');
+      return null;
+    }
+    
+    // Log all saved sessions
+    bookmarkedSessionsList.forEach((saved, index) => {
+      console.log(`[AgendaDetail] Saved session ${index + 1}:`, {
+        id: saved.id,
+        title: saved.Title,
+        date: saved.Date,
+        startTime: saved.StartTime,
+      });
+    });
+    
+    // Check for same date + same start time conflicts
+    let matchCount = 0;
+    for (const existing of bookmarkedSessionsList) {
+      console.log('---------------------------------------------------');
+      console.log('[AgendaDetail] Comparing with existing session:', existing.Title);
+      console.log('[AgendaDetail] Existing session date:', existing.Date);
+      console.log('[AgendaDetail] Existing session start time:', existing.StartTime);
+      
+      // Skip if existing session is missing required fields
+      if (!existing.StartTime || !existing.Date) {
+        console.warn('[AgendaDetail] ⚠️ Existing session missing Date or StartTime, skipping');
+        continue;
+      }
+      
+      // Check for EXACT same date and start time
+      const hasConflict = hasSameStartTime(
+        date,
+        startTime,
+        existing.Date,
+        existing.StartTime
+      );
+      
+      if (hasConflict) {
+        matchCount++;
+        console.log('[AgendaDetail] 🚨 CONFLICT DETECTED!');
+        console.log('[AgendaDetail] Number of matches with same date + start time:', matchCount);
+        console.log('[AgendaDetail] Conflicting session:', existing.Title);
+        console.log('[AgendaDetail] Modal trigger condition: REACHED ✅');
+        console.log('═══════════════════════════════════════════════════');
+        return existing;
+      }
+    }
+    
+    console.log('[AgendaDetail] ✅ No conflicts found - all sessions have different date or start time');
+    console.log('[AgendaDetail] Number of matches with same date + start time:', matchCount);
+    console.log('[AgendaDetail] Modal trigger condition: NOT REACHED ❌');
+    console.log('═══════════════════════════════════════════════════');
+    return null;
+  };
+
   const toggleBookmark = async () => {
-    console.log('Toggling bookmark for session:', sessionId);
+    console.log('═══════════════════════════════════════════════════');
+    console.log('[AgendaDetail] 📌 BOOKMARK TOGGLE INITIATED');
+    console.log('[AgendaDetail] Session ID:', sessionId);
+    console.log('[AgendaDetail] Session title:', title);
+    console.log('[AgendaDetail] Currently bookmarked?', isBookmarked);
+    
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
       let bookmarks: string[] = stored ? JSON.parse(stored) : [];
       
       if (isBookmarked) {
+        // Remove bookmark
+        console.log('[AgendaDetail] ➖ Removing bookmark (no conflict check needed)');
         bookmarks = bookmarks.filter(id => id !== sessionId);
+        await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+        setIsBookmarked(false);
+        setBookmarkedSessions(new Set(bookmarks));
+        console.log('[AgendaDetail] Bookmark removed successfully');
       } else {
-        bookmarks.push(sessionId);
+        // Check for conflicts BEFORE adding
+        console.log('[AgendaDetail] ➕ Adding bookmark - checking for conflicts FIRST...');
+        const conflict = checkForConflicts();
+        
+        if (conflict) {
+          console.log('[AgendaDetail] 🚨 Conflict found - showing modal BEFORE saving');
+          console.log('[AgendaDetail] Save is happening: NO ❌ (waiting for user choice)');
+          // Show conflict modal - DO NOT SAVE YET
+          setConflictingSession(conflict);
+          setShowConflictModal(true);
+        } else {
+          console.log('[AgendaDetail] ✅ No conflict - saving bookmark immediately');
+          console.log('[AgendaDetail] Save is happening: YES ✅');
+          // No conflict, add bookmark
+          bookmarks.push(sessionId);
+          await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+          setIsBookmarked(true);
+          setBookmarkedSessions(new Set(bookmarks));
+          console.log('[AgendaDetail] Bookmark added successfully');
+        }
       }
+    } catch (err) {
+      console.error('[AgendaDetail] Error toggling bookmark:', err);
+    }
+    console.log('═══════════════════════════════════════════════════');
+  };
+
+  const handleKeepBoth = async () => {
+    console.log('[AgendaDetail] 👥 User chose: KEEP BOTH sessions');
+    try {
+      const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      let bookmarks: string[] = stored ? JSON.parse(stored) : [];
+      bookmarks.push(sessionId);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+      setIsBookmarked(true);
+      setBookmarkedSessions(new Set(bookmarks));
+      setShowConflictModal(false);
+      setConflictingSession(null);
+    } catch (err) {
+      console.error('[AgendaDetail] Error saving bookmark:', err);
+    }
+  };
+
+  const handleCancel = () => {
+    console.log('[AgendaDetail] ❌ User chose: CANCEL (do not save new session)');
+    setShowConflictModal(false);
+    setConflictingSession(null);
+  };
+
+  const handleReplace = async () => {
+    if (!conflictingSession) return;
+    
+    console.log('[AgendaDetail] 🔄 User chose: REPLACE existing session');
+    console.log('[AgendaDetail] Removing:', conflictingSession.Title);
+    console.log('[AgendaDetail] Adding:', title);
+    
+    try {
+      const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      let bookmarks: string[] = stored ? JSON.parse(stored) : [];
+      
+      // Remove conflicting session and add new one
+      bookmarks = bookmarks.filter(id => id !== conflictingSession.id);
+      bookmarks.push(sessionId);
       
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-      setIsBookmarked(!isBookmarked);
-      console.log('Bookmark toggled. New status:', !isBookmarked);
+      setIsBookmarked(true);
+      setBookmarkedSessions(new Set(bookmarks));
+      setShowConflictModal(false);
+      setConflictingSession(null);
     } catch (err) {
-      console.error('Error toggling bookmark:', err);
+      console.error('[AgendaDetail] Error replacing bookmark:', err);
     }
   };
 
@@ -260,6 +444,32 @@ export default function AgendaDetailScreen() {
             </Text>
           </TouchableOpacity>
         </ScrollView>
+
+        {/* Conflict Modal */}
+        {conflictingSession && (
+          <ConflictModal
+            visible={showConflictModal}
+            newSession={{
+              id: sessionId,
+              title: title,
+              date: date,
+              startTime: startTime,
+              endTime: endTime || '',
+              room: room || '',
+            }}
+            existingSession={{
+              id: conflictingSession.id,
+              title: conflictingSession.Title,
+              date: conflictingSession.Date,
+              startTime: conflictingSession.StartTime,
+              endTime: conflictingSession.EndTime || '',
+              room: conflictingSession.Room || '',
+            }}
+            onKeepBoth={handleKeepBoth}
+            onCancel={handleCancel}
+            onReplace={handleReplace}
+          />
+        )}
       </SafeAreaView>
     </>
   );

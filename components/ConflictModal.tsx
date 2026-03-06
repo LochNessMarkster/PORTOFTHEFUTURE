@@ -46,10 +46,7 @@ export function ConflictModal({
   };
 
   const newSessionDate = formatDate(newSession.date);
-  const newSessionTime = `${newSession.startTime} - ${newSession.endTime}`;
-  
   const existingSessionDate = formatDate(existingSession.date);
-  const existingSessionTime = `${existingSession.startTime} - ${existingSession.endTime}`;
 
   return (
     <Modal
@@ -72,36 +69,40 @@ export function ConflictModal({
 
           <ScrollView style={styles.content}>
             <Text style={styles.message}>
-              This session overlaps with another session already saved in My Schedule.
+              You already saved another session that starts at the same time.
             </Text>
 
             <View style={styles.sessionContainer}>
-              <Text style={styles.sessionLabel}>New Session:</Text>
+              <Text style={styles.sessionLabel}>Session you&apos;re trying to save:</Text>
               <View style={styles.sessionCard}>
                 <Text style={styles.sessionTitle} numberOfLines={2}>
                   {newSession.title}
                 </Text>
                 <Text style={styles.sessionInfo}>
-                  {newSessionDate} • {newSessionTime}
+                  {newSessionDate} • {newSession.startTime}
                 </Text>
-                <Text style={styles.sessionRoom}>
-                  {newSession.room}
-                </Text>
+                {newSession.room && (
+                  <Text style={styles.sessionRoom}>
+                    {newSession.room}
+                  </Text>
+                )}
               </View>
             </View>
 
             <View style={styles.sessionContainer}>
-              <Text style={styles.sessionLabel}>Existing Session:</Text>
+              <Text style={styles.sessionLabel}>Already-saved conflicting session:</Text>
               <View style={styles.sessionCard}>
                 <Text style={styles.sessionTitle} numberOfLines={2}>
                   {existingSession.title}
                 </Text>
                 <Text style={styles.sessionInfo}>
-                  {existingSessionDate} • {existingSessionTime}
+                  {existingSessionDate} • {existingSession.startTime}
                 </Text>
-                <Text style={styles.sessionRoom}>
-                  {existingSession.room}
-                </Text>
+                {existingSession.room && (
+                  <Text style={styles.sessionRoom}>
+                    {existingSession.room}
+                  </Text>
+                )}
               </View>
             </View>
           </ScrollView>
