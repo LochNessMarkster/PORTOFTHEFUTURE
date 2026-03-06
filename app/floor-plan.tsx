@@ -95,7 +95,7 @@ export default function FloorPlanScreen() {
   };
 
   return (
-    <>
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <Stack.Screen
         options={{
           headerShown: true,
@@ -112,7 +112,7 @@ export default function FloorPlanScreen() {
           <View style={[styles.instructionsCard, { backgroundColor: cardBg }]}>
             <IconSymbol
               ios_icon_name="hand.pinch.fill"
-              android_material_icon_name="pinch"
+              android_material_icon_name="zoom-in"
               size={24}
               color={colors.primary}
             />
@@ -121,20 +121,18 @@ export default function FloorPlanScreen() {
             </Text>
           </View>
 
-          {/* Floor Plan Image with Pinch-to-Zoom */}
+          {/* Floor Plan Image with Pinch-to-Zoom - NOW AT THE TOP */}
           <View style={[styles.floorPlanContainer, { backgroundColor: cardBg }]}>
-            <GestureHandlerRootView style={styles.gestureContainer}>
-              <PinchGestureHandler onGestureEvent={pinchHandler}>
-                <Animated.View style={[styles.imageWrapper, animatedStyle]}>
-                  <Image
-                    key={resetZoom}
-                    source={resolveImageSource(floorPlanImage)}
-                    style={styles.floorPlanImage}
-                    resizeMode="contain"
-                  />
-                </Animated.View>
-              </PinchGestureHandler>
-            </GestureHandlerRootView>
+            <PinchGestureHandler onGestureEvent={pinchHandler}>
+              <Animated.View style={[styles.imageWrapper, animatedStyle]}>
+                <Image
+                  key={resetZoom}
+                  source={resolveImageSource(floorPlanImage)}
+                  style={styles.floorPlanImage}
+                  resizeMode="contain"
+                />
+              </Animated.View>
+            </PinchGestureHandler>
           </View>
 
           {/* Reset Zoom Button */}
@@ -151,7 +149,7 @@ export default function FloorPlanScreen() {
             <Text style={styles.resetButtonText}>Reset Zoom</Text>
           </TouchableOpacity>
 
-          {/* Venue Information */}
+          {/* Venue Information - NOW BELOW THE MAP */}
           <View style={[styles.venueSection, { backgroundColor: cardBg }]}>
             <View style={styles.venueSectionHeader}>
               <IconSymbol
@@ -263,7 +261,7 @@ export default function FloorPlanScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
-    </>
+    </GestureHandlerRootView>
   );
 }
 
@@ -305,16 +303,13 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  gestureContainer: {
-    width: '100%',
     height: 400,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   imageWrapper: {
     width: '100%',
     height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   floorPlanImage: {
     width: '100%',
