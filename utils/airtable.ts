@@ -55,78 +55,36 @@ export async function fetchPaginatedAirtableData<T>(
 }
 
 // Speaker Types
-export interface RawSpeakerFields {
-  'First Name': string;
-  'Last Name': string;
-  'Speaker Title'?: string;
-  'Speaking Topic'?: string;
-  'Synopsis of Speaking topic'?: string;
-  'Bio'?: string;
-  'Photo'?: { url: string; thumbnails?: { large: { url: string } } }[];
-  'PublicPersonalData'?: boolean;
-  'Email'?: string;
-  'Phone'?: string;
-  'Published'?: boolean;
-}
-
 export interface Speaker {
   id: string;
-  name_display: string;
-  first_name: string;
-  last_name: string;
-  title_full?: string;
-  speaking_topic?: string;
-  topic_synopsis?: string;
+  firstName: string;
+  lastName: string;
+  title?: string;
+  speakingTopic?: string;
+  synopsis?: string;
   bio?: string;
-  photo_url?: string;
-  public_personal_data: boolean;
+  published: boolean;
+  publicPersonalData: boolean;
+  photoUrl?: string;
   email?: string;
   phone?: string;
+  company?: string;
 }
 
-export const mapAirtableSpeaker = (record: AirtableRecord<RawSpeakerFields>): Speaker => {
-  const fields = record.fields;
-  const photo = fields.Photo?.[0];
-  const publicPersonalData = fields.PublicPersonalData ?? false;
-  const firstName = fields['First Name'] || '';
-  const lastName = fields['Last Name'] || '';
+export interface SpeakersResponse {
+  updated_at: string;
+  source_used: 'airtablecache' | 'airtable';
+  speakers: Speaker[];
+}
 
-  return {
-    id: record.id,
-    first_name: firstName,
-    last_name: lastName,
-    name_display: `${firstName} ${lastName}`.trim(),
-    title_full: fields['Speaker Title'],
-    speaking_topic: fields['Speaking Topic'],
-    topic_synopsis: fields['Synopsis of Speaking topic'],
-    bio: fields.Bio,
-    photo_url: photo?.thumbnails?.large?.url || photo?.url,
-    public_personal_data: publicPersonalData,
-    email: publicPersonalData ? fields.Email : undefined,
-    phone: publicPersonalData ? fields.Phone : undefined,
-  };
-};
-
-export const fetchSpeakers = async (): Promise<Speaker[]> => {
-  console.log('Fetching speakers...');
-  const rawRecords = await fetchPaginatedAirtableData<RawSpeakerFields>('tblNp1JZk4ARZZZlT');
-  
-  // Filter for published speakers
-  const publishedRecords = rawRecords.filter(record => record.fields.Published === true);
-  console.log('Published speakers:', publishedRecords.length);
-  
-  const speakers = publishedRecords.map(mapAirtableSpeaker);
-
-  // Sort by Last Name A-Z, then First Name A-Z
-  speakers.sort((a, b) => {
-    const lastNameCompare = a.last_name.localeCompare(b.last_name);
-    if (lastNameCompare !== 0) return lastNameCompare;
-    return a.first_name.localeCompare(b.first_name);
-  });
-
-  console.log('Speakers sorted:', speakers.length);
-  return speakers;
-};
+/**
+ * Fetch speakers from the backend proxy endpoint.
+ * The backend handles caching (24h TTL), Airtable pagination, filtering (Published==true),
+ * sorting (Last Name then First Name), and fallback logic.
+ * Returns speakers sorted by last name, then first name.
+ */
+export const fetchSpeakers = (): Promise<SpeakersResponse> =>
+  apiGet<SpeakersResponse>('/api/speakers');
 
 // Activity Types
 export interface RawActivityFields {

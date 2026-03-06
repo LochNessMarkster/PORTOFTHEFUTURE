@@ -42,17 +42,17 @@ export default function SpeakersScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadSpeakers = useCallback(async () => {
-    console.log('Loading speakers...');
+    console.log('Loading speakers from backend proxy...');
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchSpeakers();
-      console.log('Speakers loaded:', data.length);
-      setSpeakers(data);
-      setFilteredSpeakers(data);
+      const response = await fetchSpeakers();
+      console.log('Speakers loaded:', response.speakers.length, 'from', response.source_used);
+      setSpeakers(response.speakers);
+      setFilteredSpeakers(response.speakers);
     } catch (err) {
       console.error('Error loading speakers:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load speakers';
+      const errorMessage = err instanceof Error ? err.message : 'Speakers unavailable. Pull to refresh.';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -71,9 +71,10 @@ export default function SpeakersScreen() {
 
     const query = searchQuery.toLowerCase();
     const filtered = speakers.filter(speaker => {
-      const nameMatch = speaker.name_display.toLowerCase().includes(query);
-      const titleMatch = speaker.title_full?.toLowerCase().includes(query);
-      const topicMatch = speaker.speaking_topic?.toLowerCase().includes(query);
+      const fullName = `${speaker.firstName} ${speaker.lastName}`.toLowerCase();
+      const nameMatch = fullName.includes(query);
+      const titleMatch = speaker.title?.toLowerCase().includes(query);
+      const topicMatch = speaker.speakingTopic?.toLowerCase().includes(query);
       return nameMatch || titleMatch || topicMatch;
     });
 
@@ -86,25 +87,29 @@ export default function SpeakersScreen() {
   }, [filterSpeakers]);
 
   const handleSpeakerPress = (speaker: Speaker) => {
-    console.log('Speaker pressed:', speaker.name_display);
+    const displayName = `${speaker.firstName} ${speaker.lastName}`.trim();
+    console.log('Speaker pressed:', displayName);
     router.push({
       pathname: '/speaker-detail',
       params: {
         id: speaker.id,
-        name_display: speaker.name_display,
-        title_full: speaker.title_full || '',
-        speaking_topic: speaker.speaking_topic || '',
-        topic_synopsis: speaker.topic_synopsis || '',
+        name_display: displayName,
+        title_full: speaker.title || '',
+        speaking_topic: speaker.speakingTopic || '',
+        topic_synopsis: speaker.synopsis || '',
         bio: speaker.bio || '',
-        photo_url: speaker.photo_url || '',
-        public_personal_data: speaker.public_personal_data ? 'true' : 'false',
+        photo_url: speaker.photoUrl || '',
+        public_personal_data: speaker.publicPersonalData ? 'true' : 'false',
         email: speaker.email || '',
         phone: speaker.phone || '',
+        company: speaker.company || '',
       },
     });
   };
 
   const renderSpeakerCard = ({ item }: { item: Speaker }) => {
+    const displayName = `${item.firstName} ${item.lastName}`.trim();
+    
     return (
       <TouchableOpacity
         style={[styles.speakerCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
@@ -112,9 +117,9 @@ export default function SpeakersScreen() {
         activeOpacity={0.7}
       >
         <View style={styles.photoContainer}>
-          {item.photo_url ? (
+          {item.photoUrl ? (
             <Image
-              source={resolveImageSource(item.photo_url)}
+              source={resolveImageSource(item.photoUrl)}
               style={styles.photo}
               resizeMode="cover"
             />
@@ -131,11 +136,11 @@ export default function SpeakersScreen() {
         </View>
         <View style={styles.speakerInfo}>
           <Text style={[styles.speakerName, { color: textColor }]} numberOfLines={2}>
-            {item.name_display}
+            {displayName}
           </Text>
-          {item.title_full && (
+          {item.title && (
             <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={2}>
-              {item.title_full}
+              {item.title}
             </Text>
           )}
         </View>
