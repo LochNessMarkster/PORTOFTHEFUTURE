@@ -184,7 +184,7 @@ export default function HomeScreen() {
           {/* Hero Image */}
           <View style={styles.heroContainer}>
             <Image
-              source={resolveImageSource('https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&q=80')}
+              source={resolveImageSource(require('@/assets/images/af914b52-8d81-44ca-937e-bc2b6ab12a17.jpeg'))}
               style={styles.heroImage}
               resizeMode="cover"
             />
