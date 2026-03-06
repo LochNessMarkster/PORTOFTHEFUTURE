@@ -27,14 +27,16 @@ interface NavigationCard {
 }
 
 const navigationCards: NavigationCard[] = [
-  { id: '1', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
-  { id: '2', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
-  { id: '3', title: 'Sponsors', ios_icon: 'award.fill', android_icon: 'star' },
-  { id: '4', title: 'Activities', ios_icon: 'ticket.fill', android_icon: 'event' },
-  { id: '5', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
-  { id: '6', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
-  { id: '7', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
-  { id: '8', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
+  { id: '1', title: 'Agenda', ios_icon: 'calendar', android_icon: 'calendar-today' },
+  { id: '2', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star' },
+  { id: '3', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
+  { id: '4', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
+  { id: '5', title: 'Exhibitors', ios_icon: 'building.2.fill', android_icon: 'store' },
+  { id: '6', title: 'Sponsors', ios_icon: 'heart.fill', android_icon: 'favorite' },
+  { id: '7', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
+  { id: '8', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
+  { id: '9', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
+  { id: '10', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
 ];
 
 export default function HomeScreen() {
@@ -85,6 +87,9 @@ export default function HomeScreen() {
     console.log('Navigation card pressed:', card.title);
     
     switch (card.title) {
+      case 'Agenda':
+        router.push('/agenda');
+        break;
       case 'My Schedule':
         router.push('/my-schedule');
         break;
@@ -93,6 +98,9 @@ export default function HomeScreen() {
         break;
       case 'Activities':
         router.push('/activities');
+        break;
+      case 'Exhibitors':
+        router.push('/exhibitors');
         break;
       case 'Sponsors':
         router.push('/sponsors');
@@ -112,15 +120,6 @@ export default function HomeScreen() {
       default:
         console.log('Navigation not yet implemented for:', card.title);
         break;
-    }
-  };
-
-  const handleHeroButtonPress = (action: string) => {
-    console.log('Hero button pressed:', action);
-    if (action === 'agenda') {
-      router.push('/agenda');
-    } else if (action === 'exhibitors') {
-      router.push('/exhibitors');
     }
   };
 
@@ -199,47 +198,11 @@ export default function HomeScreen() {
                 />
                 <Text style={styles.heroDate}>{dateText}</Text>
                 <Text style={styles.heroLocation}>{locationText}</Text>
-                
-                {/* Hero Action Buttons */}
-                <View style={styles.heroButtonsContainer}>
-                  <TouchableOpacity
-                    style={styles.heroButton}
-                    onPress={() => handleHeroButtonPress('agenda')}
-                    activeOpacity={0.8}
-                  >
-                    <IconSymbol
-                      ios_icon_name="calendar"
-                      android_material_icon_name="calendar-today"
-                      size={24}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.heroButtonText}>View Agenda</Text>
-                  </TouchableOpacity>
-
-                  <TouchableOpacity
-                    style={styles.heroButton}
-                    onPress={() => handleHeroButtonPress('exhibitors')}
-                    activeOpacity={0.8}
-                  >
-                    <IconSymbol
-                      ios_icon_name="building.2.fill"
-                      android_material_icon_name="store"
-                      size={24}
-                      color="#FFFFFF"
-                    />
-                    <Text style={styles.heroButtonText}>Exhibitors</Text>
-                  </TouchableOpacity>
-                </View>
               </View>
             </LinearGradient>
           </View>
 
-          {/* PRIMARY Section Label */}
-          <View style={styles.sectionLabelContainer}>
-            <Text style={styles.sectionLabel}>PRIMARY</Text>
-          </View>
-
-          {/* Navigation Cards Grid - 2 columns */}
+          {/* Navigation Cards Grid */}
           <View style={styles.gridContainer}>
             {navigationCards.map((card) => (
               <TouchableOpacity
@@ -248,12 +211,12 @@ export default function HomeScreen() {
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
               >
-                <View style={styles.iconContainer}>
+                <View style={styles.iconCircle}>
                   <IconSymbol
                     ios_icon_name={card.ios_icon}
                     android_material_icon_name={card.android_icon}
-                    size={40}
-                    color="#5EEBFF"
+                    size={28}
+                    color={colors.primary}
                   />
                 </View>
                 <Text style={styles.navCardTitle} numberOfLines={2}>
@@ -388,7 +351,7 @@ const styles = StyleSheet.create({
   },
   heroContainer: {
     width: '100%',
-    height: 420,
+    height: 320,
     position: 'relative',
   },
   heroImage: {
@@ -408,19 +371,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    width: '100%',
   },
   heroLogo: {
     width: 280,
-    height: 100,
-    marginBottom: 16,
+    height: 120,
+    marginBottom: 24,
   },
   heroDate: {
     fontSize: 20,
     fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
@@ -430,86 +392,49 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: colors.text,
     textAlign: 'center',
-    marginBottom: 24,
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  heroButtonsContainer: {
-    flexDirection: 'row',
-    width: '100%',
-    paddingHorizontal: 16,
-    gap: 12,
-  },
-  heroButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(30, 144, 255, 0.85)',
-    paddingVertical: 16,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    gap: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 8,
-    elevation: 6,
-  },
-  heroButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#FFFFFF',
-    textAlign: 'center',
-  },
-  sectionLabelContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 12,
-  },
-  sectionLabel: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.textMuted,
-    letterSpacing: 1.2,
-  },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    gap: 12,
+    padding: 16,
+    gap: 14,
   },
   navCard: {
-    width: 'calc(50% - 6px)',
-    height: 140,
-    backgroundColor: '#1A3A52',
-    borderRadius: 16,
-    padding: 16,
+    width: '18%',
+    aspectRatio: 1,
+    backgroundColor: colors.card,
+    borderRadius: 18,
+    padding: 10,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(94, 235, 255, 0.2)',
+    borderColor: colors.border,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.35,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  iconContainer: {
-    marginBottom: 12,
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: 'rgba(31, 182, 166, 0.15)',
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 6,
   },
   navCardTitle: {
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
     color: colors.text,
   },
   announcementsSection: {
     paddingHorizontal: 16,
-    paddingTop: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
