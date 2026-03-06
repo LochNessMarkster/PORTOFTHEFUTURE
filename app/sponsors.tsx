@@ -13,7 +13,6 @@ import {
   ImageSourcePropType,
   RefreshControl,
   ScrollView,
-  SectionList,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -73,28 +72,58 @@ export default function SponsorsScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadSponsors = useCallback(async () => {
+    console.log('[Sponsors] ========================================');
     console.log('[Sponsors] Loading sponsors from backend proxy...');
     console.log('[Sponsors] Backend URL:', BACKEND_URL);
-    console.log('[Sponsors] Endpoint: /api/sponsors');
+    console.log('[Sponsors] Full endpoint:', `${BACKEND_URL}/api/sponsors`);
+    console.log('[Sponsors] ========================================');
+    
     try {
       setError(null);
       const response = await fetchSponsors();
-      console.log('[Sponsors] Response received:', JSON.stringify(response, null, 2));
-      console.log('[Sponsors] Loaded:', response.sponsors.length, 'sponsors');
+      
+      console.log('[Sponsors] ========================================');
+      console.log('[Sponsors] RESPONSE RECEIVED');
+      console.log('[Sponsors] ========================================');
+      console.log('[Sponsors] Full response:', JSON.stringify(response, null, 2));
+      console.log('[Sponsors] Response keys:', Object.keys(response));
       console.log('[Sponsors] Source used:', response.source_used);
       console.log('[Sponsors] Updated at:', response.updated_at);
+      console.log('[Sponsors] Sponsors array length:', response.sponsors?.length ?? 0);
+      console.log('[Sponsors] Sponsors array type:', Array.isArray(response.sponsors) ? 'Array' : typeof response.sponsors);
       
-      if (response.sponsors.length > 0) {
+      if (response.sponsors && response.sponsors.length > 0) {
+        console.log('[Sponsors] ========================================');
+        console.log('[Sponsors] FIRST SPONSOR DETAILS');
+        console.log('[Sponsors] ========================================');
         console.log('[Sponsors] First sponsor:', JSON.stringify(response.sponsors[0], null, 2));
+        console.log('[Sponsors] First sponsor keys:', Object.keys(response.sponsors[0]));
+        console.log('[Sponsors] First sponsor name:', response.sponsors[0].name);
+        console.log('[Sponsors] First sponsor level:', response.sponsors[0].level);
+        console.log('[Sponsors] First sponsor logoUrl:', response.sponsors[0].logoUrl);
       } else {
+        console.warn('[Sponsors] ========================================');
         console.warn('[Sponsors] WARNING: No sponsors returned from backend');
+        console.warn('[Sponsors] Response structure:', JSON.stringify(response, null, 2));
+        console.warn('[Sponsors] ========================================');
       }
       
-      setSponsors(response.sponsors);
+      console.log('[Sponsors] Setting sponsors state with', response.sponsors?.length ?? 0, 'sponsors');
+      setSponsors(response.sponsors || []);
+      
+      console.log('[Sponsors] ========================================');
+      console.log('[Sponsors] LOAD COMPLETE');
+      console.log('[Sponsors] ========================================');
     } catch (err) {
-      console.error('[Sponsors] Error loading sponsors:', err);
-      console.error('[Sponsors] Error details:', err instanceof Error ? err.message : String(err));
+      console.error('[Sponsors] ========================================');
+      console.error('[Sponsors] ERROR LOADING SPONSORS');
+      console.error('[Sponsors] ========================================');
+      console.error('[Sponsors] Error object:', err);
+      console.error('[Sponsors] Error type:', typeof err);
+      console.error('[Sponsors] Error message:', err instanceof Error ? err.message : String(err));
       console.error('[Sponsors] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
+      console.error('[Sponsors] ========================================');
+      
       const errorMessage = err instanceof Error ? err.message : 'Unable to load sponsors';
       setError(errorMessage);
       setSponsors([]);
@@ -109,7 +138,7 @@ export default function SponsorsScreen() {
   }, [loadSponsors]);
 
   const onRefresh = useCallback(() => {
-    console.log('[Sponsors] Refreshing sponsors...');
+    console.log('[Sponsors] User triggered refresh');
     setRefreshing(true);
     loadSponsors();
   }, [loadSponsors]);
@@ -142,7 +171,7 @@ export default function SponsorsScreen() {
         return tierIndexA - tierIndexB;
       }
       
-      return a.name.localeCompare(b.name);
+      return (a.name || '').localeCompare(b.name || '');
     });
     
     console.log('[Sponsors] Sorted sponsors:', sorted.length);
@@ -157,8 +186,8 @@ export default function SponsorsScreen() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(sponsor => {
-        const nameMatch = sponsor.name.toLowerCase().includes(query);
-        const tierMatch = sponsor.level?.toLowerCase().includes(query);
+        const nameMatch = (sponsor.name || '').toLowerCase().includes(query);
+        const tierMatch = (sponsor.level || '').toLowerCase().includes(query);
         return nameMatch || tierMatch;
       });
     }
@@ -166,7 +195,7 @@ export default function SponsorsScreen() {
     // Filter by selected letter
     if (selectedLetter) {
       filtered = filtered.filter(sponsor => 
-        sponsor.name.toUpperCase().startsWith(selectedLetter)
+        (sponsor.name || '').toUpperCase().startsWith(selectedLetter)
       );
     }
 
@@ -224,7 +253,7 @@ export default function SponsorsScreen() {
   const availableLetters = useMemo(() => {
     const letters = new Set<string>();
     sponsors.forEach(sponsor => {
-      const firstLetter = sponsor.name.charAt(0).toUpperCase();
+      const firstLetter = (sponsor.name || '').charAt(0).toUpperCase();
       if (ALPHABET.includes(firstLetter)) {
         letters.add(firstLetter);
       }
@@ -277,7 +306,7 @@ export default function SponsorsScreen() {
     );
   };
 
-  const renderSectionHeader = ({ section }: { section: SponsorSection }) => {
+  const renderSectionHeader = (section: SponsorSection) => {
     const tierColor = TIER_COLORS[section.title] || colors.primary;
     
     return (
@@ -294,11 +323,18 @@ export default function SponsorsScreen() {
     );
   };
 
-  const renderSectionItem = ({ item, index }: { item: Sponsor; index: number }) => {
-    const isLeft = index % 2 === 0;
+  const renderSection = (section: SponsorSection) => {
     return (
-      <View style={[styles.cardWrapper, isLeft ? styles.cardLeft : styles.cardRight]}>
-        {renderSponsorCard(item)}
+      <View key={section.title}>
+        {renderSectionHeader(section)}
+        <FlatList
+          data={section.data}
+          renderItem={({ item }) => renderSponsorCard(item)}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          scrollEnabled={false}
+        />
       </View>
     );
   };
@@ -441,15 +477,9 @@ export default function SponsorsScreen() {
             </Text>
           </View>
         ) : (
-          <SectionList
-            sections={groupedSponsors}
-            renderItem={renderSectionItem}
-            renderSectionHeader={renderSectionHeader}
-            keyExtractor={(item) => item.id}
+          <ScrollView
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
-            stickySectionHeadersEnabled={true}
-            numColumns={2}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -458,7 +488,9 @@ export default function SponsorsScreen() {
                 colors={[colors.primary]}
               />
             }
-          />
+          >
+            {groupedSponsors.map(section => renderSection(section))}
+          </ScrollView>
         )}
       </SafeAreaView>
     </>
@@ -557,8 +589,6 @@ const styles = StyleSheet.create({
   },
   sectionHeader: {
     paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: -16,
     marginBottom: 8,
   },
   sectionHeaderBadge: {
@@ -578,17 +608,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  cardWrapper: {
-    width: '50%',
-    paddingBottom: 16,
-  },
-  cardLeft: {
-    paddingRight: 8,
-  },
-  cardRight: {
-    paddingLeft: 8,
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 16,
   },
   sponsorCard: {
+    flex: 1,
+    maxWidth: '48%',
     borderRadius: 12,
     padding: 12,
     borderWidth: 1,

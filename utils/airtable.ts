@@ -147,14 +147,14 @@ export const fetchExhibitors = (): Promise<ExhibitorsResponse> =>
 export interface Sponsor {
   id: string;
   name: string;
-  level: string;
+  level?: string;
   bio?: string;
   companyUrl?: string;
   email?: string;
   linkedIn?: string;
   facebook?: string;
   x?: string;
-  logoUrl: string;
+  logoUrl?: string;
 }
 
 export interface SponsorsResponse {
@@ -166,9 +166,27 @@ export interface SponsorsResponse {
 /**
  * Fetch sponsors from the backend proxy endpoint.
  * The backend handles caching (24h TTL), Airtable pagination, sorting (Level then Name), and fallback logic.
+ * Table ID: tblgWrwRvpdcVG8sB
  */
-export const fetchSponsors = (): Promise<SponsorsResponse> =>
-  apiGet<SponsorsResponse>('/api/sponsors');
+export const fetchSponsors = async (): Promise<SponsorsResponse> => {
+  console.log('[Sponsors] Fetching sponsors from backend proxy...');
+  console.log('[Sponsors] Endpoint:', `${BACKEND_URL}/api/sponsors`);
+  const result = await apiGet<SponsorsResponse>('/api/sponsors');
+  console.log('[Sponsors] Raw response - source_used:', result.source_used);
+  console.log('[Sponsors] Raw response - sponsors count:', result.sponsors?.length ?? 0);
+  if (result.sponsors && result.sponsors.length > 0) {
+    console.log('[Sponsors] First sponsor raw:', JSON.stringify(result.sponsors[0]));
+  } else {
+    console.warn('[Sponsors] WARNING: No sponsors returned from backend. source_used:', result.source_used);
+  }
+  // Filter out any records without a name to prevent crashes
+  const validSponsors = (result.sponsors || []).filter(s => s && s.name);
+  console.log('[Sponsors] Valid sponsors (with name):', validSponsors.length);
+  return {
+    ...result,
+    sponsors: validSponsors,
+  };
+};
 
 // Port Types
 export interface RawPortFields {
