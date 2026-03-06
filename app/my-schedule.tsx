@@ -176,6 +176,16 @@ export default function MyScheduleScreen() {
     return `${weekday}, ${month} ${day}, ${year}`;
   };
 
+  const formatShortDate = (dateString: string): string => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `${month} ${day}, ${year}`;
+  };
+
   const handleSessionPress = (item: AgendaItem) => {
     console.log('[My Schedule] Session pressed:', item.Title);
     router.push({
@@ -221,6 +231,12 @@ export default function MyScheduleScreen() {
     
     const trackColor = getTrackColor(item.TypeTrack);
 
+    // Format date and time display
+    const dateDisplay = formatShortDate(item.Date);
+    const timeDisplay = item.EndTime 
+      ? `${item.StartTime} - ${item.EndTime}`
+      : item.StartTime;
+
     // Get session status (now/next)
     const status = item.EndTime ? getSessionStatus(item.Date, item.StartTime, item.EndTime) : null;
 
@@ -261,8 +277,14 @@ export default function MyScheduleScreen() {
         </View>
 
         <View style={styles.sessionInfo}>
+          <Text style={styles.sessionDate}>
+            {dateDisplay}
+          </Text>
+        </View>
+
+        <View style={styles.sessionInfo}>
           <Text style={styles.sessionTime}>
-            {item.StartTime}
+            {timeDisplay}
           </Text>
         </View>
 
@@ -500,6 +522,11 @@ const styles = StyleSheet.create({
   },
   sessionInfo: {
     marginBottom: 6,
+  },
+  sessionDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   sessionTime: {
     fontSize: 16,
