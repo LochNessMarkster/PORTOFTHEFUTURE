@@ -38,6 +38,9 @@ const navigationCards: NavigationCard[] = [
   { id: '10', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
 ];
 
+const CONFERENCE_DATES = "March 24 - 25, 2026";
+const CONFERENCE_LOCATION = "Houston, TX";
+
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
   const { user } = useAuth();
@@ -177,16 +180,22 @@ export default function HomeScreen() {
             />
           }
         >
-          {/* Hero Image */}
+          {/* Hero Image with Gray Overlay and Logo */}
           <View style={styles.heroContainer}>
             <Image
               source={resolveImageSource(require('@/assets/images/af914b52-8d81-44ca-937e-bc2b6ab12a17.jpeg'))}
               style={styles.heroImage}
               resizeMode="cover"
             />
-            <View style={styles.heroOverlay}>
-              <Text style={styles.heroTitle}>Port of the Future</Text>
-              <Text style={styles.heroSubtitle}>Conference 2026</Text>
+            <View style={styles.grayOverlay} />
+            <View style={styles.heroContent}>
+              <Image
+                source={resolveImageSource(require('@/assets/images/aa480f69-108c-45e4-b072-9476cc4eee41.jpeg'))}
+                style={styles.logoImage}
+                resizeMode="contain"
+              />
+              <Text style={styles.heroDateText}>{CONFERENCE_DATES}</Text>
+              <Text style={styles.heroLocationText}>{CONFERENCE_LOCATION}</Text>
             </View>
           </View>
 
@@ -346,22 +355,39 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
   },
-  heroOverlay: {
+  grayOverlay: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    padding: 16,
+    bottom: 0,
+    backgroundColor: 'rgba(128, 128, 128, 0.5)',
   },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: colors.text,
+  heroContent: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  heroSubtitle: {
+  logoImage: {
+    width: 180,
+    height: 80,
+    marginBottom: 12,
+  },
+  heroDateText: {
     fontSize: 18,
-    color: colors.text,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  heroLocationText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+    textAlign: 'center',
     marginTop: 4,
   },
   gridContainer: {
