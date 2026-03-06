@@ -485,22 +485,29 @@ export default function AgendaScreen() {
                     setShowTrackDropdown(false);
                   }}
                 >
-                  <View style={styles.dropdownItemContent}>
-                    {track !== 'All Tracks' && (
-                      <View
-                        style={[
-                          styles.trackColorIndicator,
-                          { backgroundColor: trackColor }
-                        ]}
-                      />
-                    )}
+                  {track !== 'All Tracks' ? (
+                    <View style={[
+                      styles.dropdownTrackBadge,
+                      { 
+                        backgroundColor: trackColor + '20',
+                        borderColor: trackColor,
+                      }
+                    ]}>
+                      <Text style={[
+                        styles.dropdownTrackBadgeText,
+                        { color: trackColor }
+                      ]}>
+                        {track}
+                      </Text>
+                    </View>
+                  ) : (
                     <Text style={[
                       styles.dropdownItemText,
                       isSelected && styles.dropdownItemTextSelected
                     ]}>
                       {track}
                     </Text>
-                  </View>
+                  )}
                   {isSelected && (
                     <IconSymbol
                       ios_icon_name="checkmark"
@@ -1005,16 +1012,17 @@ const styles = StyleSheet.create({
   dropdownItemSelected: {
     backgroundColor: colors.cardAlt,
   },
-  dropdownItemContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  dropdownTrackBadge: {
     flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 8,
   },
-  trackColorIndicator: {
-    width: 12,
-    height: 12,
-    borderRadius: 6,
-    marginRight: 12,
+  dropdownTrackBadgeText: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   dropdownItemText: {
     fontSize: 16,
