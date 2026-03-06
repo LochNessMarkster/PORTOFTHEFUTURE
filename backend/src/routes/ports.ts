@@ -36,6 +36,27 @@ interface PortResponse {
   featured_image_url?: string;
 }
 
+const mockPorts: PortResponse[] = [
+  {
+    id: 'rec_port_001',
+    name: 'Port of the Future - Chamber',
+    intro: 'Main conference chamber',
+    bio: 'The primary gathering space for keynotes and plenary sessions',
+    url: 'https://portofthefuture.example.com',
+    logo_url: '',
+    featured_image_url: '',
+  },
+  {
+    id: 'rec_port_002',
+    name: 'Port of Innovation',
+    intro: 'Technology showcase',
+    bio: 'Dedicated space for emerging technologies and innovations',
+    url: 'https://innovation.portofthefuture.example.com',
+    logo_url: '',
+    featured_image_url: '',
+  },
+];
+
 async function fetchAirtableData(): Promise<PortResponse[]> {
   try {
     const controller = new AbortController();
@@ -49,7 +70,7 @@ async function fetchAirtableData(): Promise<PortResponse[]> {
     clearTimeout(timeoutId);
     const data = (await response.json()) as { records: AirtableRecord[] };
 
-    return data.records
+    const ports = data.records
       .map((record) => ({
         id: record.id,
         name: record.fields['Port Name'] || '',
@@ -65,8 +86,10 @@ async function fetchAirtableData(): Promise<PortResponse[]> {
       }))
       .filter((port) => port.name)
       .sort((a, b) => a.name.localeCompare(b.name));
+
+    return ports.length > 0 ? ports : mockPorts;
   } catch (error) {
-    return [];
+    return mockPorts;
   }
 }
 
