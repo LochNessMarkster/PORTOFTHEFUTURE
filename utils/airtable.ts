@@ -86,17 +86,7 @@ export interface SpeakersResponse {
 export const fetchSpeakers = (): Promise<SpeakersResponse> =>
   apiGet<SpeakersResponse>('/api/speakers');
 
-// Activity Types
-export interface RawActivityFields {
-  'Name': string;
-  'Description'?: string;
-  'Date'?: string;
-  'Time'?: string;
-  'Location'?: string;
-  'url'?: string;
-  'image'?: { url: string; thumbnails?: { large: { url: string } } }[];
-}
-
+// Activity Types (now from backend proxy)
 export interface Activity {
   id: string;
   name: string;
@@ -108,37 +98,18 @@ export interface Activity {
   image_url?: string;
 }
 
-export const mapAirtableActivity = (record: AirtableRecord<RawActivityFields>): Activity => {
-  const fields = record.fields;
-  const image = fields.image?.[0];
+export interface ActivitiesResponse {
+  updated_at: string;
+  source_used: 'airtablecache' | 'airtable_api' | 'airtable' | 'error';
+  activities: Activity[];
+}
 
-  return {
-    id: record.id,
-    name: fields.Name || '',
-    description: fields.Description,
-    date: fields.Date,
-    time: fields.Time,
-    location: fields.Location,
-    url: fields.url,
-    image_url: image?.thumbnails?.large?.url || image?.url,
-  };
-};
-
-export const fetchActivities = async (): Promise<Activity[]> => {
-  console.log('Fetching activities...');
-  const rawRecords = await fetchPaginatedAirtableData<RawActivityFields>('tblLpuL7Xff2rpdbB');
-  const activities = rawRecords.map(mapAirtableActivity);
-
-  // Sort by date/time ascending
-  activities.sort((a, b) => {
-    const dateA = a.date ? new Date(a.date).getTime() : 0;
-    const dateB = b.date ? new Date(b.date).getTime() : 0;
-    return dateA - dateB;
-  });
-
-  console.log('Activities sorted:', activities.length);
-  return activities;
-};
+/**
+ * Fetch activities from the backend proxy endpoint.
+ * The backend handles caching (24h TTL), Airtable pagination, sorting (Date ascending), and fallback logic.
+ */
+export const fetchActivities = (): Promise<ActivitiesResponse> =>
+  apiGet<ActivitiesResponse>('/api/activities');
 
 // Exhibitor Types (now from backend proxy)
 export interface Exhibitor {

@@ -11,6 +11,7 @@ import {
   useColorScheme,
   Image,
   ImageSourcePropType,
+  RefreshControl,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,8 +32,9 @@ export default function ActivitiesScreen() {
 
   const [activities, setActivities] = useState<Activity[]>([]);
   const [filteredActivities, setFilteredActivities] = useState<Activity[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isError, setIsError] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
@@ -42,25 +44,42 @@ export default function ActivitiesScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadActivities = useCallback(async () => {
-    console.log('Loading activities...');
+    console.log('[Activities] Loading activities from backend proxy...');
     try {
-      setLoading(true);
-      setError(null);
-      const data = await fetchActivities();
-      console.log('Activities loaded:', data.length);
-      setActivities(data);
-      setFilteredActivities(data);
+      setIsError(false);
+      const response = await fetchActivities();
+      console.log('[Activities] Response received:', {
+        count: response.activities?.length ?? 0,
+        source: response.source_used,
+        updated_at: response.updated_at,
+      });
+      
+      const activitiesData = response.activities || [];
+      console.log('[Activities] Total activities fetched:', activitiesData.length);
+      
+      if (activitiesData.length > 0) {
+        console.log('[Activities] First activity:', JSON.stringify(activitiesData[0], null, 2));
+      }
+      
+      setActivities(activitiesData);
+      setFilteredActivities(activitiesData);
     } catch (err) {
-      console.error('Error loading activities:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load activities';
-      setError(errorMessage);
+      console.error('[Activities] Error loading activities:', err);
+      setIsError(true);
     } finally {
-      setLoading(false);
+      setIsLoading(false);
+      setIsRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
     loadActivities();
+  }, [loadActivities]);
+
+  const onRefresh = useCallback(async () => {
+    console.log('[Activities] User triggered refresh');
+    setIsRefreshing(true);
+    await loadActivities();
   }, [loadActivities]);
 
   const filterActivities = useCallback(() => {
@@ -219,12 +238,12 @@ export default function ActivitiesScreen() {
           </View>
         </View>
 
-        {loading ? (
+        {isLoading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading activities...</Text>
           </View>
-        ) : error ? (
+        ) : isError ? (
           <View style={styles.centerContainer}>
             <IconSymbol
               ios_icon_name="exclamationmark.triangle.fill"
@@ -232,10 +251,16 @@ export default function ActivitiesScreen() {
               size={48}
               color={colors.error}
             />
-            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+            <Text style={[styles.errorTitle, { color: textColor }]}>
+              We're having trouble loading activities
+            </Text>
+            <Text style={[styles.errorText, { color: secondaryTextColor }]}>
+              Please check your connection and try again in a moment.
+            </Text>
             <TouchableOpacity
               style={[styles.retryButton, { backgroundColor: colors.primary }]}
               onPress={loadActivities}
+              activeOpacity={0.7}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
@@ -249,8 +274,17 @@ export default function ActivitiesScreen() {
               color={secondaryTextColor}
             />
             <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-              {searchQuery ? 'No activities found' : 'No activities available'}
+              {searchQuery ? 'No activities match your search' : 'No activities available right now'}
             </Text>
+            {searchQuery && (
+              <TouchableOpacity
+                style={[styles.clearButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+                onPress={() => setSearchQuery('')}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.clearButtonText, { color: textColor }]}>Clear Search</Text>
+              </TouchableOpacity>
+            )}
           </View>
         ) : (
           <FlatList
@@ -259,6 +293,14 @@ export default function ActivitiesScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={isRefreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
           />
         )}
       </SafeAreaView>
@@ -297,26 +339,51 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 15,
   },
-  errorText: {
-    fontSize: 15,
-    marginTop: 12,
+  errorTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginTop: 16,
     textAlign: 'center',
   },
+  errorText: {
+    fontSize: 15,
+    marginTop: 8,
+    textAlign: 'center',
+    paddingHorizontal: 32,
+    lineHeight: 22,
+  },
   retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
+    marginTop: 20,
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
   retryButtonText: {
     color: '#FFFFFF',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
   },
   emptyText: {
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
+    paddingHorizontal: 32,
+  },
+  clearButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  clearButtonText: {
+    fontSize: 15,
+    fontWeight: '500',
   },
   listContent: {
     padding: 16,
