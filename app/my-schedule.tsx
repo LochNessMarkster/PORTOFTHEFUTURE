@@ -16,6 +16,8 @@ import { fetchAgenda, AgendaItem } from '@/utils/airtable';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSessionStatus } from '@/utils/timeUtils';
+import { NowNextSection } from '@/components/NowNextSection';
 
 const BOOKMARKS_KEY = '@agenda_bookmarks';
 
@@ -183,6 +185,7 @@ export default function MyScheduleScreen() {
         title: item.Title || '',
         date: item.Date || '',
         startTime: item.StartTime || '',
+        endTime: item.EndTime || '',
         room: item.Room || '',
         typeTrack: item.TypeTrack || '',
         sessionDescription: item.SessionDescription || '',
@@ -218,6 +221,9 @@ export default function MyScheduleScreen() {
     
     const trackColor = getTrackColor(item.TypeTrack);
 
+    // Get session status (now/next)
+    const status = item.EndTime ? getSessionStatus(item.Date, item.StartTime, item.EndTime) : null;
+
     return (
       <TouchableOpacity
         style={styles.sessionCard}
@@ -226,6 +232,16 @@ export default function MyScheduleScreen() {
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
+            {status && (
+              <View style={[
+                styles.statusBadge,
+                status === 'now' ? styles.nowBadge : styles.nextBadge
+              ]}>
+                <Text style={styles.statusBadgeText}>
+                  {status === 'now' ? 'NOW' : 'NEXT'}
+                </Text>
+              </View>
+            )}
             <Text style={styles.sessionTitle} numberOfLines={2}>
               {item.Title}
             </Text>
@@ -304,6 +320,12 @@ export default function MyScheduleScreen() {
     );
   };
 
+  const renderHeader = () => {
+    if (groupedSessions.length === 0) return null;
+    
+    return <NowNextSection />;
+  };
+
   return (
     <>
       <Stack.Screen 
@@ -350,6 +372,7 @@ export default function MyScheduleScreen() {
             data={groupedSessions}
             keyExtractor={(item) => item.date}
             renderItem={renderDateSection}
+            ListHeaderComponent={renderHeader}
             contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl
@@ -447,6 +470,24 @@ const styles = StyleSheet.create({
   cardHeaderLeft: {
     flex: 1,
     marginRight: 8,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  nowBadge: {
+    backgroundColor: '#10B981',
+  },
+  nextBadge: {
+    backgroundColor: colors.accent,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   sessionTitle: {
     fontSize: 18,

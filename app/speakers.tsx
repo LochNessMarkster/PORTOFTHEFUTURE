@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -11,12 +11,18 @@ import {
   useColorScheme,
   Image,
   ImageSourcePropType,
+  RefreshControl,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { fetchSpeakers, Speaker } from '@/utils/airtable';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+
+const SPEAKERS_CACHE_KEY = '@speakers_cache';
+const SPEAKERS_CACHE_TIMESTAMP_KEY = '@speakers_cache_timestamp';
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -28,60 +34,124 @@ export default function SpeakersScreen() {
   const colorScheme = useColorScheme();
   const router = useRouter();
 
-  const [speakers, setSpeakers] = useState<Speaker[]>([]);
+  const [allSpeakers, setAllSpeakers] = useState<Speaker[]>([]);
   const [filteredSpeakers, setFilteredSpeakers] = useState<Speaker[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const loadSpeakers = useCallback(async () => {
-    console.log('Loading speakers from backend proxy...');
-    try {
-      setLoading(true);
-      setError(null);
-      const response = await fetchSpeakers();
-      console.log('Speakers loaded:', response.speakers.length, 'from', response.source_used);
-      setSpeakers(response.speakers);
-      setFilteredSpeakers(response.speakers);
-    } catch (err) {
-      console.error('Error loading speakers:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Speakers unavailable. Pull to refresh.';
-      setError(errorMessage);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     loadSpeakers();
-  }, [loadSpeakers]);
+  }, []);
 
-  const filterSpeakers = useCallback(() => {
-    if (!searchQuery.trim()) {
-      setFilteredSpeakers(speakers);
+  // Debounced search with 300ms delay
+  useEffect(() => {
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    searchTimeoutRef.current = setTimeout(() => {
+      filterSpeakers(searchQuery);
+    }, 300);
+
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, [searchQuery, allSpeakers]);
+
+  const loadSpeakers = async () => {
+    console.log('[Speakers] Loading speakers...');
+    
+    try {
+      // Check cache first
+      const cachedData = await AsyncStorage.getItem(SPEAKERS_CACHE_KEY);
+      const cachedTimestamp = await AsyncStorage.getItem(SPEAKERS_CACHE_TIMESTAMP_KEY);
+      const now = Date.now();
+
+      if (cachedData && cachedTimestamp && !refreshing) {
+        const timestamp = parseInt(cachedTimestamp, 10);
+        if (now - timestamp < CACHE_DURATION) {
+          console.log('[Speakers] Using cached data');
+          const speakers = JSON.parse(cachedData);
+          setAllSpeakers(speakers);
+          setFilteredSpeakers(speakers);
+          setLoading(false);
+          return;
+        }
+      }
+
+      // Fetch from API
+      if (!refreshing) {
+        setLoading(true);
+      }
+      setError(null);
+
+      const response = await fetchSpeakers();
+      console.log('[Speakers] Loaded:', response.speakers.length, 'from', response.source_used);
+      
+      setAllSpeakers(response.speakers);
+      setFilteredSpeakers(response.speakers);
+
+      // Cache the data
+      await AsyncStorage.setItem(SPEAKERS_CACHE_KEY, JSON.stringify(response.speakers));
+      await AsyncStorage.setItem(SPEAKERS_CACHE_TIMESTAMP_KEY, now.toString());
+      console.log('[Speakers] Data cached');
+
+    } catch (err) {
+      console.error('[Speakers] Error loading speakers:', err);
+      setError('We\'re having trouble loading speakers right now. Please try again in a moment.');
+      
+      // Try to use stale cache as fallback
+      const cachedData = await AsyncStorage.getItem(SPEAKERS_CACHE_KEY);
+      if (cachedData) {
+        console.log('[Speakers] Using stale cache as fallback');
+        const speakers = JSON.parse(cachedData);
+        setAllSpeakers(speakers);
+        setFilteredSpeakers(speakers);
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
+  const filterSpeakers = (query: string) => {
+    console.log('[Speakers] Filtering with query:', query);
+    
+    if (!query.trim()) {
+      setFilteredSpeakers(allSpeakers);
       return;
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = speakers.filter(speaker => {
+    const lowerQuery = query.toLowerCase();
+    const filtered = allSpeakers.filter(speaker => {
       const fullName = `${speaker.firstName} ${speaker.lastName}`.toLowerCase();
-      const nameMatch = fullName.includes(query);
-      const titleMatch = speaker.title?.toLowerCase().includes(query);
-      const topicMatch = speaker.speakingTopic?.toLowerCase().includes(query);
-      return nameMatch || titleMatch || topicMatch;
+      const nameMatch = fullName.includes(lowerQuery);
+      const titleMatch = speaker.title?.toLowerCase().includes(lowerQuery);
+      const topicMatch = speaker.speakingTopic?.toLowerCase().includes(lowerQuery);
+      const companyMatch = speaker.company?.toLowerCase().includes(lowerQuery);
+      
+      return nameMatch || titleMatch || topicMatch || companyMatch;
     });
 
-    console.log('Filtered speakers:', filtered.length, 'from', speakers.length);
+    console.log('[Speakers] Filtered:', filtered.length, 'results');
     setFilteredSpeakers(filtered);
-  }, [searchQuery, speakers]);
+  };
 
-  useEffect(() => {
-    filterSpeakers();
-  }, [filterSpeakers]);
+  const onRefresh = () => {
+    console.log('[Speakers] User initiated refresh');
+    setRefreshing(true);
+    loadSpeakers();
+  };
 
   const handleSpeakerPress = (speaker: Speaker) => {
     const displayName = `${speaker.firstName} ${speaker.lastName}`.trim();
-    console.log('Speaker pressed:', displayName);
+    console.log('[Speakers] Speaker pressed:', displayName);
     router.push({
       pathname: '/speaker-detail',
       params: {
@@ -182,7 +252,7 @@ export default function SpeakersScreen() {
           </View>
         </View>
 
-        {loading ? (
+        {loading && !refreshing ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.accent} />
             <Text style={styles.loadingText}>Loading speakers...</Text>
@@ -222,6 +292,14 @@ export default function SpeakersScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.accent}
+                colors={[colors.accent]}
+              />
+            }
           />
         )}
       </SafeAreaView>
@@ -268,6 +346,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
     color: colors.error,
+    lineHeight: 22,
   },
   retryButton: {
     marginTop: 16,
