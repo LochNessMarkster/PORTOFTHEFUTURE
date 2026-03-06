@@ -11,12 +11,17 @@ import {
   useColorScheme,
   Image,
   ImageSourcePropType,
+  RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { fetchBackendPorts, BackendPort as Port } from '@/utils/airtable';
+
+// Region filter options
+const REGIONS = ['All', 'USA', 'Canada', 'Caribbean', 'Europe', 'Asia', 'Other'];
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -34,6 +39,8 @@ export default function PortsScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedRegion, setSelectedRegion] = useState('All');
+  const [refreshing, setRefreshing] = useState(false);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
@@ -42,16 +49,16 @@ export default function PortsScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadPorts = useCallback(async () => {
-    console.log('[API] Loading ports from backend...');
+    console.log('[Ports] Loading ports from backend...');
     try {
       setLoading(true);
       setError(null);
       const data = await fetchBackendPorts();
-      console.log('[API] Ports loaded:', data.length);
+      console.log('[Ports] Ports loaded:', data.length);
       setPorts(data);
       setFilteredPorts(data);
     } catch (err) {
-      console.error('[API] Error loading ports:', err);
+      console.error('[Ports] Error loading ports:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load ports';
       setError(errorMessage);
     } finally {
@@ -63,34 +70,95 @@ export default function PortsScreen() {
     loadPorts();
   }, [loadPorts]);
 
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadPorts();
+    setRefreshing(false);
+  }, [loadPorts]);
+
+  // Extract location from port name or intro
+  const extractLocation = (port: Port): string => {
+    // Try to extract location from name (e.g., "Port of Miami" -> "Miami")
+    // or from intro field
+    const intro = port.intro || '';
+    const name = port.name || '';
+    
+    // Common patterns: "Port of [City]", "[City] Port", etc.
+    const cityMatch = name.match(/Port of ([^,]+)/i) || name.match(/([^,]+) Port/i);
+    if (cityMatch && cityMatch[1]) {
+      return cityMatch[1].trim();
+    }
+    
+    // Try to extract from intro (first sentence or first line)
+    const firstSentence = intro.split(/[.!?]/)[0];
+    if (firstSentence && firstSentence.length < 50) {
+      return firstSentence.trim();
+    }
+    
+    return '';
+  };
+
+  // Determine region from location
+  const determineRegion = (port: Port): string => {
+    const location = extractLocation(port).toLowerCase();
+    const intro = (port.intro || '').toLowerCase();
+    const bio = (port.bio || '').toLowerCase();
+    const combined = `${location} ${intro} ${bio}`;
+
+    if (combined.match(/\b(usa|united states|america|california|florida|texas|new york|washington|oregon)\b/)) {
+      return 'USA';
+    }
+    if (combined.match(/\b(canada|canadian|toronto|vancouver|montreal|quebec)\b/)) {
+      return 'Canada';
+    }
+    if (combined.match(/\b(caribbean|jamaica|bahamas|puerto rico|trinidad|barbados)\b/)) {
+      return 'Caribbean';
+    }
+    if (combined.match(/\b(europe|european|uk|france|germany|spain|italy|netherlands|belgium)\b/)) {
+      return 'Europe';
+    }
+    if (combined.match(/\b(asia|asian|china|japan|singapore|korea|india|thailand)\b/)) {
+      return 'Asia';
+    }
+    return 'Other';
+  };
+
   const filterPorts = useCallback(() => {
-    if (!searchQuery.trim()) {
-      setFilteredPorts(ports);
-      return;
+    let filtered = ports;
+
+    // Apply search filter (name or location)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(port => {
+        const nameMatch = port.name.toLowerCase().includes(query);
+        const locationMatch = extractLocation(port).toLowerCase().includes(query);
+        const introMatch = (port.intro || '').toLowerCase().includes(query);
+        return nameMatch || locationMatch || introMatch;
+      });
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = ports.filter(port => {
-      const nameMatch = port.name.toLowerCase().includes(query);
-      const introMatch = port.intro?.toLowerCase().includes(query);
-      return nameMatch || introMatch;
-    });
+    // Apply region filter
+    if (selectedRegion !== 'All') {
+      filtered = filtered.filter(port => determineRegion(port) === selectedRegion);
+    }
 
-    console.log('Filtered ports:', filtered.length, 'from', ports.length);
+    console.log('[Ports] Filtered:', filtered.length, 'from', ports.length);
     setFilteredPorts(filtered);
-  }, [searchQuery, ports]);
+  }, [searchQuery, selectedRegion, ports]);
 
   useEffect(() => {
     filterPorts();
   }, [filterPorts]);
 
   const handlePortPress = (port: Port) => {
-    console.log('Port pressed:', port.name);
+    console.log('[Ports] Port pressed:', port.name);
+    const location = extractLocation(port);
     router.push({
       pathname: '/port-detail',
       params: {
         id: port.id,
         name: port.name,
+        location: location,
         intro: port.intro || '',
         bio: port.bio || '',
         url: port.url || '',
@@ -100,13 +168,24 @@ export default function PortsScreen() {
     });
   };
 
+  const getPreview = (text: string | undefined): string => {
+    if (!text) return '';
+    // Limit to 80 characters for preview
+    if (text.length <= 80) return text;
+    return text.substring(0, 77) + '...';
+  };
+
   const renderPortCard = ({ item }: { item: Port }) => {
+    const location = extractLocation(item);
+    const preview = getPreview(item.intro);
+
     return (
       <TouchableOpacity
         style={[styles.portCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
         onPress={() => handlePortPress(item)}
         activeOpacity={0.7}
       >
+        {/* Port Logo */}
         <View style={styles.logoContainer}>
           {item.logo_url ? (
             <Image
@@ -125,17 +204,73 @@ export default function PortsScreen() {
             </View>
           )}
         </View>
+
+        {/* Port Info */}
         <View style={styles.portInfo}>
           <Text style={[styles.portName, { color: textColor }]} numberOfLines={2}>
             {item.name}
           </Text>
-          {item.intro && (
-            <Text style={[styles.portIntro, { color: secondaryTextColor }]} numberOfLines={2}>
-              {item.intro}
+          
+          {location && (
+            <View style={styles.locationRow}>
+              <IconSymbol
+                ios_icon_name="location.fill"
+                android_material_icon_name="place"
+                size={14}
+                color={secondaryTextColor}
+              />
+              <Text style={[styles.locationText, { color: secondaryTextColor }]} numberOfLines={1}>
+                {location}
+              </Text>
+            </View>
+          )}
+
+          {preview && (
+            <Text style={[styles.portPreview, { color: secondaryTextColor }]} numberOfLines={2}>
+              {preview}
             </Text>
           )}
         </View>
       </TouchableOpacity>
+    );
+  };
+
+  const renderRegionFilter = () => {
+    return (
+      <View style={styles.regionFilterContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.regionFilterContent}
+        >
+          {REGIONS.map((region) => {
+            const isSelected = selectedRegion === region;
+            return (
+              <TouchableOpacity
+                key={region}
+                style={[
+                  styles.regionButton,
+                  {
+                    backgroundColor: isSelected ? colors.primary : cardBg,
+                    borderColor: isSelected ? colors.primary : borderColorValue,
+                  },
+                ]}
+                onPress={() => setSelectedRegion(region)}
+                activeOpacity={0.7}
+              >
+                <Text
+                  style={[
+                    styles.regionButtonText,
+                    { color: isSelected ? '#FFFFFF' : textColor },
+                  ]}
+                >
+                  {region}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
     );
   };
 
@@ -144,7 +279,7 @@ export default function PortsScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Ports',
+          title: 'Participating Ports',
           headerStyle: {
             backgroundColor: isDark ? colors.backgroundDark : colors.background,
           },
@@ -163,7 +298,7 @@ export default function PortsScreen() {
             />
             <TextInput
               style={[styles.searchInput, { color: textColor }]}
-              placeholder="Search ports..."
+              placeholder="Search by name or location..."
               placeholderTextColor={secondaryTextColor}
               value={searchQuery}
               onChangeText={setSearchQuery}
@@ -180,6 +315,9 @@ export default function PortsScreen() {
             )}
           </View>
         </View>
+
+        {/* Region Filter */}
+        {renderRegionFilter()}
 
         {loading ? (
           <View style={styles.centerContainer}>
@@ -211,7 +349,7 @@ export default function PortsScreen() {
               color={secondaryTextColor}
             />
             <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-              {searchQuery ? 'No ports found' : 'No ports available'}
+              {searchQuery || selectedRegion !== 'All' ? 'No ports found' : 'No ports available'}
             </Text>
           </View>
         ) : (
@@ -221,6 +359,14 @@ export default function PortsScreen() {
             keyExtractor={(item) => item.id}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
           />
         )}
       </SafeAreaView>
@@ -234,7 +380,8 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   searchBar: {
     flexDirection: 'row',
@@ -248,6 +395,24 @@ const styles = StyleSheet.create({
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
+  },
+  regionFilterContainer: {
+    paddingBottom: 8,
+  },
+  regionFilterContent: {
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  regionButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 20,
+    borderWidth: 1,
+    marginRight: 8,
+  },
+  regionButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
   },
   centerContainer: {
     flex: 1,
@@ -303,6 +468,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
+    flexShrink: 0,
   },
   logo: {
     width: '90%',
@@ -322,9 +488,19 @@ const styles = StyleSheet.create({
   portName: {
     fontSize: 17,
     fontWeight: '600',
-    marginBottom: 4,
+    marginBottom: 6,
   },
-  portIntro: {
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  locationText: {
+    fontSize: 14,
+    marginLeft: 4,
+    fontWeight: '500',
+  },
+  portPreview: {
     fontSize: 14,
     lineHeight: 20,
   },
