@@ -30,6 +30,11 @@ export default function MoreScreen() {
     }
   };
 
+  const handleAboutPress = () => {
+    console.log('User tapped About button');
+    router.push('/about');
+  };
+
   const handleVenuePress = () => {
     console.log('User tapped Venue button');
     router.push('/venue');
@@ -80,7 +85,10 @@ export default function MoreScreen() {
               CONFERENCE
             </Text>
             
-            <TouchableOpacity style={[styles.menuItem, { backgroundColor: cardBg }]}>
+            <TouchableOpacity 
+              style={[styles.menuItem, { backgroundColor: cardBg }]}
+              onPress={handleAboutPress}
+            >
               <IconSymbol
                 ios_icon_name="info.circle"
                 android_material_icon_name="info"
