@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "build-a-mobile-app-c",
-    "slug": "build-a-mobile-app-c",
+    "name": "Port of the Future",
+    "slug": "port-of-the-future",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/poflogoappicon.png",
@@ -36,7 +36,7 @@
       "expo-router",
       "expo-web-browser"
     ],
-    "scheme": "buildamobileappc",
+    "scheme": "portofthefuture",
     "experiments": {
       "typedRoutes": true
     },

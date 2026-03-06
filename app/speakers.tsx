@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   Image,
   ImageSourcePropType,
   RefreshControl,
+  ScrollView,
 } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -22,7 +23,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SPEAKERS_CACHE_KEY = '@speakers_cache';
 const SPEAKERS_CACHE_TIMESTAMP_KEY = '@speakers_cache_timestamp';
-const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const CACHE_DURATION = 60 * 1000; // 60 seconds (1 minute)
+const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -32,6 +34,7 @@ function resolveImageSource(source: string | number | ImageSourcePropType | unde
 
 export default function SpeakersScreen() {
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const router = useRouter();
 
   const [allSpeakers, setAllSpeakers] = useState<Speaker[]>([]);
@@ -40,8 +43,16 @@ export default function SpeakersScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
 
+  const flatListRef = useRef<FlatList>(null);
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const bgColor = isDark ? colors.backgroundDark : colors.background;
+  const textColor = isDark ? colors.textDark : colors.text;
+  const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
+  const cardBg = isDark ? colors.cardDark : colors.card;
+  const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   useEffect(() => {
     loadSpeakers();
@@ -54,7 +65,7 @@ export default function SpeakersScreen() {
     }
 
     searchTimeoutRef.current = setTimeout(() => {
-      filterSpeakers(searchQuery);
+      filterSpeakers();
     }, 300);
 
     return () => {
@@ -62,49 +73,67 @@ export default function SpeakersScreen() {
         clearTimeout(searchTimeoutRef.current);
       }
     };
-  }, [searchQuery, allSpeakers]);
+  }, [searchQuery, selectedLetter, allSpeakers]);
 
   const loadSpeakers = async () => {
     console.log('[Speakers] Loading speakers...');
     
     try {
-      // Check cache first
-      const cachedData = await AsyncStorage.getItem(SPEAKERS_CACHE_KEY);
-      const cachedTimestamp = await AsyncStorage.getItem(SPEAKERS_CACHE_TIMESTAMP_KEY);
-      const now = Date.now();
+      // Check cache first (only if not refreshing)
+      if (!refreshing) {
+        const cachedData = await AsyncStorage.getItem(SPEAKERS_CACHE_KEY);
+        const cachedTimestamp = await AsyncStorage.getItem(SPEAKERS_CACHE_TIMESTAMP_KEY);
+        const now = Date.now();
 
-      if (cachedData && cachedTimestamp && !refreshing) {
-        const timestamp = parseInt(cachedTimestamp, 10);
-        if (now - timestamp < CACHE_DURATION) {
-          console.log('[Speakers] Using cached data');
-          const speakers = JSON.parse(cachedData);
-          setAllSpeakers(speakers);
-          setFilteredSpeakers(speakers);
-          setLoading(false);
-          return;
+        if (cachedData && cachedTimestamp) {
+          const timestamp = parseInt(cachedTimestamp, 10);
+          if (now - timestamp < CACHE_DURATION) {
+            console.log('[Speakers] Using cached data (age:', Math.round((now - timestamp) / 1000), 'seconds)');
+            const speakers = JSON.parse(cachedData);
+            setAllSpeakers(speakers);
+            setFilteredSpeakers(speakers);
+            setLoading(false);
+            return;
+          } else {
+            console.log('[Speakers] Cache expired (age:', Math.round((now - timestamp) / 1000), 'seconds)');
+          }
         }
       }
 
-      // Fetch from API
+      // Fetch from backend proxy (single request)
       if (!refreshing) {
         setLoading(true);
       }
       setError(null);
 
+      console.log('[Speakers] Fetching from backend proxy...');
       const response = await fetchSpeakers();
-      console.log('[Speakers] Loaded:', response.speakers.length, 'from', response.source_used);
+      console.log('[Speakers] Loaded:', response.speakers.length, 'speakers from', response.source_used);
       
-      setAllSpeakers(response.speakers);
-      setFilteredSpeakers(response.speakers);
+      // Sort by last name, then first name
+      const sortedSpeakers = [...response.speakers].sort((a, b) => {
+        const lastNameA = (a.lastName || '').toLowerCase();
+        const lastNameB = (b.lastName || '').toLowerCase();
+        if (lastNameA !== lastNameB) {
+          return lastNameA.localeCompare(lastNameB);
+        }
+        const firstNameA = (a.firstName || '').toLowerCase();
+        const firstNameB = (b.firstName || '').toLowerCase();
+        return firstNameA.localeCompare(firstNameB);
+      });
+
+      setAllSpeakers(sortedSpeakers);
+      setFilteredSpeakers(sortedSpeakers);
 
       // Cache the data
-      await AsyncStorage.setItem(SPEAKERS_CACHE_KEY, JSON.stringify(response.speakers));
+      const now = Date.now();
+      await AsyncStorage.setItem(SPEAKERS_CACHE_KEY, JSON.stringify(sortedSpeakers));
       await AsyncStorage.setItem(SPEAKERS_CACHE_TIMESTAMP_KEY, now.toString());
-      console.log('[Speakers] Data cached');
+      console.log('[Speakers] Data cached for 60 seconds');
 
     } catch (err) {
       console.error('[Speakers] Error loading speakers:', err);
-      setError('We\'re having trouble loading speakers right now. Please try again in a moment.');
+      setError('We\'re having trouble loading speakers right now. Please try again.');
       
       // Try to use stale cache as fallback
       const cachedData = await AsyncStorage.getItem(SPEAKERS_CACHE_KEY);
@@ -120,28 +149,35 @@ export default function SpeakersScreen() {
     }
   };
 
-  const filterSpeakers = (query: string) => {
-    console.log('[Speakers] Filtering with query:', query);
+  const filterSpeakers = useCallback(() => {
+    console.log('[Speakers] Filtering - query:', searchQuery, 'letter:', selectedLetter);
     
-    if (!query.trim()) {
-      setFilteredSpeakers(allSpeakers);
-      return;
+    let filtered = allSpeakers;
+
+    // Filter by selected letter (last name)
+    if (selectedLetter) {
+      filtered = filtered.filter(speaker => {
+        const lastName = (speaker.lastName || '').toUpperCase();
+        return lastName.startsWith(selectedLetter);
+      });
     }
 
-    const lowerQuery = query.toLowerCase();
-    const filtered = allSpeakers.filter(speaker => {
-      const fullName = `${speaker.firstName} ${speaker.lastName}`.toLowerCase();
-      const nameMatch = fullName.includes(lowerQuery);
-      const titleMatch = speaker.title?.toLowerCase().includes(lowerQuery);
-      const topicMatch = speaker.speakingTopic?.toLowerCase().includes(lowerQuery);
-      const companyMatch = speaker.company?.toLowerCase().includes(lowerQuery);
-      
-      return nameMatch || titleMatch || topicMatch || companyMatch;
-    });
+    // Filter by search query (first name, last name, organization, job title)
+    if (searchQuery.trim()) {
+      const lowerQuery = searchQuery.toLowerCase();
+      filtered = filtered.filter(speaker => {
+        const firstNameMatch = (speaker.firstName || '').toLowerCase().includes(lowerQuery);
+        const lastNameMatch = (speaker.lastName || '').toLowerCase().includes(lowerQuery);
+        const organizationMatch = (speaker.company || '').toLowerCase().includes(lowerQuery);
+        const titleMatch = (speaker.title || '').toLowerCase().includes(lowerQuery);
+        
+        return firstNameMatch || lastNameMatch || organizationMatch || titleMatch;
+      });
+    }
 
     console.log('[Speakers] Filtered:', filtered.length, 'results');
     setFilteredSpeakers(filtered);
-  };
+  }, [searchQuery, selectedLetter, allSpeakers]);
 
   const onRefresh = () => {
     console.log('[Speakers] User initiated refresh');
@@ -149,33 +185,59 @@ export default function SpeakersScreen() {
     loadSpeakers();
   };
 
+  const handleLetterPress = (letter: string) => {
+    console.log('[Speakers] Letter pressed:', letter);
+    if (selectedLetter === letter) {
+      setSelectedLetter(null);
+    } else {
+      setSelectedLetter(letter);
+      // Scroll to top when letter is selected
+      flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    }
+  };
+
+  const availableLetters = useMemo(() => {
+    const letters = new Set<string>();
+    allSpeakers.forEach(speaker => {
+      const lastName = speaker.lastName || '';
+      const firstLetter = lastName.charAt(0).toUpperCase();
+      if (ALPHABET.includes(firstLetter)) {
+        letters.add(firstLetter);
+      }
+    });
+    return letters;
+  }, [allSpeakers]);
+
   const handleSpeakerPress = (speaker: Speaker) => {
-    const displayName = `${speaker.firstName} ${speaker.lastName}`.trim();
+    const displayName = `${speaker.firstName || ''} ${speaker.lastName || ''}`.trim();
     console.log('[Speakers] Speaker pressed:', displayName);
     router.push({
       pathname: '/speaker-detail',
       params: {
         id: speaker.id,
-        name_display: displayName,
-        title_full: speaker.title || '',
-        speaking_topic: speaker.speakingTopic || '',
-        topic_synopsis: speaker.synopsis || '',
+        firstName: speaker.firstName || '',
+        lastName: speaker.lastName || '',
+        title: speaker.title || '',
+        company: speaker.company || '',
+        speakingTopic: speaker.speakingTopic || '',
+        synopsis: speaker.synopsis || '',
         bio: speaker.bio || '',
-        photo_url: speaker.photoUrl || '',
-        public_personal_data: speaker.publicPersonalData ? 'true' : 'false',
+        photoUrl: speaker.photoUrl || '',
+        publicPersonalData: speaker.publicPersonalData ? 'true' : 'false',
         email: speaker.email || '',
         phone: speaker.phone || '',
-        company: speaker.company || '',
       },
     });
   };
 
   const renderSpeakerCard = ({ item }: { item: Speaker }) => {
-    const displayName = `${item.firstName} ${item.lastName}`.trim();
+    const displayName = `${item.firstName || ''} ${item.lastName || ''}`.trim();
+    const displayTitle = item.title || '';
+    const displayOrganization = item.company || '';
     
     return (
       <TouchableOpacity
-        style={styles.speakerCard}
+        style={[styles.speakerCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
         onPress={() => handleSpeakerPress(item)}
         activeOpacity={0.7}
       >
@@ -187,7 +249,7 @@ export default function SpeakersScreen() {
               resizeMode="cover"
             />
           ) : (
-            <View style={styles.photoPlaceholder}>
+            <View style={[styles.photoPlaceholder, { backgroundColor: colors.accent + '20' }]}>
               <IconSymbol
                 ios_icon_name="person.fill"
                 android_material_icon_name="person"
@@ -198,18 +260,26 @@ export default function SpeakersScreen() {
           )}
         </View>
         <View style={styles.speakerInfo}>
-          <Text style={styles.speakerName} numberOfLines={2}>
+          <Text style={[styles.speakerName, { color: textColor }]} numberOfLines={2}>
             {displayName}
           </Text>
-          {item.title && (
-            <Text style={styles.speakerTitle} numberOfLines={2}>
-              {item.title}
+          {displayTitle && (
+            <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={1}>
+              {displayTitle}
+            </Text>
+          )}
+          {displayOrganization && (
+            <Text style={[styles.speakerOrganization, { color: secondaryTextColor }]} numberOfLines={1}>
+              {displayOrganization}
             </Text>
           )}
         </View>
       </TouchableOpacity>
     );
   };
+
+  const loadingText = 'Loading speakers...';
+  const emptyText = searchQuery || selectedLetter ? 'No speakers found' : 'No speakers available';
 
   return (
     <>
@@ -218,24 +288,25 @@ export default function SpeakersScreen() {
           headerShown: true,
           title: 'Speakers',
           headerStyle: {
-            backgroundColor: colors.background,
+            backgroundColor: isDark ? colors.backgroundDark : colors.background,
           },
-          headerTintColor: colors.text,
+          headerTintColor: textColor,
         }}
       />
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
+        {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
+          <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
             <IconSymbol
               ios_icon_name="magnifyingglass"
               android_material_icon_name="search"
               size={20}
-              color={colors.textSecondary}
+              color={secondaryTextColor}
             />
             <TextInput
-              style={styles.searchInput}
-              placeholder="Search speakers..."
-              placeholderTextColor={colors.textMuted}
+              style={[styles.searchInput, { color: textColor }]}
+              placeholder="Search by name, title, or organization..."
+              placeholderTextColor={secondaryTextColor}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -245,17 +316,77 @@ export default function SpeakersScreen() {
                   ios_icon_name="xmark.circle.fill"
                   android_material_icon_name="cancel"
                   size={20}
-                  color={colors.textSecondary}
+                  color={secondaryTextColor}
                 />
               </TouchableOpacity>
             )}
           </View>
         </View>
 
+        {/* Alphabet Navigation */}
+        <View style={styles.alphabetContainer}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.alphabetScroll}
+          >
+            {ALPHABET.map((letter) => {
+              const isAvailable = availableLetters.has(letter);
+              const isSelected = selectedLetter === letter;
+              
+              return (
+                <TouchableOpacity
+                  key={letter}
+                  style={[
+                    styles.letterButton,
+                    { 
+                      backgroundColor: isSelected ? colors.accent : cardBg,
+                      borderColor: borderColorValue,
+                      opacity: isAvailable ? 1 : 0.3,
+                    }
+                  ]}
+                  onPress={() => handleLetterPress(letter)}
+                  disabled={!isAvailable}
+                  activeOpacity={0.7}
+                >
+                  <Text 
+                    style={[
+                      styles.letterText, 
+                      { color: isSelected ? '#FFFFFF' : textColor }
+                    ]}
+                  >
+                    {letter}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/* Filter Indicator */}
+        {selectedLetter && (
+          <View style={styles.filterIndicator}>
+            <Text style={[styles.filterText, { color: secondaryTextColor }]}>
+              Showing speakers with last name starting with
+            </Text>
+            <Text style={[styles.filterLetter, { color: colors.accent }]}>
+              {selectedLetter}
+            </Text>
+            <TouchableOpacity onPress={() => setSelectedLetter(null)}>
+              <IconSymbol
+                ios_icon_name="xmark.circle.fill"
+                android_material_icon_name="cancel"
+                size={20}
+                color={secondaryTextColor}
+              />
+            </TouchableOpacity>
+          </View>
+        )}
+
         {loading && !refreshing ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.accent} />
-            <Text style={styles.loadingText}>Loading speakers...</Text>
+            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>{loadingText}</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
@@ -265,9 +396,9 @@ export default function SpeakersScreen() {
               size={48}
               color={colors.error}
             />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
             <TouchableOpacity
-              style={styles.retryButton}
+              style={[styles.retryButton, { backgroundColor: colors.accent }]}
               onPress={loadSpeakers}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
@@ -279,17 +410,20 @@ export default function SpeakersScreen() {
               ios_icon_name="person.2.slash"
               android_material_icon_name="person-off"
               size={48}
-              color={colors.textSecondary}
+              color={secondaryTextColor}
             />
-            <Text style={styles.emptyText}>
-              {searchQuery ? 'No speakers found' : 'No speakers available'}
+            <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+              {emptyText}
             </Text>
           </View>
         ) : (
           <FlatList
+            ref={flatListRef}
             data={filteredSpeakers}
             renderItem={renderSpeakerCard}
             keyExtractor={(item) => item.id}
+            numColumns={2}
+            columnWrapperStyle={styles.row}
             contentContainerStyle={styles.listContent}
             showsVerticalScrollIndicator={false}
             refreshControl={
@@ -310,25 +444,57 @@ export default function SpeakersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   searchContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cardAlt,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    borderWidth: 1,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
-    color: colors.text,
+  },
+  alphabetContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  alphabetScroll: {
+    gap: 8,
+  },
+  letterButton: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+  },
+  letterText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  filterIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    gap: 8,
+  },
+  filterText: {
+    fontSize: 14,
+  },
+  filterLetter: {
+    fontSize: 14,
+    fontWeight: '700',
   },
   centerContainer: {
     flex: 1,
@@ -339,13 +505,11 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: colors.textSecondary,
   },
   errorText: {
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
-    color: colors.error,
     lineHeight: 22,
   },
   retryButton: {
@@ -353,10 +517,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: colors.accent,
   },
   retryButtonText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -364,25 +527,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
-    color: colors.textSecondary,
   },
   listContent: {
     padding: 16,
   },
+  row: {
+    justifyContent: 'space-between',
+    marginBottom: 16,
+  },
   speakerCard: {
-    flexDirection: 'row',
-    backgroundColor: colors.card,
+    flex: 1,
+    maxWidth: '48%',
     borderRadius: 16,
-    padding: 16,
-    marginBottom: 12,
+    padding: 12,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
   photoContainer: {
-    marginRight: 16,
+    alignItems: 'center',
+    marginBottom: 12,
   },
   photo: {
     width: 80,
@@ -395,21 +562,23 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(25, 181, 216, 0.2)',
   },
   speakerInfo: {
-    flex: 1,
-    justifyContent: 'center',
+    alignItems: 'center',
   },
   speakerName: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: '600',
+    textAlign: 'center',
     marginBottom: 4,
-    color: colors.text,
   },
   speakerTitle: {
-    fontSize: 14,
-    lineHeight: 20,
-    color: colors.textSecondary,
+    fontSize: 13,
+    textAlign: 'center',
+    marginBottom: 2,
+  },
+  speakerOrganization: {
+    fontSize: 12,
+    textAlign: 'center',
   },
 });
