@@ -19,6 +19,21 @@ interface PresentationResponse {
   file_url?: string;
 }
 
+const mockPresentations: PresentationResponse[] = [
+  {
+    id: 'rec_pres_001',
+    title: 'The Future of Ports',
+    description: 'Exploring emerging technologies in port operations',
+    file_url: 'https://example.com/presentations/future-of-ports.pdf',
+  },
+  {
+    id: 'rec_pres_002',
+    title: 'Digital Transformation in Logistics',
+    description: 'How digital tools are revolutionizing supply chain management',
+    file_url: 'https://example.com/presentations/digital-transformation.pdf',
+  },
+];
+
 async function fetchPresentations(): Promise<PresentationResponse[]> {
   try {
     const controller = new AbortController();
@@ -32,7 +47,7 @@ async function fetchPresentations(): Promise<PresentationResponse[]> {
     clearTimeout(timeoutId);
     const data = (await response.json()) as { records: AirtableRecord[] };
 
-    return data.records
+    const presentations = data.records
       .filter(
         (record) =>
           record.fields['Presentation Title'] && record.fields['Published']
@@ -44,8 +59,10 @@ async function fetchPresentations(): Promise<PresentationResponse[]> {
         file_url: record.fields['File URL'],
       }))
       .sort((a, b) => a.title.localeCompare(b.title));
+
+    return presentations.length > 0 ? presentations : mockPresentations;
   } catch (error) {
-    return [];
+    return mockPresentations;
   }
 }
 
