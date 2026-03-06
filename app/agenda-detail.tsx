@@ -36,6 +36,7 @@ export default function AgendaDetailScreen() {
   const title = params.title as string;
   const date = params.date as string;
   const startTime = params.startTime as string;
+  const endTime = params.endTime as string;
   const room = params.room as string;
   const typeTrack = params.typeTrack as string;
   const sessionDescription = params.sessionDescription as string;
@@ -97,6 +98,11 @@ export default function AgendaDetailScreen() {
 
   const formattedDate = formatDate(date);
   const trackColor = getTrackColor(typeTrack);
+  
+  // Format time display
+  const timeDisplay = endTime 
+    ? `${startTime} - ${endTime}`
+    : startTime;
 
   return (
     <>
@@ -138,6 +144,23 @@ export default function AgendaDetailScreen() {
             <View style={styles.detailsContainer}>
               <View style={styles.detailRow}>
                 <IconSymbol
+                  ios_icon_name="calendar"
+                  android_material_icon_name="calendar-today"
+                  size={20}
+                  color={colors.accent}
+                />
+                <View style={styles.detailTextContainer}>
+                  <Text style={styles.detailLabel}>
+                    Date
+                  </Text>
+                  <Text style={styles.detailValue}>
+                    {formattedDate}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.detailRow}>
+                <IconSymbol
                   ios_icon_name="clock.fill"
                   android_material_icon_name="access-time"
                   size={20}
@@ -148,7 +171,7 @@ export default function AgendaDetailScreen() {
                     Time
                   </Text>
                   <Text style={styles.detailValue}>
-                    {startTime}
+                    {timeDisplay}
                   </Text>
                 </View>
               </View>

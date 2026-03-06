@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Natively App",
-    "slug": "natively-app",
+    "name": "build-a-mobile-app-c",
+    "slug": "build-a-mobile-app-c",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/app-icon-ylt.png",
@@ -36,7 +36,7 @@
       "expo-router",
       "expo-web-browser"
     ],
-    "scheme": "nativelyapp",
+    "scheme": "buildamobileappc",
     "experiments": {
       "typedRoutes": true
     },

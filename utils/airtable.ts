@@ -538,6 +538,7 @@ export interface AgendaItem {
   Title: string;
   Date: string;
   StartTime: string;
+  EndTime?: string;
   Room?: string;
   TypeTrack?: string;
   SessionDescription?: string;
@@ -546,14 +547,88 @@ export interface AgendaItem {
 
 export interface AgendaResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable';
+  source_used: 'airtablecache' | 'airtable_api';
   agenda: AgendaItem[];
+}
+
+function convertTimeToMinutes(timeStr: string): number {
+  if (!timeStr) return 0;
+  const trimmed = timeStr.trim();
+  const match = trimmed.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return 0;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+
+  if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  return hours * 60 + minutes;
 }
 
 /**
  * Fetch agenda from the backend proxy endpoint.
- * The backend handles caching (6h TTL), Airtable pagination, and fallback logic.
- * Returns agenda sorted by Date ascending, then Start Time ascending.
+ * The backend handles caching (6h TTL), Airtable pagination (all records, 100+), and fallback logic.
+ * Returns agenda sorted by Date ascending, then Start Time ascending, then Title ascending.
+ * Filters to March 23-25, 2026 sessions only.
  */
-export const fetchAgenda = (): Promise<AgendaResponse> =>
-  apiGet<AgendaResponse>('/api/agenda');
+export const fetchAgenda = async (): Promise<AgendaResponse> => {
+  console.log('[Agenda] Fetching all agenda sessions from backend...');
+
+  const raw = await apiGet<AgendaResponse>('/api/agenda');
+
+  console.log('[Agenda] Total records fetched from backend:', raw.agenda?.length ?? 0);
+  console.log('[Agenda] Source used:', raw.source_used);
+
+  // Validate speaker names — warn if any look like Airtable record IDs (recXXXXXXXXXXXXXX)
+  const airtableIdPattern = /^rec[A-Za-z0-9]{14}$/;
+  (raw.agenda || []).forEach((session) => {
+    const names = session.SpeakerNames;
+    if (Array.isArray(names)) {
+      names.forEach((n) => {
+        if (airtableIdPattern.test(n)) {
+          console.warn(
+            `[Agenda] WARNING: Session "${session.Title}" has unresolved speaker ID: ${n}`
+          );
+        }
+      });
+    } else if (typeof names === 'string' && airtableIdPattern.test(names)) {
+      console.warn(
+        `[Agenda] WARNING: Session "${session.Title}" has unresolved speaker ID: ${names}`
+      );
+    }
+  });
+
+  // Filter to March 23-25, 2026
+  const filtered = (raw.agenda || []).filter((session) => {
+    const d = session.Date;
+    return d === '2026-03-23' || d === '2026-03-24' || d === '2026-03-25';
+  });
+
+  console.log('[Agenda] Filtered to March 23-25:', filtered.length, 'sessions');
+
+  // Sort by Date → StartTime → Title
+  const sorted = filtered.sort((a, b) => {
+    const dateA = a.Date || '';
+    const dateB = b.Date || '';
+    if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+    const timeA = convertTimeToMinutes(a.StartTime || '');
+    const timeB = convertTimeToMinutes(b.StartTime || '');
+    if (timeA !== timeB) return timeA - timeB;
+
+    return (a.Title || '').localeCompare(b.Title || '');
+  });
+
+  console.log('[Agenda] Final sorted agenda:', sorted.length, 'sessions');
+
+  return {
+    updated_at: raw.updated_at,
+    source_used: raw.source_used,
+    agenda: sorted,
+  };
+};

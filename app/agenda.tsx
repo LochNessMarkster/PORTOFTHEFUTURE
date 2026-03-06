@@ -97,12 +97,12 @@ export default function AgendaScreen() {
   };
 
   const loadAgenda = useCallback(async () => {
-    console.log('[Agenda] Fetching agenda from backend...');
+    console.log('[Agenda] Loading agenda...');
     
     // Check cache
     const now = Date.now();
     if (!refreshing && cacheTimestamp && (now - cacheTimestamp < CACHE_DURATION) && allSessions.length > 0) {
-      console.log('[Agenda] Using cached data');
+      console.log('[Agenda] Using cached data, sessions:', allSessions.length);
       return;
     }
     
@@ -112,18 +112,31 @@ export default function AgendaScreen() {
       }
       setError(null);
 
+      // fetchAgenda handles: pagination (all 100+ records), date filtering (Mar 23-25),
+      // speaker name validation, and sorting (Date → StartTime → Title)
       const data = await fetchAgenda();
-      console.log('[Agenda] Received agenda:', data.agenda?.length || 0, 'sessions');
+
+      console.log('[Agenda] Sessions loaded:', data.agenda?.length || 0);
       console.log('[Agenda] Source:', data.source_used);
-
-      // Filter to only March 23-25, 2026
-      const filteredSessions = (data.agenda || []).filter(session => {
-        const date = session.Date;
-        return date === '2026-03-23' || date === '2026-03-24' || date === '2026-03-25';
-      });
-
-      console.log('[Agenda] Filtered to March 23-25:', filteredSessions.length, 'sessions');
-      setAllSessions(filteredSessions);
+      console.log('[Agenda] Updated at:', data.updated_at);
+      
+      // Log sample session to verify field mapping
+      if (data.agenda && data.agenda.length > 0) {
+        const sample = data.agenda[0];
+        console.log('[Agenda] Sample session field mapping:', {
+          id: sample.id,
+          Title: sample.Title,
+          Date: sample.Date,
+          StartTime: sample.StartTime,
+          EndTime: sample.EndTime,
+          Room: sample.Room,
+          TypeTrack: sample.TypeTrack,
+          SpeakerNames: sample.SpeakerNames,
+          hasDescription: !!sample.SessionDescription,
+        });
+      }
+      
+      setAllSessions(data.agenda || []);
       setCacheTimestamp(now);
     } catch (err) {
       console.error('[Agenda] Error fetching agenda:', err);
@@ -147,12 +160,22 @@ export default function AgendaScreen() {
         tracksForDay.add(session.TypeTrack);
       }
     });
-    return ['All Tracks', ...Array.from(tracksForDay).sort()];
+    
+    // Sort tracks numerically if they start with numbers
+    const sortedTracks = Array.from(tracksForDay).sort((a, b) => {
+      const numA = parseInt(a.match(/^\d+/)?.[0] || '999');
+      const numB = parseInt(b.match(/^\d+/)?.[0] || '999');
+      if (numA !== numB) return numA - numB;
+      return a.localeCompare(b);
+    });
+    
+    return ['All Tracks', ...sortedTracks];
   }, [allSessions, selectedDay]);
 
   // Filter sessions by day, track, and search
+  // Note: allSessions is already sorted by Date → StartTime → Title from fetchAgenda()
   const filteredSessions = useMemo(() => {
-    console.log('Filtering sessions - Day:', selectedDay, 'Track:', selectedTrack, 'Search:', searchQuery);
+    console.log('[Agenda] Filtering - Day:', selectedDay, 'Track:', selectedTrack, 'Search:', searchQuery);
     
     let filtered = allSessions;
     
@@ -180,14 +203,8 @@ export default function AgendaScreen() {
       });
     }
 
-    // Sort by start time
-    filtered.sort((a, b) => {
-      const timeA = a.StartTime || '';
-      const timeB = b.StartTime || '';
-      return timeA.localeCompare(timeB);
-    });
-
-    console.log('Filtered sessions:', filtered.length);
+    // Order is preserved from fetchAgenda() sort: Date → StartTime → Title
+    console.log('[Agenda] Filtered sessions for display:', filtered.length);
     return filtered;
   }, [allSessions, selectedDay, selectedTrack, searchQuery]);
 
@@ -207,6 +224,7 @@ export default function AgendaScreen() {
         title: item.Title || '',
         date: item.Date || '',
         startTime: item.StartTime || '',
+        endTime: item.EndTime || '',
         room: item.Room || '',
         typeTrack: item.TypeTrack || '',
         sessionDescription: item.SessionDescription || '',
@@ -230,6 +248,11 @@ export default function AgendaScreen() {
     const isBookmarked = bookmarkedSessions.has(item.id);
     const trackColor = getTrackColor(item.TypeTrack);
     const isSelectedTrack = selectedTrack !== 'All Tracks' && item.TypeTrack === selectedTrack;
+
+    // Format time display
+    const timeDisplay = item.EndTime 
+      ? `${item.StartTime} - ${item.EndTime}`
+      : item.StartTime;
 
     return (
       <TouchableOpacity
@@ -259,7 +282,7 @@ export default function AgendaScreen() {
 
         <View style={styles.sessionInfo}>
           <Text style={styles.sessionTime}>
-            {item.StartTime}
+            {timeDisplay}
           </Text>
         </View>
 
@@ -535,6 +558,11 @@ export default function AgendaScreen() {
             <Text style={styles.emptyText}>
               {searchQuery ? 'No sessions found' : 'No sessions for this day'}
             </Text>
+            {!searchQuery && (
+              <Text style={styles.emptySubtext}>
+                Total sessions loaded: {allSessions.length}
+              </Text>
+            )}
           </View>
         ) : (
           <FlatList
@@ -689,6 +717,12 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
     color: colors.textSecondary,
+  },
+  emptySubtext: {
+    fontSize: 13,
+    marginTop: 8,
+    textAlign: 'center',
+    color: colors.textMuted,
   },
   listContent: {
     padding: 16,
