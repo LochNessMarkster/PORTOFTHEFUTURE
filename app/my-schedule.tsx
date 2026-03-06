@@ -1,97 +1,147 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { Stack, useRouter } from 'expo-router';
-import { colors } from '@/styles/commonStyles';
-import { fetchAgenda, AgendaItem } from '@/utils/airtable';
 import {
   View,
   Text,
   StyleSheet,
-  SectionList,
+  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   useColorScheme,
   RefreshControl,
 } from 'react-native';
-import { IconSymbol } from '@/components/IconSymbol';
+import { colors } from '@/styles/commonStyles';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { fetchAgenda, AgendaItem } from '@/utils/airtable';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
+import { IconSymbol } from '@/components/IconSymbol';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-interface AgendaSection {
-  title: string;
-  data: AgendaItem[];
+const BOOKMARKS_KEY = '@agenda_bookmarks';
+
+// Track color mapping
+const TRACK_COLORS: Record<string, string> = {
+  'Port Security': '#FF5C7A',
+  'Infrastructure': '#3B82F6',
+  'Energy & Decarbonization': '#10B981',
+  'Digital / AI': '#A855F7',
+  'Emergency Management': '#F59E0B',
+};
+
+interface GroupedSession {
+  date: string;
+  sessions: AgendaItem[];
 }
 
 export default function MyScheduleScreen() {
   const colorScheme = useColorScheme();
   const router = useRouter();
 
-  const [allAgenda, setAllAgenda] = useState<AgendaItem[]>([]);
-  const [sections, setSections] = useState<AgendaSection[]>([]);
+  const [allSessions, setAllSessions] = useState<AgendaItem[]>([]);
+  const [bookmarkedSessions, setBookmarkedSessions] = useState<Set<string>>(new Set());
+  const [groupedSessions, setGroupedSessions] = useState<GroupedSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+
+  // Reload bookmarks when screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log('[My Schedule] Screen focused, reloading bookmarks');
+      loadBookmarks();
+    }, [])
+  );
+
+  useEffect(() => {
+    loadAgenda();
+  }, []);
+
+  useEffect(() => {
+    groupByDate();
+  }, [allSessions, bookmarkedSessions]);
+
+  const loadBookmarks = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      if (stored) {
+        const bookmarks = JSON.parse(stored);
+        setBookmarkedSessions(new Set(bookmarks));
+        console.log('[My Schedule] Loaded bookmarks:', bookmarks.length);
+      } else {
+        setBookmarkedSessions(new Set());
+      }
+    } catch (err) {
+      console.error('[My Schedule] Error loading bookmarks:', err);
+    }
+  };
 
   const loadAgenda = useCallback(async () => {
-    console.log('[API] Fetching agenda from backend proxy for My Schedule...');
+    console.log('[My Schedule] Fetching agenda...');
     try {
       if (!refreshing) {
         setLoading(true);
       }
-      setError(null);
 
       const data = await fetchAgenda();
-      console.log('[API] Received agenda from backend:', data.agenda?.length || 0, 'records');
-      console.log('[API] Source used:', data.source_used);
-      console.log('[API] Updated at:', data.updated_at);
+      console.log('[My Schedule] Received agenda:', data.agenda?.length || 0, 'sessions');
 
-      setAllAgenda(data.agenda || []);
+      // Filter to only March 23-25, 2026
+      const filteredSessions = (data.agenda || []).filter(session => {
+        const date = session.Date;
+        return date === '2026-03-23' || date === '2026-03-24' || date === '2026-03-25';
+      });
+
+      setAllSessions(filteredSessions);
     } catch (err) {
-      console.error('[API] Error fetching agenda:', err);
-      setError('Schedule unavailable. Pull to refresh.');
-      setAllAgenda([]);
+      console.error('[My Schedule] Error fetching agenda:', err);
+      setAllSessions([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
   }, [refreshing]);
 
-  useEffect(() => {
-    loadAgenda();
-  }, []);
-
-  const groupByDate = useCallback(() => {
-    console.log('Grouping agenda by date');
+  const groupByDate = () => {
+    console.log('[My Schedule] Grouping sessions by date');
     
-    const dateSections: AgendaSection[] = [];
-    const dateMap = new Map<string, AgendaItem[]>();
+    // Filter sessions that are bookmarked
+    const bookmarked = allSessions.filter(session => 
+      bookmarkedSessions.has(session.id)
+    );
 
-    allAgenda.forEach(item => {
-      const dateKey = item.Date;
-      if (!dateMap.has(dateKey)) {
-        dateMap.set(dateKey, []);
+    console.log('[My Schedule] Bookmarked sessions:', bookmarked.length);
+
+    // Group by date
+    const dateMap = new Map<string, AgendaItem[]>();
+    bookmarked.forEach(session => {
+      const date = session.Date || '';
+      if (!dateMap.has(date)) {
+        dateMap.set(date, []);
       }
-      dateMap.get(dateKey)!.push(item);
+      dateMap.get(date)!.push(session);
     });
 
-    dateMap.forEach((items, date) => {
-      const formattedDate = formatDate(date);
-      dateSections.push({
-        title: formattedDate,
-        data: items,
+    // Sort sessions within each date by start time
+    dateMap.forEach((sessions, date) => {
+      sessions.sort((a, b) => {
+        const timeA = a.StartTime || '';
+        const timeB = b.StartTime || '';
+        return timeA.localeCompare(timeB);
       });
     });
 
-    console.log('Grouped sections:', dateSections.length);
-    setSections(dateSections);
-  }, [allAgenda]);
+    // Convert to array and sort by date
+    const grouped: GroupedSession[] = Array.from(dateMap.entries())
+      .map(([date, sessions]) => ({ date, sessions }))
+      .sort((a, b) => a.date.localeCompare(b.date));
 
-  useEffect(() => {
-    groupByDate();
-  }, [groupByDate]);
+    console.log('[My Schedule] Grouped into', grouped.length, 'dates');
+    setGroupedSessions(grouped);
+  };
 
   const onRefresh = () => {
-    console.log('[API] User initiated refresh');
+    console.log('[My Schedule] User initiated refresh');
     setRefreshing(true);
+    loadBookmarks();
     loadAgenda();
   };
 
@@ -105,20 +155,19 @@ export default function MyScheduleScreen() {
     const month = months[date.getMonth()];
     const day = date.getDate();
     const year = date.getFullYear();
-    const formattedDate = `${weekday}, ${month} ${day}, ${year}`;
     
-    return formattedDate;
+    return `${weekday}, ${month} ${day}, ${year}`;
   };
 
-  const handleAgendaItemPress = (item: AgendaItem) => {
-    console.log('Schedule item pressed:', item.Title);
+  const handleSessionPress = (item: AgendaItem) => {
+    console.log('[My Schedule] Session pressed:', item.Title);
     router.push({
       pathname: '/agenda-detail',
       params: {
         id: item.id,
-        title: item.Title,
-        date: item.Date,
-        startTime: item.StartTime,
+        title: item.Title || '',
+        date: item.Date || '',
+        startTime: item.StartTime || '',
         room: item.Room || '',
         typeTrack: item.TypeTrack || '',
         sessionDescription: item.SessionDescription || '',
@@ -129,84 +178,116 @@ export default function MyScheduleScreen() {
     });
   };
 
-  const renderAgendaItem = ({ item }: { item: AgendaItem }) => {
+  const removeBookmark = async (sessionId: string) => {
+    console.log('[My Schedule] Removing bookmark:', sessionId);
+    try {
+      const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      let bookmarks: string[] = stored ? JSON.parse(stored) : [];
+      bookmarks = bookmarks.filter(id => id !== sessionId);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+      setBookmarkedSessions(new Set(bookmarks));
+    } catch (err) {
+      console.error('[My Schedule] Error removing bookmark:', err);
+    }
+  };
+
+  const getTrackColor = (track: string | undefined): string => {
+    if (!track) return colors.textSecondary;
+    return TRACK_COLORS[track] || colors.textSecondary;
+  };
+
+  const renderSessionCard = ({ item }: { item: AgendaItem }) => {
     const speakerDisplay = Array.isArray(item.SpeakerNames)
       ? item.SpeakerNames.join(', ')
       : item.SpeakerNames || '';
+    
+    const trackColor = getTrackColor(item.TypeTrack);
 
     return (
       <TouchableOpacity
-        style={styles.agendaCard}
-        onPress={() => handleAgendaItemPress(item)}
+        style={styles.sessionCard}
+        onPress={() => handleSessionPress(item)}
         activeOpacity={0.7}
       >
-        <View style={styles.timeContainer}>
-          <Text style={styles.timeText}>
+        <View style={styles.cardHeader}>
+          <View style={styles.cardHeaderLeft}>
+            <Text style={styles.sessionTitle} numberOfLines={2}>
+              {item.Title}
+            </Text>
+          </View>
+          <TouchableOpacity
+            style={styles.removeButton}
+            onPress={() => removeBookmark(item.id)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            <IconSymbol
+              ios_icon_name="xmark.circle.fill"
+              android_material_icon_name="cancel"
+              size={24}
+              color={colors.error}
+            />
+          </TouchableOpacity>
+        </View>
+
+        <View style={styles.sessionInfo}>
+          <Text style={styles.sessionTime}>
             {item.StartTime}
           </Text>
         </View>
-        
-        <View style={styles.agendaContent}>
-          <Text style={styles.agendaTitle} numberOfLines={2}>
-            {item.Title}
-          </Text>
-          
-          {item.TypeTrack && (
-            <View style={styles.typeChip}>
-              <Text style={styles.typeChipText}>
+
+        {item.Room && (
+          <View style={styles.sessionInfo}>
+            <Text style={styles.sessionRoom}>
+              {item.Room}
+            </Text>
+          </View>
+        )}
+
+        {speakerDisplay && (
+          <View style={styles.sessionInfo}>
+            <Text style={styles.sessionSpeakers} numberOfLines={1}>
+              {speakerDisplay}
+            </Text>
+          </View>
+        )}
+
+        {item.TypeTrack && (
+          <View style={styles.trackBadgeContainer}>
+            <View style={[
+              styles.trackBadge,
+              { 
+                backgroundColor: trackColor + '20',
+                borderColor: trackColor,
+              }
+            ]}>
+              <Text style={[styles.trackBadgeText, { color: trackColor }]}>
                 {item.TypeTrack}
               </Text>
             </View>
-          )}
-          
-          {item.Room && (
-            <View style={styles.infoRow}>
-              <IconSymbol
-                ios_icon_name="location.fill"
-                android_material_icon_name="location-on"
-                size={14}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.infoText}>
-                {item.Room}
-              </Text>
-            </View>
-          )}
-          
-          {speakerDisplay && (
-            <View style={styles.infoRow}>
-              <IconSymbol
-                ios_icon_name="person.fill"
-                android_material_icon_name="person"
-                size={14}
-                color={colors.textSecondary}
-              />
-              <Text style={styles.infoText} numberOfLines={1}>
-                {speakerDisplay}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        <View style={styles.bookmarkContainer}>
-          <IconSymbol
-            ios_icon_name="bookmark.fill"
-            android_material_icon_name="bookmark"
-            size={24}
-            color={colors.accent}
-          />
-        </View>
+          </View>
+        )}
       </TouchableOpacity>
     );
   };
 
-  const renderSectionHeader = ({ section }: { section: AgendaSection }) => (
-    <View style={styles.sectionHeader}>
-      <Text style={styles.sectionHeaderText}>
-        {section.title}
-      </Text>
-    </View>
-  );
+  const renderDateSection = ({ item }: { item: GroupedSession }) => {
+    const formattedDate = formatDate(item.date);
+    
+    return (
+      <View style={styles.dateSection}>
+        <View style={styles.dateSectionHeader}>
+          <Text style={styles.dateSectionTitle}>
+            {formattedDate}
+          </Text>
+        </View>
+        {item.sessions.map((session, index) => (
+          <View key={session.id}>
+            {renderSessionCard({ item: session })}
+          </View>
+        ))}
+      </View>
+    );
+  };
 
   return (
     <>
@@ -228,25 +309,7 @@ export default function MyScheduleScreen() {
               Loading your schedule...
             </Text>
           </View>
-        ) : error ? (
-          <View style={styles.errorContainer}>
-            <IconSymbol
-              ios_icon_name="exclamationmark.triangle.fill"
-              android_material_icon_name="warning"
-              size={48}
-              color={colors.error}
-            />
-            <Text style={styles.errorText}>
-              {error}
-            </Text>
-            <TouchableOpacity
-              style={styles.retryButton}
-              onPress={loadAgenda}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : sections.length === 0 ? (
+        ) : groupedSessions.length === 0 ? (
           <View style={styles.emptyContainer}>
             <IconSymbol
               ios_icon_name="bookmark"
@@ -255,10 +318,10 @@ export default function MyScheduleScreen() {
               color={colors.textSecondary}
             />
             <Text style={styles.emptyTitle}>
-              No Saved Sessions
+              No Sessions Saved
             </Text>
             <Text style={styles.emptyText}>
-              Browse the agenda and bookmark sessions you want to attend
+              Tap the bookmark icon on any session in the Agenda to add it to your schedule.
             </Text>
             <TouchableOpacity
               style={styles.browseButton}
@@ -268,13 +331,11 @@ export default function MyScheduleScreen() {
             </TouchableOpacity>
           </View>
         ) : (
-          <SectionList
-            sections={sections}
-            keyExtractor={(item) => item.id}
-            renderItem={renderAgendaItem}
-            renderSectionHeader={renderSectionHeader}
+          <FlatList
+            data={groupedSessions}
+            keyExtractor={(item) => item.date}
+            renderItem={renderDateSection}
             contentContainerStyle={styles.listContent}
-            stickySectionHeadersEnabled={true}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -306,30 +367,6 @@ const styles = StyleSheet.create({
     fontSize: 15,
     color: colors.textSecondary,
   },
-  errorContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  errorText: {
-    fontSize: 15,
-    marginTop: 12,
-    textAlign: 'center',
-    color: colors.error,
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.accent,
-  },
-  retryButtonText: {
-    color: colors.text,
-    fontSize: 15,
-    fontWeight: '600',
-  },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -338,45 +375,44 @@ const styles = StyleSheet.create({
   },
   emptyTitle: {
     fontSize: 20,
-    fontWeight: '600',
+    fontWeight: '700',
+    color: colors.text,
     marginTop: 16,
     marginBottom: 8,
-    color: colors.text,
   },
   emptyText: {
     fontSize: 15,
     textAlign: 'center',
-    marginBottom: 24,
     color: colors.textSecondary,
+    lineHeight: 22,
+    marginBottom: 24,
   },
   browseButton: {
+    backgroundColor: colors.accent,
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: colors.accent,
   },
   browseButtonText: {
     color: colors.text,
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
   },
   listContent: {
     padding: 16,
   },
-  sectionHeader: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginTop: 8,
-    marginBottom: 8,
-    backgroundColor: colors.background,
+  dateSection: {
+    marginBottom: 24,
   },
-  sectionHeaderText: {
-    fontSize: 18,
+  dateSectionHeader: {
+    marginBottom: 12,
+  },
+  dateSectionTitle: {
+    fontSize: 20,
     fontWeight: '700',
     color: colors.text,
   },
-  agendaCard: {
-    flexDirection: 'row',
+  sessionCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
@@ -387,50 +423,53 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  timeContainer: {
-    marginRight: 16,
-    paddingTop: 2,
+  cardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  timeText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  agendaContent: {
+  cardHeaderLeft: {
     flex: 1,
+    marginRight: 8,
   },
-  agendaTitle: {
+  sessionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: colors.text,
+    lineHeight: 24,
+  },
+  removeButton: {
+    padding: 4,
+  },
+  sessionInfo: {
+    marginBottom: 6,
+  },
+  sessionTime: {
     fontSize: 16,
     fontWeight: '600',
-    marginBottom: 8,
-    color: colors.text,
-  },
-  typeChip: {
-    alignSelf: 'flex-start',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: 'rgba(25, 181, 216, 0.2)',
-  },
-  typeChipText: {
-    fontSize: 12,
-    fontWeight: '600',
     color: colors.accent,
   },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  infoText: {
-    fontSize: 13,
-    marginLeft: 6,
-    flex: 1,
+  sessionRoom: {
+    fontSize: 14,
     color: colors.textSecondary,
   },
-  bookmarkContainer: {
-    marginLeft: 12,
-    justifyContent: 'center',
+  sessionSpeakers: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
+  trackBadgeContainer: {
+    marginTop: 8,
+  },
+  trackBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    borderWidth: 1,
+  },
+  trackBadgeText: {
+    fontSize: 12,
+    fontWeight: '700',
   },
 });
