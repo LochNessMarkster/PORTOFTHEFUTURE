@@ -133,6 +133,18 @@ describe("API Integration Tests", () => {
     conversationId = data.id;
   });
 
+  test("POST /api/conversations - should return 400 for missing required fields", async () => {
+    const res = await api("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant1_email: participant1Email,
+        // Missing participant2_email
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
   test("GET /api/conversations - should return conversations for user", async () => {
     const res = await api(`/api/conversations?email=${participant1Email}`);
     await expectStatus(res, 200);
@@ -175,6 +187,11 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 404);
   });
 
+  test("GET /api/conversations/{id}/messages - should return 400 for invalid UUID format", async () => {
+    const res = await api("/api/conversations/invalid-uuid/messages");
+    await expectStatus(res, 400);
+  });
+
   test("POST /api/conversations/{id}/messages - should return 404 for nonexistent conversation", async () => {
     const res = await api(
       "/api/conversations/00000000-0000-0000-0000-000000000000/messages",
@@ -188,6 +205,33 @@ describe("API Integration Tests", () => {
       }
     );
     await expectStatus(res, 404);
+  });
+
+  test("POST /api/conversations/{id}/messages - should return 400 for invalid UUID format", async () => {
+    const res = await api("/api/conversations/invalid-uuid/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender_email: participant1Email,
+        content: "Test message",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("POST /api/conversations/{id}/messages - should return 400 for missing required fields", async () => {
+    if (!conversationId) {
+      return; // Skip if conversation not created
+    }
+    const res = await api(`/api/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender_email: participant1Email,
+        // Missing content
+      }),
+    });
+    await expectStatus(res, 400);
   });
 
   // Networking
@@ -268,6 +312,18 @@ describe("API Integration Tests", () => {
       }),
     });
     await expectStatus(res, 401);
+  });
+
+  test("POST /api/login - should return 400 for missing required fields", async () => {
+    const res = await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: participant1Email,
+        // Missing password
+      }),
+    });
+    await expectStatus(res, 400);
   });
 
   // Announcements
