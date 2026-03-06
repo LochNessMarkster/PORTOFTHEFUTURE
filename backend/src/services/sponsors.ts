@@ -155,9 +155,9 @@ export async function getSponsors(): Promise<SponsorsResponse> {
   }
 
   const cacheBaseUrl =
-    'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblgWrwRvpdcVG8';
+    'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblgWrwRvpdcVG8Zy';
   const apiBaseUrl =
-    'https://api.airtable.com/v0/appkKjciinTlnsbkd/tblgWrwRvpdcVG8';
+    'https://api.airtable.com/v0/appkKjciinTlnsbkd/tblgWrwRvpdcVG8Zy';
   const airtablePat = process.env.AIRTABLE_PAT;
 
   let sponsors: Sponsor[] | null = null;
