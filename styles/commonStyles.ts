@@ -1,39 +1,45 @@
 
 import { StyleSheet } from 'react-native';
 
-// Port of the Future Conference 2026 Theme
+// Port of the Future Conference 2026 - Nautical Design System
 export const colors = {
-  // Primary brand colors - maritime/ocean theme
-  primary: '#0066CC', // Deep ocean blue
-  primaryDark: '#004C99',
-  primaryLight: '#3385D6',
-  
-  // Secondary colors
-  secondary: '#00A3E0', // Bright cyan
-  accent: '#FF6B35', // Coral orange for CTAs
-  
-  // Neutral colors
-  background: '#FFFFFF',
-  backgroundDark: '#0A1929',
-  card: '#F8FAFC',
-  cardDark: '#1E293B',
+  // Core nautical theme colors
+  background: '#012A4A',      // Deep navy background
+  card: '#0B4F7A',            // Medium navy cards
+  cardAlt: '#0E4A73',         // Card Alt / Inputs
+  accent: '#19B5D8',          // Bright cyan (Accent / Selected)
   
   // Text colors
-  text: '#1E293B',
-  textDark: '#F1F5F9',
-  textSecondary: '#64748B',
-  textSecondaryDark: '#94A3B8',
+  primaryText: '#FFFFFF',     // White primary text
+  secondaryText: '#A9C7DE',   // Muted blue secondary text
+  mutedText: '#7FA8C4',       // Muted text
   
   // UI colors
-  border: '#E2E8F0',
-  borderDark: '#334155',
-  success: '#10B981',
-  error: '#EF4444',
-  warning: '#F59E0B',
+  error: '#FF5C7A',           // Error state
+  border: 'rgba(255,255,255,0.10)', // Subtle borders
   
-  // Highlight
-  highlight: '#E0F2FE',
-  highlightDark: '#0C4A6E',
+  // Legacy aliases for backward compatibility
+  primary: '#19B5D8',
+  primaryDark: '#0E4A73',
+  primaryLight: '#19B5D8',
+  secondary: '#19B5D8',
+  
+  // Dark mode (same as light for this theme)
+  backgroundDark: '#012A4A',
+  cardDark: '#0B4F7A',
+  textDark: '#FFFFFF',
+  textSecondaryDark: '#A9C7DE',
+  borderDark: 'rgba(255,255,255,0.10)',
+  
+  // Additional UI states
+  success: '#10B981',
+  warning: '#F59E0B',
+  highlight: '#19B5D8',
+  highlightDark: '#0E4A73',
+  
+  // Deprecated - kept for compatibility
+  text: '#FFFFFF',
+  textSecondary: '#A9C7DE',
 };
 
 export const commonStyles = StyleSheet.create({
@@ -50,19 +56,18 @@ export const commonStyles = StyleSheet.create({
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   cardDark: {
     backgroundColor: colors.cardDark,
+    borderWidth: 1,
+    borderColor: colors.borderDark,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.text,
+    color: colors.primaryText,
     marginBottom: 8,
   },
   titleDark: {
@@ -70,40 +75,40 @@ export const commonStyles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: colors.textSecondary,
+    color: colors.secondaryText,
     marginBottom: 16,
   },
   subtitleDark: {
     color: colors.textSecondaryDark,
   },
   input: {
-    backgroundColor: colors.background,
+    backgroundColor: colors.cardAlt,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 8,
     padding: 12,
     fontSize: 16,
-    color: colors.text,
+    color: colors.primaryText,
   },
   inputDark: {
-    backgroundColor: colors.backgroundDark,
+    backgroundColor: colors.cardAlt,
     borderColor: colors.borderDark,
     color: colors.textDark,
   },
   button: {
-    backgroundColor: colors.primary,
+    backgroundColor: colors.accent,
     borderRadius: 8,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.primaryText,
     fontSize: 16,
     fontWeight: '600',
   },
   buttonDisabled: {
-    backgroundColor: colors.textSecondary,
+    backgroundColor: colors.mutedText,
     opacity: 0.5,
   },
 });
