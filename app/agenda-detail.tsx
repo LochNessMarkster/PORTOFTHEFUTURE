@@ -23,6 +23,7 @@ const TRACK_COLORS: Record<string, string> = {
   'Energy & Decarbonization': '#10B981',
   'Digital / AI': '#A855F7',
   'Emergency Management': '#F59E0B',
+  'Advances in Dredging Technology and Methods': '#FFD700',
 };
 
 export default function AgendaDetailScreen() {
