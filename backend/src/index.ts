@@ -10,6 +10,7 @@ import * as attendeesDirectoryRoutes from './routes/attendeesDirectory.js';
 import * as authRoutes from './routes/auth.js';
 import * as announcementsRoutes from './routes/announcements.js';
 import * as agendaRoutes from './routes/agenda.js';
+import * as speakersRoutes from './routes/speakers.js';
 
 // Create application with schema for full database type support
 export const app = await createApplication(schema);
@@ -29,6 +30,7 @@ attendeesDirectoryRoutes.register(app, app.fastify);
 authRoutes.register(app, app.fastify);
 announcementsRoutes.register(app, app.fastify);
 agendaRoutes.register(app, app.fastify);
+speakersRoutes.register(app, app.fastify);
 
 await app.run();
 app.logger.info('Application running');

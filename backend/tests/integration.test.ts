@@ -175,6 +175,21 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 404);
   });
 
+  test("POST /api/conversations/{id}/messages - should return 404 for nonexistent conversation", async () => {
+    const res = await api(
+      "/api/conversations/00000000-0000-0000-0000-000000000000/messages",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender_email: participant1Email,
+          content: "Test message",
+        }),
+      }
+    );
+    await expectStatus(res, 404);
+  });
+
   // Networking
   test("GET /api/networking/attendees - should return array of attendees", async () => {
     const res = await api("/api/networking/attendees");
@@ -275,5 +290,16 @@ describe("API Integration Tests", () => {
     expect(data.updated_at).toBeDefined();
     expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
     expect(Array.isArray(data.agenda)).toBe(true);
+  });
+
+  // Speakers
+  test("GET /api/speakers - should return speakers", async () => {
+    const res = await api("/api/speakers");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(Array.isArray(data.speakers)).toBe(true);
   });
 });
