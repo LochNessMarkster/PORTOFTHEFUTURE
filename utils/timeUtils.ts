@@ -28,6 +28,79 @@ export function parseTimeToMinutes(timeStr: string): number {
 }
 
 /**
+ * Normalize a date string to YYYY-MM-DD format for consistent comparison
+ */
+export function normalizeDate(dateStr: string): string {
+  if (!dateStr) return '';
+  
+  // If already in YYYY-MM-DD format, return as-is
+  if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+    return dateStr;
+  }
+  
+  // Try to parse and convert to YYYY-MM-DD
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    console.warn('[timeUtils] Invalid date string:', dateStr);
+    return dateStr;
+  }
+  
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  
+  return `${year}-${month}-${day}`;
+}
+
+/**
+ * Normalize a time string to a consistent format for comparison
+ * Converts "9:00 AM", "09:00 AM", etc. to minutes since midnight
+ */
+export function normalizeTime(timeStr: string): number {
+  return parseTimeToMinutes(timeStr);
+}
+
+/**
+ * Check if two sessions have the EXACT same date and start time
+ * This is the conflict rule: same date + same start time = conflict
+ */
+export function hasSameStartTime(
+  date1: string,
+  startTime1: string,
+  date2: string,
+  startTime2: string
+): boolean {
+  console.log('[timeUtils] Comparing sessions:');
+  console.log('  Session 1 - Date:', date1, 'Start:', startTime1);
+  console.log('  Session 2 - Date:', date2, 'Start:', startTime2);
+  
+  // Normalize dates for comparison
+  const normalizedDate1 = normalizeDate(date1);
+  const normalizedDate2 = normalizeDate(date2);
+  
+  console.log('  Normalized dates:', normalizedDate1, 'vs', normalizedDate2);
+  
+  // Must be same date
+  if (normalizedDate1 !== normalizedDate2) {
+    console.log('  ❌ Different dates - no conflict');
+    return false;
+  }
+  
+  // Normalize start times to minutes for comparison
+  const normalizedStart1 = normalizeTime(startTime1);
+  const normalizedStart2 = normalizeTime(startTime2);
+  
+  console.log('  Normalized start times (minutes):', normalizedStart1, 'vs', normalizedStart2);
+  
+  // Check if start times are identical
+  const hasConflict = normalizedStart1 === normalizedStart2;
+  
+  console.log(hasConflict ? '  ✅ CONFLICT DETECTED - Same date and start time!' : '  ❌ Different start times - no conflict');
+  
+  return hasConflict;
+}
+
+/**
  * Check if a session is currently happening
  */
 export function isSessionNow(date: string, startTime: string, endTime: string): boolean {
@@ -75,7 +148,8 @@ export function isSessionNext(date: string, startTime: string): boolean {
 }
 
 /**
- * Check if two sessions overlap
+ * Check if two sessions overlap (time range overlap)
+ * NOTE: This is different from hasSameStartTime - this checks if time ranges overlap
  */
 export function sessionsOverlap(
   date1: string,
