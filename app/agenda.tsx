@@ -105,28 +105,45 @@ export default function AgendaScreen() {
   const loadBookmarks = async () => {
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      console.log('[Agenda] Raw stored bookmarks:', stored);
+      
       if (stored) {
-        const bookmarks = JSON.parse(stored);
-        setBookmarkedSessions(new Set(bookmarks));
-        console.log('Loaded bookmarks:', bookmarks.length);
+        const parsed = JSON.parse(stored);
+        console.log('[Agenda] Parsed bookmarks:', parsed);
+        console.log('[Agenda] Parsed bookmarks type:', typeof parsed, Array.isArray(parsed));
+        
+        // Ensure we have an array
+        if (Array.isArray(parsed)) {
+          const bookmarks = new Set(parsed);
+          setBookmarkedSessions(bookmarks);
+          console.log('[Agenda] Loaded bookmarks:', bookmarks.size);
+        } else {
+          console.warn('[Agenda] Bookmarks not an array, resetting');
+          setBookmarkedSessions(new Set());
+        }
+      } else {
+        console.log('[Agenda] No bookmarks found in storage');
+        setBookmarkedSessions(new Set());
       }
     } catch (err) {
-      console.error('Error loading bookmarks:', err);
+      console.error('[Agenda] Error loading bookmarks:', err);
+      setBookmarkedSessions(new Set());
     }
   };
 
   const saveBookmarks = async (bookmarks: Set<string>) => {
     try {
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(Array.from(bookmarks)));
-      console.log('Saved bookmarks:', bookmarks.size);
+      const bookmarksArray = Array.from(bookmarks);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
+      console.log('[Agenda] Saved bookmarks:', bookmarksArray.length);
     } catch (err) {
-      console.error('Error saving bookmarks:', err);
+      console.error('[Agenda] Error saving bookmarks:', err);
     }
   };
 
   const checkForConflicts = (session: AgendaItem): AgendaItem | null => {
-    console.log('Checking conflicts for session:', session.Title);
-    console.log('Session details:', {
+    console.log('[Agenda] Checking conflicts for session:', session.Title);
+    console.log('[Agenda] Session details:', {
       date: session.Date,
       startTime: session.StartTime,
       endTime: session.EndTime,
@@ -134,7 +151,7 @@ export default function AgendaScreen() {
     
     // Check if new session has required time fields
     if (!session.StartTime || !session.EndTime) {
-      console.warn('New session missing StartTime or EndTime, cannot check conflicts');
+      console.warn('[Agenda] New session missing StartTime or EndTime, cannot check conflicts');
       return null;
     }
     
@@ -143,12 +160,12 @@ export default function AgendaScreen() {
       bookmarkedSessions.has(s.id) && s.id !== session.id
     );
     
-    console.log('Checking against', bookmarkedSessionsList.length, 'bookmarked sessions');
+    console.log('[Agenda] Checking against', bookmarkedSessionsList.length, 'bookmarked sessions');
     
     // Check for overlaps
     for (const existing of bookmarkedSessionsList) {
-      console.log('Comparing with existing session:', existing.Title);
-      console.log('Existing session details:', {
+      console.log('[Agenda] Comparing with existing session:', existing.Title);
+      console.log('[Agenda] Existing session details:', {
         date: existing.Date,
         startTime: existing.StartTime,
         endTime: existing.EndTime,
@@ -156,7 +173,7 @@ export default function AgendaScreen() {
       
       // Skip if existing session is missing time fields
       if (!existing.StartTime || !existing.EndTime) {
-        console.warn('Existing session missing StartTime or EndTime, skipping conflict check');
+        console.warn('[Agenda] Existing session missing StartTime or EndTime, skipping conflict check');
         continue;
       }
       
@@ -169,30 +186,30 @@ export default function AgendaScreen() {
         existing.EndTime
       );
       
-      console.log('Overlap result:', hasOverlap);
+      console.log('[Agenda] Overlap result:', hasOverlap);
       
       if (hasOverlap) {
-        console.log('CONFLICT DETECTED:', session.Title, 'overlaps with', existing.Title);
+        console.log('[Agenda] CONFLICT DETECTED:', session.Title, 'overlaps with', existing.Title);
         return existing;
       }
     }
     
-    console.log('No conflicts found');
+    console.log('[Agenda] No conflicts found');
     return null;
   };
 
   const toggleBookmark = (sessionId: string) => {
-    console.log('Toggling bookmark for session:', sessionId);
+    console.log('[Agenda] Toggling bookmark for session:', sessionId);
     
     const session = allSessions.find(s => s.id === sessionId);
     if (!session) {
-      console.warn('Session not found:', sessionId);
+      console.warn('[Agenda] Session not found:', sessionId);
       return;
     }
     
     // If already bookmarked, just remove it
     if (bookmarkedSessions.has(sessionId)) {
-      console.log('Removing bookmark');
+      console.log('[Agenda] Removing bookmark');
       const newBookmarks = new Set(bookmarkedSessions);
       newBookmarks.delete(sessionId);
       setBookmarkedSessions(newBookmarks);
@@ -201,17 +218,17 @@ export default function AgendaScreen() {
     }
     
     // Check for conflicts before adding
-    console.log('Adding bookmark, checking for conflicts...');
+    console.log('[Agenda] Adding bookmark, checking for conflicts...');
     const conflict = checkForConflicts(session);
     
     if (conflict) {
-      console.log('Showing conflict modal');
+      console.log('[Agenda] Showing conflict modal');
       // Show conflict modal
       setPendingSession(session);
       setConflictingSession(conflict);
       setShowConflictModal(true);
     } else {
-      console.log('No conflict, adding bookmark');
+      console.log('[Agenda] No conflict, adding bookmark');
       // No conflict, add bookmark
       const newBookmarks = new Set(bookmarkedSessions);
       newBookmarks.add(sessionId);
@@ -223,7 +240,7 @@ export default function AgendaScreen() {
   const handleKeepBoth = () => {
     if (!pendingSession) return;
     
-    console.log('User chose to keep both sessions');
+    console.log('[Agenda] User chose to keep both sessions');
     const newBookmarks = new Set(bookmarkedSessions);
     newBookmarks.add(pendingSession.id);
     setBookmarkedSessions(newBookmarks);
@@ -235,7 +252,7 @@ export default function AgendaScreen() {
   };
 
   const handleCancel = () => {
-    console.log('User cancelled bookmark');
+    console.log('[Agenda] User cancelled bookmark');
     setShowConflictModal(false);
     setPendingSession(null);
     setConflictingSession(null);
@@ -244,7 +261,7 @@ export default function AgendaScreen() {
   const handleReplace = () => {
     if (!pendingSession || !conflictingSession) return;
     
-    console.log('User chose to replace existing session');
+    console.log('[Agenda] User chose to replace existing session');
     const newBookmarks = new Set(bookmarkedSessions);
     newBookmarks.delete(conflictingSession.id);
     newBookmarks.add(pendingSession.id);
@@ -358,7 +375,7 @@ export default function AgendaScreen() {
   };
 
   const handleSessionPress = (item: AgendaItem) => {
-    console.log('Session pressed:', item.Title);
+    console.log('[Agenda] Session pressed:', item.Title);
     router.push({
       pathname: '/agenda-detail',
       params: {
@@ -539,7 +556,7 @@ export default function AgendaScreen() {
                     isSelected && styles.dropdownItemSelected
                   ]}
                   onPress={() => {
-                    console.log('Selected track:', track);
+                    console.log('[Agenda] Selected track:', track);
                     setSelectedTrack(track);
                     setShowTrackDropdown(false);
                   }}
@@ -588,8 +605,8 @@ export default function AgendaScreen() {
     <>
       <Stack.Screen 
         options={{ 
-          headerShown: true,
           title: 'Agenda',
+          headerShown: true,
           headerStyle: {
             backgroundColor: colors.background,
           },
@@ -634,7 +651,7 @@ export default function AgendaScreen() {
               selectedDay === 'All' && styles.dayButtonSelected
             ]}
             onPress={() => {
-              console.log('Selected day: All');
+              console.log('[Agenda] Selected day: All');
               setSelectedDay('All');
             }}
           >
@@ -652,7 +669,7 @@ export default function AgendaScreen() {
               selectedDay === '2026-03-23' && styles.dayButtonSelected
             ]}
             onPress={() => {
-              console.log('Selected day: March 23');
+              console.log('[Agenda] Selected day: March 23');
               setSelectedDay('2026-03-23');
             }}
           >
@@ -670,7 +687,7 @@ export default function AgendaScreen() {
               selectedDay === '2026-03-24' && styles.dayButtonSelected
             ]}
             onPress={() => {
-              console.log('Selected day: March 24');
+              console.log('[Agenda] Selected day: March 24');
               setSelectedDay('2026-03-24');
             }}
           >
@@ -688,7 +705,7 @@ export default function AgendaScreen() {
               selectedDay === '2026-03-25' && styles.dayButtonSelected
             ]}
             onPress={() => {
-              console.log('Selected day: March 25');
+              console.log('[Agenda] Selected day: March 25');
               setSelectedDay('2026-03-25');
             }}
           >

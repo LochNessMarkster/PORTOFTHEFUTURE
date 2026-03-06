@@ -14,7 +14,7 @@ import {
   RefreshControl,
   ScrollView,
 } from 'react-native';
-import { Stack, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
@@ -282,97 +282,25 @@ export default function SpeakersScreen() {
   const emptyText = searchQuery || selectedLetter ? 'No speakers found' : 'No speakers available';
 
   return (
-    <>
-      <Stack.Screen
-        options={{
-          headerShown: true,
-          title: 'Speakers',
-          headerStyle: {
-            backgroundColor: isDark ? colors.backgroundDark : colors.background,
-          },
-          headerTintColor: textColor,
-        }}
-      />
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        {/* Search Bar */}
-        <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
-            <IconSymbol
-              ios_icon_name="magnifyingglass"
-              android_material_icon_name="search"
-              size={20}
-              color={secondaryTextColor}
-            />
-            <TextInput
-              style={[styles.searchInput, { color: textColor }]}
-              placeholder="Search by name, title, or organization..."
-              placeholderTextColor={secondaryTextColor}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-            />
-            {searchQuery.length > 0 && (
-              <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <IconSymbol
-                  ios_icon_name="xmark.circle.fill"
-                  android_material_icon_name="cancel"
-                  size={20}
-                  color={secondaryTextColor}
-                />
-              </TouchableOpacity>
-            )}
-          </View>
-        </View>
-
-        {/* Alphabet Navigation */}
-        <View style={styles.alphabetContainer}>
-          <ScrollView 
-            horizontal 
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.alphabetScroll}
-          >
-            {ALPHABET.map((letter) => {
-              const isAvailable = availableLetters.has(letter);
-              const isSelected = selectedLetter === letter;
-              
-              return (
-                <TouchableOpacity
-                  key={letter}
-                  style={[
-                    styles.letterButton,
-                    { 
-                      backgroundColor: isSelected ? colors.accent : cardBg,
-                      borderColor: borderColorValue,
-                      opacity: isAvailable ? 1 : 0.3,
-                    }
-                  ]}
-                  onPress={() => handleLetterPress(letter)}
-                  disabled={!isAvailable}
-                  activeOpacity={0.7}
-                >
-                  <Text 
-                    style={[
-                      styles.letterText, 
-                      { color: isSelected ? '#FFFFFF' : textColor }
-                    ]}
-                  >
-                    {letter}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
-        </View>
-
-        {/* Filter Indicator */}
-        {selectedLetter && (
-          <View style={styles.filterIndicator}>
-            <Text style={[styles.filterText, { color: secondaryTextColor }]}>
-              Showing speakers with last name starting with
-            </Text>
-            <Text style={[styles.filterLetter, { color: colors.accent }]}>
-              {selectedLetter}
-            </Text>
-            <TouchableOpacity onPress={() => setSelectedLetter(null)}>
+    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+          <IconSymbol
+            ios_icon_name="magnifyingglass"
+            android_material_icon_name="search"
+            size={20}
+            color={secondaryTextColor}
+          />
+          <TextInput
+            style={[styles.searchInput, { color: textColor }]}
+            placeholder="Search by name, title, or organization..."
+            placeholderTextColor={secondaryTextColor}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery('')}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
                 android_material_icon_name="cancel"
@@ -380,64 +308,124 @@ export default function SpeakersScreen() {
                 color={secondaryTextColor}
               />
             </TouchableOpacity>
-          </View>
-        )}
+          )}
+        </View>
+      </View>
 
-        {loading && !refreshing ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.accent} />
-            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>{loadingText}</Text>
-          </View>
-        ) : error ? (
-          <View style={styles.centerContainer}>
+      {/* Alphabet Navigation */}
+      <View style={styles.alphabetContainer}>
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.alphabetScroll}
+        >
+          {ALPHABET.map((letter) => {
+            const isAvailable = availableLetters.has(letter);
+            const isSelected = selectedLetter === letter;
+            
+            return (
+              <TouchableOpacity
+                key={letter}
+                style={[
+                  styles.letterButton,
+                  { 
+                    backgroundColor: isSelected ? colors.accent : cardBg,
+                    borderColor: borderColorValue,
+                    opacity: isAvailable ? 1 : 0.3,
+                  }
+                ]}
+                onPress={() => handleLetterPress(letter)}
+                disabled={!isAvailable}
+                activeOpacity={0.7}
+              >
+                <Text 
+                  style={[
+                    styles.letterText, 
+                    { color: isSelected ? '#FFFFFF' : textColor }
+                  ]}
+                >
+                  {letter}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
+
+      {/* Filter Indicator */}
+      {selectedLetter && (
+        <View style={styles.filterIndicator}>
+          <Text style={[styles.filterText, { color: secondaryTextColor }]}>
+            Showing speakers with last name starting with
+          </Text>
+          <Text style={[styles.filterLetter, { color: colors.accent }]}>
+            {selectedLetter}
+          </Text>
+          <TouchableOpacity onPress={() => setSelectedLetter(null)}>
             <IconSymbol
-              ios_icon_name="exclamationmark.triangle.fill"
-              android_material_icon_name="warning"
-              size={48}
-              color={colors.error}
-            />
-            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-            <TouchableOpacity
-              style={[styles.retryButton, { backgroundColor: colors.accent }]}
-              onPress={loadSpeakers}
-            >
-              <Text style={styles.retryButtonText}>Retry</Text>
-            </TouchableOpacity>
-          </View>
-        ) : filteredSpeakers.length === 0 ? (
-          <View style={styles.centerContainer}>
-            <IconSymbol
-              ios_icon_name="person.2.slash"
-              android_material_icon_name="person-off"
-              size={48}
+              ios_icon_name="xmark.circle.fill"
+              android_material_icon_name="cancel"
+              size={20}
               color={secondaryTextColor}
             />
-            <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-              {emptyText}
-            </Text>
-          </View>
-        ) : (
-          <FlatList
-            ref={flatListRef}
-            data={filteredSpeakers}
-            renderItem={renderSpeakerCard}
-            keyExtractor={(item) => item.id}
-            numColumns={2}
-            columnWrapperStyle={styles.row}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={onRefresh}
-                tintColor={colors.accent}
-                colors={[colors.accent]}
-              />
-            }
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {loading && !refreshing ? (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.accent} />
+          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>{loadingText}</Text>
+        </View>
+      ) : error ? (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle.fill"
+            android_material_icon_name="warning"
+            size={48}
+            color={colors.error}
           />
-        )}
-      </SafeAreaView>
-    </>
+          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.accent }]}
+            onPress={loadSpeakers}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      ) : filteredSpeakers.length === 0 ? (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="person.2.slash"
+            android_material_icon_name="person-off"
+            size={48}
+            color={secondaryTextColor}
+          />
+          <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+            {emptyText}
+          </Text>
+        </View>
+      ) : (
+        <FlatList
+          ref={flatListRef}
+          data={filteredSpeakers}
+          renderItem={renderSpeakerCard}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          columnWrapperStyle={styles.row}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl
+              refreshing={refreshing}
+              onRefresh={onRefresh}
+              tintColor={colors.accent}
+              colors={[colors.accent]}
+            />
+          }
+        />
+      )}
+    </SafeAreaView>
   );
 }
 
