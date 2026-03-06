@@ -19,7 +19,7 @@ import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { fetchSponsors, Sponsor } from '@/utils/airtable';
+import { fetchSponsors, Sponsor, BACKEND_URL } from '@/utils/airtable';
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -74,13 +74,27 @@ export default function SponsorsScreen() {
 
   const loadSponsors = useCallback(async () => {
     console.log('[Sponsors] Loading sponsors from backend proxy...');
+    console.log('[Sponsors] Backend URL:', BACKEND_URL);
+    console.log('[Sponsors] Endpoint: /api/sponsors');
     try {
       setError(null);
       const response = await fetchSponsors();
-      console.log('[Sponsors] Loaded:', response.sponsors.length, 'source:', response.source_used);
+      console.log('[Sponsors] Response received:', JSON.stringify(response, null, 2));
+      console.log('[Sponsors] Loaded:', response.sponsors.length, 'sponsors');
+      console.log('[Sponsors] Source used:', response.source_used);
+      console.log('[Sponsors] Updated at:', response.updated_at);
+      
+      if (response.sponsors.length > 0) {
+        console.log('[Sponsors] First sponsor:', JSON.stringify(response.sponsors[0], null, 2));
+      } else {
+        console.warn('[Sponsors] WARNING: No sponsors returned from backend');
+      }
+      
       setSponsors(response.sponsors);
     } catch (err) {
       console.error('[Sponsors] Error loading sponsors:', err);
+      console.error('[Sponsors] Error details:', err instanceof Error ? err.message : String(err));
+      console.error('[Sponsors] Error stack:', err instanceof Error ? err.stack : 'No stack trace');
       const errorMessage = err instanceof Error ? err.message : 'Unable to load sponsors';
       setError(errorMessage);
       setSponsors([]);
