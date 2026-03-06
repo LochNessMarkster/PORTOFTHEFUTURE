@@ -346,6 +346,16 @@ export default function AgendaScreen() {
     return TRACK_COLORS[track] || colors.textSecondary;
   };
 
+  const formatDate = (dateString: string): string => {
+    if (!dateString) return '';
+    const date = new Date(dateString);
+    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const month = months[date.getMonth()];
+    const day = date.getDate();
+    const year = date.getFullYear();
+    return `${month} ${day}, ${year}`;
+  };
+
   const renderSessionCard = ({ item }: { item: AgendaItem }) => {
     const speakerDisplay = Array.isArray(item.SpeakerNames)
       ? item.SpeakerNames.join(', ')
@@ -355,7 +365,8 @@ export default function AgendaScreen() {
     const trackColor = getTrackColor(item.TypeTrack);
     const isSelectedTrack = selectedTrack !== 'All Tracks' && item.TypeTrack === selectedTrack;
 
-    // Format time display
+    // Format date and time display
+    const dateDisplay = formatDate(item.Date);
     const timeDisplay = item.EndTime 
       ? `${item.StartTime} - ${item.EndTime}`
       : item.StartTime;
@@ -397,6 +408,12 @@ export default function AgendaScreen() {
               color={isBookmarked ? colors.accent : colors.textSecondary}
             />
           </TouchableOpacity>
+        </View>
+
+        <View style={styles.sessionInfo}>
+          <Text style={styles.sessionDate}>
+            {dateDisplay}
+          </Text>
         </View>
 
         <View style={styles.sessionInfo}>
@@ -944,6 +961,11 @@ const styles = StyleSheet.create({
   },
   sessionInfo: {
     marginBottom: 6,
+  },
+  sessionDate: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: colors.textSecondary,
   },
   sessionTime: {
     fontSize: 16,
