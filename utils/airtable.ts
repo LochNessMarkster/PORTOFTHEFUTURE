@@ -596,3 +596,30 @@ export interface AnnouncementsResponse {
  */
 export const fetchAnnouncements = (): Promise<AnnouncementsResponse> =>
   apiGet<AnnouncementsResponse>('/api/announcements');
+
+// ─── Agenda ───────────────────────────────────────────────────────────────────
+
+export interface AgendaItem {
+  id: string;
+  Title: string;
+  Date: string;
+  StartTime: string;
+  Room?: string;
+  TypeTrack?: string;
+  SessionDescription?: string;
+  SpeakerNames?: string | string[];
+}
+
+export interface AgendaResponse {
+  updated_at: string;
+  source_used: 'airtablecache' | 'airtable';
+  agenda: AgendaItem[];
+}
+
+/**
+ * Fetch agenda from the backend proxy endpoint.
+ * The backend handles caching (6h TTL), Airtable pagination, and fallback logic.
+ * Returns agenda sorted by Date ascending, then Start Time ascending.
+ */
+export const fetchAgenda = (): Promise<AgendaResponse> =>
+  apiGet<AgendaResponse>('/api/agenda');

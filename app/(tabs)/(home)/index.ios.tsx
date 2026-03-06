@@ -94,6 +94,12 @@ export default function HomeScreen() {
     
     // Navigate to the appropriate screen based on card title
     switch (card.title) {
+      case 'Agenda':
+        router.push('/agenda');
+        break;
+      case 'My Schedule':
+        router.push('/my-schedule');
+        break;
       case 'Speakers':
         router.push('/speakers');
         break;
