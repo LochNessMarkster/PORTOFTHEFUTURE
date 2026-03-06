@@ -7,6 +7,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { fetchAnnouncements, type AnnouncementItem } from "@/utils/airtable";
+import { NowNextSection } from "@/components/NowNextSection";
 
 // Helper to resolve image sources (handles both local require() and remote URLs)
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
@@ -200,6 +201,9 @@ export default function HomeScreen() {
               <Text style={styles.heroLocationText}>{CONFERENCE_LOCATION}</Text>
             </View>
           </View>
+
+          {/* Now/Next Section */}
+          <NowNextSection />
 
           {/* Navigation Cards Grid - 3x3 Layout */}
           <View style={styles.gridContainer}>

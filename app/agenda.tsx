@@ -19,6 +19,8 @@ import {
 import { IconSymbol } from '@/components/IconSymbol';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { getSessionStatus, sessionsOverlap } from '@/utils/timeUtils';
+import { ConflictModal } from '@/components/ConflictModal';
 
 const BOOKMARKS_KEY = '@agenda_bookmarks';
 
@@ -86,6 +88,11 @@ export default function AgendaScreen() {
   // Bookmarks state
   const [bookmarkedSessions, setBookmarkedSessions] = useState<Set<string>>(new Set());
 
+  // Conflict modal state
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [pendingSession, setPendingSession] = useState<AgendaItem | null>(null);
+  const [conflictingSession, setConflictingSession] = useState<AgendaItem | null>(null);
+
   // Cache timestamp
   const [cacheTimestamp, setCacheTimestamp] = useState<number>(0);
   const CACHE_DURATION = 60000; // 60 seconds
@@ -117,18 +124,100 @@ export default function AgendaScreen() {
     }
   };
 
+  const checkForConflicts = (session: AgendaItem): AgendaItem | null => {
+    if (!session.EndTime) return null;
+    
+    // Find all bookmarked sessions
+    const bookmarkedSessionsList = allSessions.filter(s => 
+      bookmarkedSessions.has(s.id) && s.id !== session.id
+    );
+    
+    // Check for overlaps
+    for (const existing of bookmarkedSessionsList) {
+      if (!existing.EndTime) continue;
+      
+      if (sessionsOverlap(
+        session.Date,
+        session.StartTime,
+        session.EndTime,
+        existing.Date,
+        existing.StartTime,
+        existing.EndTime
+      )) {
+        console.log('Conflict detected:', session.Title, 'overlaps with', existing.Title);
+        return existing;
+      }
+    }
+    
+    return null;
+  };
+
   const toggleBookmark = (sessionId: string) => {
     console.log('Toggling bookmark for session:', sessionId);
-    setBookmarkedSessions(prev => {
-      const newBookmarks = new Set(prev);
-      if (newBookmarks.has(sessionId)) {
-        newBookmarks.delete(sessionId);
-      } else {
-        newBookmarks.add(sessionId);
-      }
+    
+    const session = allSessions.find(s => s.id === sessionId);
+    if (!session) return;
+    
+    // If already bookmarked, just remove it
+    if (bookmarkedSessions.has(sessionId)) {
+      const newBookmarks = new Set(bookmarkedSessions);
+      newBookmarks.delete(sessionId);
+      setBookmarkedSessions(newBookmarks);
       saveBookmarks(newBookmarks);
-      return newBookmarks;
-    });
+      return;
+    }
+    
+    // Check for conflicts
+    const conflict = checkForConflicts(session);
+    
+    if (conflict) {
+      // Show conflict modal
+      setPendingSession(session);
+      setConflictingSession(conflict);
+      setShowConflictModal(true);
+    } else {
+      // No conflict, add bookmark
+      const newBookmarks = new Set(bookmarkedSessions);
+      newBookmarks.add(sessionId);
+      setBookmarkedSessions(newBookmarks);
+      saveBookmarks(newBookmarks);
+    }
+  };
+
+  const handleKeepBoth = () => {
+    if (!pendingSession) return;
+    
+    console.log('User chose to keep both sessions');
+    const newBookmarks = new Set(bookmarkedSessions);
+    newBookmarks.add(pendingSession.id);
+    setBookmarkedSessions(newBookmarks);
+    saveBookmarks(newBookmarks);
+    
+    setShowConflictModal(false);
+    setPendingSession(null);
+    setConflictingSession(null);
+  };
+
+  const handleCancel = () => {
+    console.log('User cancelled bookmark');
+    setShowConflictModal(false);
+    setPendingSession(null);
+    setConflictingSession(null);
+  };
+
+  const handleReplace = () => {
+    if (!pendingSession || !conflictingSession) return;
+    
+    console.log('User chose to replace existing session');
+    const newBookmarks = new Set(bookmarkedSessions);
+    newBookmarks.delete(conflictingSession.id);
+    newBookmarks.add(pendingSession.id);
+    setBookmarkedSessions(newBookmarks);
+    saveBookmarks(newBookmarks);
+    
+    setShowConflictModal(false);
+    setPendingSession(null);
+    setConflictingSession(null);
   };
 
   const loadAgenda = useCallback(async () => {
@@ -271,6 +360,9 @@ export default function AgendaScreen() {
       ? `${item.StartTime} - ${item.EndTime}`
       : item.StartTime;
 
+    // Get session status (now/next)
+    const status = item.EndTime ? getSessionStatus(item.Date, item.StartTime, item.EndTime) : null;
+
     return (
       <TouchableOpacity
         style={styles.sessionCard}
@@ -279,6 +371,16 @@ export default function AgendaScreen() {
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
+            {status && (
+              <View style={[
+                styles.statusBadge,
+                status === 'now' ? styles.nowBadge : styles.nextBadge
+              ]}>
+                <Text style={styles.statusBadgeText}>
+                  {status === 'now' ? 'NOW' : 'NEXT'}
+                </Text>
+              </View>
+            )}
             <Text style={styles.sessionTitle} numberOfLines={2}>
               {item.Title}
             </Text>
@@ -614,6 +716,32 @@ export default function AgendaScreen() {
         )}
 
         {renderTrackDropdown()}
+
+        {/* Conflict Modal */}
+        {pendingSession && conflictingSession && (
+          <ConflictModal
+            visible={showConflictModal}
+            newSession={{
+              id: pendingSession.id,
+              title: pendingSession.Title,
+              date: pendingSession.Date,
+              startTime: pendingSession.StartTime,
+              endTime: pendingSession.EndTime || '',
+              room: pendingSession.Room || '',
+            }}
+            existingSession={{
+              id: conflictingSession.id,
+              title: conflictingSession.Title,
+              date: conflictingSession.Date,
+              startTime: conflictingSession.StartTime,
+              endTime: conflictingSession.EndTime || '',
+              room: conflictingSession.Room || '',
+            }}
+            onKeepBoth={handleKeepBoth}
+            onCancel={handleCancel}
+            onReplace={handleReplace}
+          />
+        )}
       </SafeAreaView>
     </>
   );
@@ -779,6 +907,24 @@ const styles = StyleSheet.create({
   cardHeaderLeft: {
     flex: 1,
     marginRight: 8,
+  },
+  statusBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 6,
+  },
+  nowBadge: {
+    backgroundColor: '#10B981',
+  },
+  nextBadge: {
+    backgroundColor: colors.accent,
+  },
+  statusBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   sessionTitle: {
     fontSize: 18,
