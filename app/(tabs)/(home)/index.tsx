@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { StyleSheet, View, Text, ScrollView, useColorScheme, TouchableOpacity, Image, ActivityIndicator, ImageSourcePropType, RefreshControl } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from "@/contexts/AuthContext";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -26,16 +27,14 @@ interface NavigationCard {
 }
 
 const navigationCards: NavigationCard[] = [
-  { id: '1', title: 'Agenda', ios_icon: 'calendar', android_icon: 'calendar-today' },
-  { id: '2', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star' },
-  { id: '3', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
-  { id: '4', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
-  { id: '5', title: 'Exhibitors', ios_icon: 'building.2.fill', android_icon: 'store' },
-  { id: '6', title: 'Sponsors', ios_icon: 'heart.fill', android_icon: 'favorite' },
-  { id: '7', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
-  { id: '8', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
-  { id: '9', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
-  { id: '10', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
+  { id: '1', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
+  { id: '2', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
+  { id: '3', title: 'Sponsors', ios_icon: 'heart.fill', android_icon: 'favorite' },
+  { id: '4', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star' },
+  { id: '5', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
+  { id: '6', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
+  { id: '7', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
+  { id: '8', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
 ];
 
 export default function HomeScreen() {
@@ -86,9 +85,6 @@ export default function HomeScreen() {
     console.log('Navigation card pressed:', card.title);
     
     switch (card.title) {
-      case 'Agenda':
-        router.push('/agenda');
-        break;
       case 'My Schedule':
         router.push('/my-schedule');
         break;
@@ -97,9 +93,6 @@ export default function HomeScreen() {
         break;
       case 'Activities':
         router.push('/activities');
-        break;
-      case 'Exhibitors':
-        router.push('/exhibitors');
         break;
       case 'Sponsors':
         router.push('/sponsors');
@@ -119,6 +112,15 @@ export default function HomeScreen() {
       default:
         console.log('Navigation not yet implemented for:', card.title);
         break;
+    }
+  };
+
+  const handleCTAPress = (action: string) => {
+    console.log('CTA button pressed:', action);
+    if (action === 'agenda') {
+      router.push('/agenda');
+    } else if (action === 'exhibitors') {
+      router.push('/exhibitors');
     }
   };
 
@@ -160,15 +162,10 @@ export default function HomeScreen() {
     <>
       <Stack.Screen 
         options={{ 
-          headerShown: true,
-          title: 'Home',
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.text,
+          headerShown: false,
         }} 
       />
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <ScrollView 
           style={styles.scrollView} 
           contentContainerStyle={styles.scrollContent}
@@ -181,17 +178,46 @@ export default function HomeScreen() {
             />
           }
         >
-          {/* Hero Image */}
+          {/* Hero Section with Logo and Dates */}
           <View style={styles.heroContainer}>
             <Image
-              source={resolveImageSource('https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&q=80')}
+              source={resolveImageSource('https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=1200&q=80')}
               style={styles.heroImage}
               resizeMode="cover"
             />
-            <View style={styles.heroOverlay}>
-              <Text style={styles.heroTitle}>Port of the Future</Text>
-              <Text style={styles.heroSubtitle}>Conference 2026</Text>
-            </View>
+            <LinearGradient
+              colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.75)']}
+              style={styles.heroGradient}
+            >
+              <View style={styles.heroContent}>
+                <Image
+                  source={resolveImageSource('https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=400&q=80')}
+                  style={styles.logoImage}
+                  resizeMode="contain"
+                />
+                <Text style={styles.heroTitle}>Port of the Future</Text>
+                <Text style={styles.heroDates}>March 24 - 25, 2026</Text>
+                <Text style={styles.heroLocation}>Houston, TX</Text>
+              </View>
+            </LinearGradient>
+          </View>
+
+          {/* CTA Buttons */}
+          <View style={styles.ctaContainer}>
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={() => handleCTAPress('agenda')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.ctaButtonText}>View Agenda</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.ctaButton}
+              onPress={() => handleCTAPress('exhibitors')}
+              activeOpacity={0.8}
+            >
+              <Text style={styles.ctaButtonText}>Exhibitors</Text>
+            </TouchableOpacity>
           </View>
 
           {/* Navigation Cards Grid */}
@@ -203,15 +229,13 @@ export default function HomeScreen() {
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
               >
-                <View style={styles.iconCircle}>
-                  <IconSymbol
-                    ios_icon_name={card.ios_icon}
-                    android_material_icon_name={card.android_icon}
-                    size={28}
-                    color={colors.accent}
-                  />
-                </View>
-                <Text style={styles.navCardTitle} numberOfLines={2}>
+                <IconSymbol
+                  ios_icon_name={card.ios_icon}
+                  android_material_icon_name={card.android_icon}
+                  size={32}
+                  color="#5EEBFF"
+                />
+                <Text style={styles.navCardTitle}>
                   {card.title}
                 </Text>
               </TouchableOpacity>
@@ -343,68 +367,115 @@ const styles = StyleSheet.create({
   },
   heroContainer: {
     width: '100%',
-    height: 200,
+    height: 320,
     position: 'relative',
   },
   heroImage: {
     width: '100%',
     height: '100%',
   },
-  heroOverlay: {
+  heroGradient: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    padding: 16,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  heroContent: {
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  logoImage: {
+    width: 120,
+    height: 120,
+    marginBottom: 16,
+    borderRadius: 12,
   },
   heroTitle: {
-    fontSize: 28,
+    fontSize: 32,
     fontWeight: 'bold',
     color: colors.text,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  heroSubtitle: {
-    fontSize: 18,
+  heroDates: {
+    fontSize: 20,
+    fontWeight: '600',
     color: colors.text,
-    marginTop: 4,
+    marginTop: 8,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
   },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    padding: 16,
+  heroLocation: {
+    fontSize: 18,
+    fontWeight: '500',
+    color: colors.textSecondary,
+    marginTop: 4,
+    textAlign: 'center',
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 3,
+  },
+  ctaContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 20,
+    paddingBottom: 8,
     gap: 12,
   },
-  navCard: {
-    width: '18%',
-    aspectRatio: 1,
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 8,
+  ctaButton: {
+    backgroundColor: colors.accent,
+    borderRadius: 12,
+    paddingVertical: 16,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
     elevation: 2,
   },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  ctaButtonText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: colors.text,
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    gap: 12,
+  },
+  navCard: {
+    width: 'calc(50% - 6px)',
+    backgroundColor: colors.card,
+    borderRadius: 12,
+    padding: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
-    backgroundColor: 'rgba(25, 181, 216, 0.15)',
+    minHeight: 120,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 2,
+    elevation: 1,
   },
   navCardTitle: {
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
     color: colors.text,
+    marginTop: 12,
   },
   announcementsSection: {
     paddingHorizontal: 16,
+    paddingTop: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
