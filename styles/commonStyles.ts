@@ -1,45 +1,39 @@
 
 import { StyleSheet } from 'react-native';
 
-// Port of the Future Conference 2026 - Nautical Design System
+// Port of the Future Conference 2026 - Deep Navy Theme
 export const colors = {
-  // Core nautical theme colors
-  background: '#012A4A',      // Deep navy background
-  card: '#0B4F7A',            // Medium navy cards
-  cardAlt: '#0E4A73',         // Card Alt / Inputs
-  accent: '#19B5D8',          // Bright cyan (Accent / Selected)
+  // Core colors - Deep Navy System
+  background: '#012A4A',        // Deep navy background
+  card: '#0B4F7A',              // Medium navy cards
+  cardAlt: '#0E4A73',           // Card alt / Inputs
+  accent: '#19B5D8',            // Bright cyan selected states
   
   // Text colors
-  primaryText: '#FFFFFF',     // White primary text
-  secondaryText: '#A9C7DE',   // Muted blue secondary text
-  mutedText: '#7FA8C4',       // Muted text
+  text: '#FFFFFF',              // White primary text
+  textSecondary: '#A9C7DE',     // Muted blue secondary text
+  textMuted: '#7FA8C4',         // Muted text
   
   // UI colors
-  error: '#FF5C7A',           // Error state
-  border: 'rgba(255,255,255,0.10)', // Subtle borders
+  error: '#FF5C7A',             // Error state
+  success: '#10B981',           // Success state
+  warning: '#F59E0B',           // Warning state
   
-  // Legacy aliases for backward compatibility
-  primary: '#19B5D8',
+  // Utility colors
+  border: 'rgba(169, 199, 222, 0.2)',  // Subtle borders
+  overlay: 'rgba(1, 42, 74, 0.9)',     // Modal overlays
+  
+  // Legacy support (for gradual migration)
+  primary: '#19B5D8',           // Maps to accent
   primaryDark: '#0E4A73',
   primaryLight: '#19B5D8',
-  secondary: '#19B5D8',
   
   // Dark mode (same as light for this theme)
   backgroundDark: '#012A4A',
   cardDark: '#0B4F7A',
   textDark: '#FFFFFF',
   textSecondaryDark: '#A9C7DE',
-  borderDark: 'rgba(255,255,255,0.10)',
-  
-  // Additional UI states
-  success: '#10B981',
-  warning: '#F59E0B',
-  highlight: '#19B5D8',
-  highlightDark: '#0E4A73',
-  
-  // Deprecated - kept for compatibility
-  text: '#FFFFFF',
-  textSecondary: '#A9C7DE',
+  borderDark: 'rgba(169, 199, 222, 0.2)',
 };
 
 export const commonStyles = StyleSheet.create({
@@ -53,21 +47,22 @@ export const commonStyles = StyleSheet.create({
   },
   card: {
     backgroundColor: colors.card,
-    borderRadius: 12,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   cardDark: {
     backgroundColor: colors.cardDark,
-    borderWidth: 1,
-    borderColor: colors.borderDark,
   },
   title: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: colors.primaryText,
+    color: colors.text,
     marginBottom: 8,
   },
   titleDark: {
@@ -75,7 +70,7 @@ export const commonStyles = StyleSheet.create({
   },
   subtitle: {
     fontSize: 16,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
     marginBottom: 16,
   },
   subtitleDark: {
@@ -85,10 +80,10 @@ export const commonStyles = StyleSheet.create({
     backgroundColor: colors.cardAlt,
     borderWidth: 1,
     borderColor: colors.border,
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     fontSize: 16,
-    color: colors.primaryText,
+    color: colors.text,
   },
   inputDark: {
     backgroundColor: colors.cardAlt,
@@ -97,18 +92,18 @@ export const commonStyles = StyleSheet.create({
   },
   button: {
     backgroundColor: colors.accent,
-    borderRadius: 8,
+    borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonText: {
-    color: colors.primaryText,
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
   buttonDisabled: {
-    backgroundColor: colors.mutedText,
+    backgroundColor: colors.textMuted,
     opacity: 0.5,
   },
 });

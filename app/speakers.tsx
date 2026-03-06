@@ -150,23 +150,22 @@ export default function SpeakersScreen() {
           headerStyle: {
             backgroundColor: colors.background,
           },
-          headerTintColor: colors.primaryText,
+          headerTintColor: colors.text,
         }}
       />
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={styles.searchBar}>
             <IconSymbol
               ios_icon_name="magnifyingglass"
               android_material_icon_name="search"
               size={20}
-              color={colors.secondaryText}
+              color={colors.textSecondary}
             />
             <TextInput
               style={styles.searchInput}
               placeholder="Search speakers..."
-              placeholderTextColor={colors.mutedText}
+              placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -176,7 +175,7 @@ export default function SpeakersScreen() {
                   ios_icon_name="xmark.circle.fill"
                   android_material_icon_name="cancel"
                   size={20}
-                  color={colors.secondaryText}
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             )}
@@ -210,7 +209,7 @@ export default function SpeakersScreen() {
               ios_icon_name="person.2.slash"
               android_material_icon_name="person-off"
               size={48}
-              color={colors.secondaryText}
+              color={colors.textSecondary}
             />
             <Text style={styles.emptyText}>
               {searchQuery ? 'No speakers found' : 'No speakers available'}
@@ -242,18 +241,16 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: colors.cardAlt,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: colors.cardAlt,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
-    color: colors.primaryText,
+    color: colors.text,
   },
   centerContainer: {
     flex: 1,
@@ -264,7 +261,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   errorText: {
     fontSize: 15,
@@ -276,11 +273,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: colors.accent,
   },
   retryButtonText: {
-    color: colors.primaryText,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -288,19 +285,22 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   listContent: {
     padding: 16,
   },
   speakerCard: {
     flexDirection: 'row',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   photoContainer: {
     marginRight: 16,
@@ -326,11 +326,11 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
-    color: colors.primaryText,
+    color: colors.text,
   },
   speakerTitle: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
 });

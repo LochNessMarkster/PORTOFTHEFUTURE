@@ -81,7 +81,6 @@ export default function AgendaScreen() {
       });
     }
 
-    // Group by date
     const sections: AgendaSection[] = [];
     const dateMap = new Map<string, AgendaItem[]>();
 
@@ -125,9 +124,9 @@ export default function AgendaScreen() {
     const month = months[date.getMonth()];
     const day = date.getDate();
     const year = date.getFullYear();
+    const formattedDate = `${weekday}, ${month} ${day}, ${year}`;
     
-    const formatted = `${weekday}, ${month} ${day}, ${year}`;
-    return formatted;
+    return formattedDate;
   };
 
   const handleAgendaItemPress = (item: AgendaItem) => {
@@ -185,7 +184,7 @@ export default function AgendaScreen() {
                 ios_icon_name="location.fill"
                 android_material_icon_name="location-on"
                 size={14}
-                color={colors.secondaryText}
+                color={colors.textSecondary}
               />
               <Text style={styles.infoText}>
                 {item.Room}
@@ -199,7 +198,7 @@ export default function AgendaScreen() {
                 ios_icon_name="person.fill"
                 android_material_icon_name="person"
                 size={14}
-                color={colors.secondaryText}
+                color={colors.textSecondary}
               />
               <Text style={styles.infoText} numberOfLines={1}>
                 {speakerDisplay}
@@ -228,7 +227,7 @@ export default function AgendaScreen() {
           headerStyle: {
             backgroundColor: colors.background,
           },
-          headerTintColor: colors.primaryText,
+          headerTintColor: colors.text,
         }} 
       />
       <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -238,12 +237,12 @@ export default function AgendaScreen() {
               ios_icon_name="magnifyingglass"
               android_material_icon_name="search"
               size={20}
-              color={colors.secondaryText}
+              color={colors.textSecondary}
             />
             <TextInput
               style={styles.searchInput}
               placeholder="Search agenda..."
-              placeholderTextColor={colors.mutedText}
+              placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -253,7 +252,7 @@ export default function AgendaScreen() {
                   ios_icon_name="xmark.circle.fill"
                   android_material_icon_name="cancel"
                   size={20}
-                  color={colors.secondaryText}
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             )}
@@ -291,7 +290,7 @@ export default function AgendaScreen() {
               ios_icon_name="calendar"
               android_material_icon_name="calendar-today"
               size={48}
-              color={colors.secondaryText}
+              color={colors.textSecondary}
             />
             <Text style={styles.emptyText}>
               {searchQuery ? 'No agenda items found' : 'No agenda items yet'}
@@ -328,23 +327,23 @@ const styles = StyleSheet.create({
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: colors.background,
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
-    backgroundColor: colors.cardAlt,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
-    color: colors.primaryText,
+    color: colors.text,
   },
   loadingContainer: {
     flex: 1,
@@ -355,7 +354,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   errorContainer: {
     flex: 1,
@@ -373,11 +372,11 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: colors.accent,
   },
   retryButtonText: {
-    color: colors.primaryText,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -391,7 +390,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   listContent: {
     padding: 16,
@@ -406,16 +405,19 @@ const styles = StyleSheet.create({
   sectionHeaderText: {
     fontSize: 18,
     fontWeight: '700',
-    color: colors.primaryText,
+    color: colors.text,
   },
   agendaCard: {
     flexDirection: 'row',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   timeContainer: {
     marginRight: 16,
@@ -433,13 +435,13 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
-    color: colors.primaryText,
+    color: colors.text,
   },
   typeChip: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
     marginBottom: 8,
     backgroundColor: 'rgba(25, 181, 216, 0.2)',
   },
@@ -457,6 +459,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginLeft: 6,
     flex: 1,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
 });

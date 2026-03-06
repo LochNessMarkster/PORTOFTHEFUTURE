@@ -26,14 +26,16 @@ interface NavigationCard {
 }
 
 const navigationCards: NavigationCard[] = [
-  { id: '1', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
-  { id: '2', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
-  { id: '3', title: 'Sponsors', ios_icon: 'heart.fill', android_icon: 'favorite' },
-  { id: '4', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star' },
-  { id: '5', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
-  { id: '6', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
-  { id: '7', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
-  { id: '8', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
+  { id: '1', title: 'Agenda', ios_icon: 'calendar', android_icon: 'calendar-today' },
+  { id: '2', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star' },
+  { id: '3', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
+  { id: '4', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
+  { id: '5', title: 'Exhibitors', ios_icon: 'building.2.fill', android_icon: 'store' },
+  { id: '6', title: 'Sponsors', ios_icon: 'heart.fill', android_icon: 'favorite' },
+  { id: '7', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
+  { id: '8', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
+  { id: '9', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
+  { id: '10', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
 ];
 
 export default function HomeScreen() {
@@ -163,7 +165,7 @@ export default function HomeScreen() {
           headerStyle: {
             backgroundColor: colors.background,
           },
-          headerTintColor: colors.primaryText,
+          headerTintColor: colors.text,
         }} 
       />
       <SafeAreaView style={styles.container} edges={['bottom']}>
@@ -179,7 +181,7 @@ export default function HomeScreen() {
             />
           }
         >
-          {/* Hero Section */}
+          {/* Hero Image */}
           <View style={styles.heroContainer}>
             <Image
               source={resolveImageSource('https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&q=80')}
@@ -187,34 +189,9 @@ export default function HomeScreen() {
               resizeMode="cover"
             />
             <View style={styles.heroOverlay}>
-              <View style={styles.logoContainer}>
-                <Image
-                  source={resolveImageSource(require('@/assets/images/fa96e143-9605-4ea1-8825-00373e4de1ac.png'))}
-                  style={styles.logo}
-                  resizeMode="contain"
-                />
-              </View>
-              <Text style={styles.heroDate}>March 24 - 25, 2026</Text>
-              <Text style={styles.heroLocation}>Houston, TX</Text>
+              <Text style={styles.heroTitle}>Port of the Future</Text>
+              <Text style={styles.heroSubtitle}>Conference 2026</Text>
             </View>
-          </View>
-
-          {/* CTA Buttons */}
-          <View style={styles.ctaContainer}>
-            <TouchableOpacity
-              style={styles.ctaButton}
-              onPress={() => router.push('/agenda')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.ctaButtonText}>View Agenda</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.ctaButton}
-              onPress={() => router.push('/exhibitors')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.ctaButtonText}>Exhibitors</Text>
-            </TouchableOpacity>
           </View>
 
           {/* Navigation Cards Grid */}
@@ -226,11 +203,11 @@ export default function HomeScreen() {
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
               >
-                <View style={styles.iconContainer}>
+                <View style={styles.iconCircle}>
                   <IconSymbol
                     ios_icon_name={card.ios_icon}
                     android_material_icon_name={card.android_icon}
-                    size={32}
+                    size={28}
                     color={colors.accent}
                   />
                 </View>
@@ -280,7 +257,7 @@ export default function HomeScreen() {
                   ios_icon_name="tray.fill"
                   android_material_icon_name="inbox"
                   size={48}
-                  color={colors.secondaryText}
+                  color={colors.textSecondary}
                 />
                 <Text style={styles.emptyText}>No announcements yet</Text>
               </View>
@@ -315,7 +292,7 @@ export default function HomeScreen() {
                           ios_icon_name="calendar"
                           android_material_icon_name="calendar-today"
                           size={14}
-                          color={colors.secondaryText}
+                          color={colors.textSecondary}
                         />
                         <Text style={styles.dateText}>
                           {formattedDate}
@@ -366,7 +343,7 @@ const styles = StyleSheet.create({
   },
   heroContainer: {
     width: '100%',
-    height: 280,
+    height: 200,
     position: 'relative',
   },
   heroImage: {
@@ -375,80 +352,59 @@ const styles = StyleSheet.create({
   },
   heroOverlay: {
     position: 'absolute',
-    top: 0,
+    bottom: 0,
     left: 0,
     right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(1, 42, 74, 0.75)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 24,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    padding: 16,
   },
-  logoContainer: {
-    marginBottom: 16,
+  heroTitle: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: colors.text,
   },
-  logo: {
-    width: 180,
-    height: 80,
-  },
-  heroDate: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.primaryText,
-    marginBottom: 4,
-  },
-  heroLocation: {
-    fontSize: 16,
-    color: colors.secondaryText,
-  },
-  ctaContainer: {
-    paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 8,
-    gap: 12,
-  },
-  ctaButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  ctaButtonText: {
+  heroSubtitle: {
     fontSize: 18,
-    fontWeight: '700',
-    color: colors.primaryText,
+    color: colors.text,
+    marginTop: 4,
   },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    padding: 16,
     gap: 12,
   },
   navCard: {
-    width: '48%',
-    height: 140,
+    width: '18%',
+    aspectRatio: 1,
     backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 16,
+    padding: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  iconContainer: {
-    marginBottom: 12,
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+    backgroundColor: 'rgba(25, 181, 216, 0.15)',
   },
   navCardTitle: {
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: '600',
-    color: colors.primaryText,
     textAlign: 'center',
+    color: colors.text,
   },
   announcementsSection: {
     paddingHorizontal: 16,
-    paddingTop: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -458,8 +414,8 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 22,
     fontWeight: 'bold',
-    color: colors.primaryText,
     marginLeft: 8,
+    color: colors.text,
   },
   loadingContainer: {
     padding: 40,
@@ -468,11 +424,11 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   errorContainer: {
     padding: 24,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     backgroundColor: colors.card,
   },
@@ -486,33 +442,36 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     backgroundColor: colors.accent,
   },
   retryButtonText: {
-    color: colors.primaryText,
+    color: colors.text,
     fontSize: 15,
     fontWeight: '600',
   },
   emptyContainer: {
     padding: 40,
-    borderRadius: 12,
+    borderRadius: 16,
     alignItems: 'center',
     backgroundColor: colors.card,
   },
   emptyText: {
     fontSize: 15,
     marginTop: 12,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   announcementCard: {
     flexDirection: 'row',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    backgroundColor: colors.card,
-    borderWidth: 1,
-    borderColor: colors.border,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
   announcementContent: {
     flex: 1,
@@ -524,14 +483,14 @@ const styles = StyleSheet.create({
   announcementTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: colors.primaryText,
     marginBottom: 6,
+    color: colors.text,
   },
   alertChip: {
     alignSelf: 'flex-start',
     paddingHorizontal: 8,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
     marginTop: 4,
     backgroundColor: 'rgba(255, 92, 122, 0.2)',
   },
@@ -548,25 +507,25 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 13,
     marginLeft: 4,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   dateSeparator: {
     fontSize: 13,
     marginHorizontal: 6,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   timeText: {
     fontSize: 13,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   announcementPreview: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.secondaryText,
+    color: colors.textSecondary,
   },
   announcementThumbnail: {
     width: 80,
     height: 80,
-    borderRadius: 8,
+    borderRadius: 12,
   },
 });
