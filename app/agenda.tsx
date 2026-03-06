@@ -125,30 +125,59 @@ export default function AgendaScreen() {
   };
 
   const checkForConflicts = (session: AgendaItem): AgendaItem | null => {
-    if (!session.EndTime) return null;
+    console.log('Checking conflicts for session:', session.Title);
+    console.log('Session details:', {
+      date: session.Date,
+      startTime: session.StartTime,
+      endTime: session.EndTime,
+    });
+    
+    // Check if new session has required time fields
+    if (!session.StartTime || !session.EndTime) {
+      console.warn('New session missing StartTime or EndTime, cannot check conflicts');
+      return null;
+    }
     
     // Find all bookmarked sessions
     const bookmarkedSessionsList = allSessions.filter(s => 
       bookmarkedSessions.has(s.id) && s.id !== session.id
     );
     
+    console.log('Checking against', bookmarkedSessionsList.length, 'bookmarked sessions');
+    
     // Check for overlaps
     for (const existing of bookmarkedSessionsList) {
-      if (!existing.EndTime) continue;
+      console.log('Comparing with existing session:', existing.Title);
+      console.log('Existing session details:', {
+        date: existing.Date,
+        startTime: existing.StartTime,
+        endTime: existing.EndTime,
+      });
       
-      if (sessionsOverlap(
+      // Skip if existing session is missing time fields
+      if (!existing.StartTime || !existing.EndTime) {
+        console.warn('Existing session missing StartTime or EndTime, skipping conflict check');
+        continue;
+      }
+      
+      const hasOverlap = sessionsOverlap(
         session.Date,
         session.StartTime,
         session.EndTime,
         existing.Date,
         existing.StartTime,
         existing.EndTime
-      )) {
-        console.log('Conflict detected:', session.Title, 'overlaps with', existing.Title);
+      );
+      
+      console.log('Overlap result:', hasOverlap);
+      
+      if (hasOverlap) {
+        console.log('CONFLICT DETECTED:', session.Title, 'overlaps with', existing.Title);
         return existing;
       }
     }
     
+    console.log('No conflicts found');
     return null;
   };
 
@@ -156,10 +185,14 @@ export default function AgendaScreen() {
     console.log('Toggling bookmark for session:', sessionId);
     
     const session = allSessions.find(s => s.id === sessionId);
-    if (!session) return;
+    if (!session) {
+      console.warn('Session not found:', sessionId);
+      return;
+    }
     
     // If already bookmarked, just remove it
     if (bookmarkedSessions.has(sessionId)) {
+      console.log('Removing bookmark');
       const newBookmarks = new Set(bookmarkedSessions);
       newBookmarks.delete(sessionId);
       setBookmarkedSessions(newBookmarks);
@@ -167,15 +200,18 @@ export default function AgendaScreen() {
       return;
     }
     
-    // Check for conflicts
+    // Check for conflicts before adding
+    console.log('Adding bookmark, checking for conflicts...');
     const conflict = checkForConflicts(session);
     
     if (conflict) {
+      console.log('Showing conflict modal');
       // Show conflict modal
       setPendingSession(session);
       setConflictingSession(conflict);
       setShowConflictModal(true);
     } else {
+      console.log('No conflict, adding bookmark');
       // No conflict, add bookmark
       const newBookmarks = new Set(bookmarkedSessions);
       newBookmarks.add(sessionId);
