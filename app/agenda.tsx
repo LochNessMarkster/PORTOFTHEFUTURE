@@ -29,6 +29,7 @@ const TRACK_COLORS: Record<string, string> = {
   'Energy & Decarbonization': '#10B981',
   'Digital / AI': '#A855F7',
   'Emergency Management': '#F59E0B',
+  'Advances in Dredging Technology and Methods': '#FFD700',
 };
 
 // Predefined track/type options
@@ -42,6 +43,7 @@ const TRACK_OPTIONS = [
   'Track 6 - Decarbonization and Alternative Fuels',
   'Track 7 - Port Energy and Sustainability',
   'Track 8 - Port Security, Cybersecurity, & Emergency Management',
+  'Track 9 - Advances in Dredging Technology and Methods',
   'Special Event',
   'Pre-Conference / Social',
   'Keynote & Plenary',
