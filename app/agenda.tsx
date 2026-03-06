@@ -22,14 +22,28 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const BOOKMARKS_KEY = '@agenda_bookmarks';
 
-// Track color mapping
+// Track color mapping - consistent across the app
 const TRACK_COLORS: Record<string, string> = {
-  'Port Security': '#FF5C7A',
-  'Infrastructure': '#3B82F6',
-  'Energy & Decarbonization': '#10B981',
-  'Digital / AI': '#A855F7',
-  'Emergency Management': '#F59E0B',
-  'Advances in Dredging Technology and Methods': '#FFD700',
+  // 9 Conference Tracks
+  'Track 1 - Ensuring America\'s Maritime Security': '#3B82F6', // Blue
+  'Track 2 - Developing Ports': '#10B981', // Green
+  'Track 3 - Intermodal Connectivity': '#A855F7', // Purple
+  'Track 4 - Enhancing Ports\' Operational Efficiencies': '#14B8A6', // Teal
+  'Track 5 - Port Infrastructure 4.0': '#F59E0B', // Orange
+  'Track 6 - Decarbonization and Alternative Fuels': '#EF4444', // Red
+  'Track 7 - Port Energy and Sustainability': '#EAB308', // Yellow
+  'Track 8 - Port Security, Cybersecurity, & Emergency Management': '#6366F1', // Indigo
+  'Track 9 - Advances in Dredging Technology and Methods': '#EC4899', // Pink
+  
+  // Breaks
+  'Break': '#6B7280', // Gray
+  
+  // Events
+  'Special Event': '#F59E0B', // Gold
+  'Pre-Conference / Social': '#F59E0B', // Gold
+  'Keynote & Plenary': '#F59E0B', // Gold
+  'Luncheon (By Invitation)': '#F59E0B', // Gold
+  'Pre-Conference': '#F59E0B', // Gold
 };
 
 // Predefined track/type options
