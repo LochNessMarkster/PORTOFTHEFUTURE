@@ -2,10 +2,11 @@ interface AirtableAgendaFields {
   Title?: string;
   Date?: string;
   'Start Time'?: string;
+  'End Time'?: string;
   Room?: string;
   'Type/Track'?: string;
   'Session Description'?: string;
-  'Speaker Names'?: string;
+  'Speaker Names'?: string | string[];
 }
 
 interface AirtableRecord {
@@ -24,6 +25,7 @@ export interface AgendaItem {
   Title?: string;
   Date?: string;
   StartTime?: string;
+  EndTime?: string;
   Room?: string;
   TypeTrack?: string;
   SessionDescription?: string;
@@ -62,17 +64,55 @@ function convertTimeToMinutes(timeStr: string): number {
   return hours * 60 + minutes;
 }
 
+function resolveSpeakerNames(speakerData: string | string[] | undefined): string | undefined {
+  if (!speakerData) {
+    return undefined;
+  }
+
+  let speakerNames: string;
+
+  if (Array.isArray(speakerData)) {
+    speakerNames = speakerData.join(', ');
+  } else {
+    speakerNames = speakerData;
+  }
+
+  if (!speakerNames || speakerNames.trim() === '') {
+    return undefined;
+  }
+
+  const isRecordId = /^rec[A-Za-z0-9]{14}$/.test(speakerNames.trim());
+  if (isRecordId) {
+    return undefined;
+  }
+
+  return speakerNames;
+}
+
 function mapAgendaItem(record: AirtableRecord): AgendaItem {
   return {
     id: record.id,
     Title: record.fields.Title,
     Date: record.fields.Date,
     StartTime: record.fields['Start Time'],
+    EndTime: record.fields['End Time'],
     Room: record.fields.Room,
     TypeTrack: record.fields['Type/Track'],
     SessionDescription: record.fields['Session Description'],
-    SpeakerNames: record.fields['Speaker Names'],
+    SpeakerNames: resolveSpeakerNames(record.fields['Speaker Names']),
   };
+}
+
+function filterAgendaByDateRange(agenda: AgendaItem[]): AgendaItem[] {
+  const startDate = new Date('2026-03-23');
+  const endDate = new Date('2026-03-25');
+  endDate.setHours(23, 59, 59, 999);
+
+  return agenda.filter((item) => {
+    if (!item.Date) return false;
+    const itemDate = new Date(item.Date);
+    return itemDate >= startDate && itemDate <= endDate;
+  });
 }
 
 function sortAgenda(agenda: AgendaItem[]): AgendaItem[] {
@@ -87,7 +127,13 @@ function sortAgenda(agenda: AgendaItem[]): AgendaItem[] {
     const timeAMinutes = convertTimeToMinutes(a.StartTime || '');
     const timeBMinutes = convertTimeToMinutes(b.StartTime || '');
 
-    return timeAMinutes - timeBMinutes;
+    if (timeAMinutes !== timeBMinutes) {
+      return timeAMinutes - timeBMinutes;
+    }
+
+    const titleA = (a.Title || '').toLowerCase();
+    const titleB = (b.Title || '').toLowerCase();
+    return titleA.localeCompare(titleB);
   });
 }
 
@@ -113,40 +159,81 @@ async function fetchFromUrl(
 
 async function fetchAllAgenda(
   baseUrl: string,
-  authHeaders?: Record<string, string>
+  authHeaders?: Record<string, string>,
+  logger?: { info: (msg: string, obj?: any) => void; error: (msg: string, obj?: any) => void }
 ): Promise<AgendaItem[] | null> {
   const agenda: AgendaItem[] = [];
   let offset: string | undefined;
+  let pageCount = 0;
+  let totalRecords = 0;
 
   try {
     do {
+      pageCount += 1;
       const url = offset ? `${baseUrl}?offset=${offset}` : baseUrl;
+
+      if (logger) {
+        logger.info(`Fetching agenda page ${pageCount}${offset ? ` with offset: ${offset}` : ''}`);
+      }
+
       const data = await fetchFromUrl(url, authHeaders);
 
       if (!data) {
+        if (logger) {
+          logger.error(`Failed to fetch agenda page ${pageCount}`, {
+            offset,
+            pagesLoaded: pageCount - 1,
+            recordsLoaded: totalRecords,
+          });
+        }
         return null;
       }
 
       if (!Array.isArray(data.records)) {
+        if (logger) {
+          logger.error(`Invalid response format on page ${pageCount}`, {
+            hasRecords: 'records' in data,
+          });
+        }
         return null;
       }
+
+      const pageRecordCount = data.records.length;
+      totalRecords += pageRecordCount;
 
       const mapped = data.records.map(mapAgendaItem);
       agenda.push(...mapped);
 
+      if (logger) {
+        logger.info(`Page ${pageCount} fetched: ${pageRecordCount} records, Total so far: ${totalRecords}`);
+      }
+
       offset = data.offset;
     } while (offset);
 
+    if (logger) {
+      logger.info(`Agenda fetch completed: ${pageCount} pages, ${totalRecords} total records`);
+    }
+
     return agenda;
   } catch (error) {
+    if (logger) {
+      logger.error('Error fetching agenda', { error: String(error) });
+    }
     return null;
   }
 }
 
-export async function getAgenda(): Promise<AgendaResponse> {
+export async function getAgenda(logger?: { info: (msg: string, obj?: any) => void; error: (msg: string, obj?: any) => void }): Promise<AgendaResponse> {
   const now = Date.now();
 
   if (agendaCache && now - agendaCache.timestamp < CACHE_TTL) {
+    if (logger) {
+      logger.info('Returning cached agenda', {
+        cacheAge: now - agendaCache.timestamp,
+        sessionCount: agendaCache.data.agenda.length,
+      });
+    }
     return agendaCache.data;
   }
 
@@ -159,21 +246,38 @@ export async function getAgenda(): Promise<AgendaResponse> {
   let agenda: AgendaItem[] | null = null;
   let sourceUsed: 'airtablecache' | 'airtable_api' = 'airtablecache';
 
-  agenda = await fetchAllAgenda(cacheBaseUrl);
+  if (logger) {
+    logger.info('Fetching agenda from cache endpoint');
+  }
+
+  agenda = await fetchAllAgenda(cacheBaseUrl, undefined, logger);
 
   if (agenda === null) {
+    if (logger) {
+      logger.info('Cache endpoint failed, trying Airtable API');
+    }
     sourceUsed = 'airtable_api';
     const authHeaders = airtablePat
       ? { Authorization: `Bearer ${airtablePat}` }
       : {};
-    agenda = await fetchAllAgenda(apiBaseUrl, authHeaders);
+    agenda = await fetchAllAgenda(apiBaseUrl, authHeaders, logger);
   }
 
   if (agenda === null) {
     throw new Error('Failed to fetch agenda from Airtable');
   }
 
-  const sorted = sortAgenda(agenda);
+  if (logger) {
+    logger.info(`Total records fetched: ${agenda.length}`);
+  }
+
+  const filtered = filterAgendaByDateRange(agenda);
+
+  if (logger) {
+    logger.info(`Filtered to March 23-25, 2026: ${filtered.length} sessions`);
+  }
+
+  const sorted = sortAgenda(filtered);
 
   const response: AgendaResponse = {
     updated_at: new Date().toISOString(),
@@ -185,6 +289,14 @@ export async function getAgenda(): Promise<AgendaResponse> {
     data: response,
     timestamp: now,
   };
+
+  if (logger) {
+    logger.info('Agenda fetch and processing completed', {
+      source: sourceUsed,
+      totalRecords: agenda.length,
+      filteredRecords: sorted.length,
+    });
+  }
 
   return response;
 }

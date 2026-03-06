@@ -49,13 +49,16 @@ export function register(app: App, fastify: FastifyInstance) {
       app.logger.info('Fetching agenda');
 
       try {
-        const result = await getAgenda();
+        const result = await getAgenda({
+          info: (msg, obj) => app.logger.info(obj, msg),
+          error: (msg, obj) => app.logger.error(obj, msg),
+        });
         app.logger.info(
           {
             source: result.source_used,
             count: result.agenda.length,
           },
-          'Agenda fetched successfully'
+          'Agenda endpoint completed'
         );
         return result;
       } catch (error) {
