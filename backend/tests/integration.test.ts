@@ -302,4 +302,30 @@ describe("API Integration Tests", () => {
     expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
     expect(Array.isArray(data.speakers)).toBe(true);
   });
+
+  // Exhibitors
+  test("GET /api/exhibitors - should return exhibitors", async () => {
+    const res = await api("/api/exhibitors");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api", "error"]).toContain(
+      data.source_used
+    );
+    expect(Array.isArray(data.exhibitors)).toBe(true);
+  });
+
+  // Sponsors
+  test("GET /api/sponsors - should return sponsors", async () => {
+    const res = await api("/api/sponsors");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api", "error"]).toContain(
+      data.source_used
+    );
+    expect(Array.isArray(data.sponsors)).toBe(true);
+  });
 });
