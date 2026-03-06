@@ -24,7 +24,6 @@ interface AgendaSection {
 
 export default function AgendaScreen() {
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
   const router = useRouter();
 
   const [allAgenda, setAllAgenda] = useState<AgendaItem[]>([]);
@@ -33,12 +32,6 @@ export default function AgendaScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const bgColor = isDark ? colors.backgroundDark : colors.background;
-  const textColor = isDark ? colors.textDark : colors.text;
-  const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
-  const cardBg = isDark ? colors.cardDark : colors.card;
-  const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadAgenda = useCallback(async () => {
     console.log('[API] Fetching agenda from backend proxy...');
@@ -88,7 +81,6 @@ export default function AgendaScreen() {
       });
     }
 
-    // Group by date
     const sections: AgendaSection[] = [];
     const dateMap = new Map<string, AgendaItem[]>();
 
@@ -132,8 +124,9 @@ export default function AgendaScreen() {
     const month = months[date.getMonth()];
     const day = date.getDate();
     const year = date.getFullYear();
+    const formattedDate = `${weekday}, ${month} ${day}, ${year}`;
     
-    return `${weekday}, ${month} ${day}, ${year}`;
+    return formattedDate;
   };
 
   const handleAgendaItemPress = (item: AgendaItem) => {
@@ -162,24 +155,24 @@ export default function AgendaScreen() {
 
     return (
       <TouchableOpacity
-        style={[styles.agendaCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+        style={styles.agendaCard}
         onPress={() => handleAgendaItemPress(item)}
         activeOpacity={0.7}
       >
         <View style={styles.timeContainer}>
-          <Text style={[styles.timeText, { color: colors.primary }]}>
+          <Text style={styles.timeText}>
             {item.StartTime}
           </Text>
         </View>
         
         <View style={styles.agendaContent}>
-          <Text style={[styles.agendaTitle, { color: textColor }]} numberOfLines={2}>
+          <Text style={styles.agendaTitle} numberOfLines={2}>
             {item.Title}
           </Text>
           
           {item.TypeTrack && (
-            <View style={[styles.typeChip, { backgroundColor: colors.primary + '20' }]}>
-              <Text style={[styles.typeChipText, { color: colors.primary }]}>
+            <View style={styles.typeChip}>
+              <Text style={styles.typeChipText}>
                 {item.TypeTrack}
               </Text>
             </View>
@@ -191,9 +184,9 @@ export default function AgendaScreen() {
                 ios_icon_name="location.fill"
                 android_material_icon_name="location-on"
                 size={14}
-                color={secondaryTextColor}
+                color={colors.textSecondary}
               />
-              <Text style={[styles.infoText, { color: secondaryTextColor }]}>
+              <Text style={styles.infoText}>
                 {item.Room}
               </Text>
             </View>
@@ -205,9 +198,9 @@ export default function AgendaScreen() {
                 ios_icon_name="person.fill"
                 android_material_icon_name="person"
                 size={14}
-                color={secondaryTextColor}
+                color={colors.textSecondary}
               />
-              <Text style={[styles.infoText, { color: secondaryTextColor }]} numberOfLines={1}>
+              <Text style={styles.infoText} numberOfLines={1}>
                 {speakerDisplay}
               </Text>
             </View>
@@ -218,8 +211,8 @@ export default function AgendaScreen() {
   };
 
   const renderSectionHeader = ({ section }: { section: AgendaSection }) => (
-    <View style={[styles.sectionHeader, { backgroundColor: bgColor }]}>
-      <Text style={[styles.sectionHeaderText, { color: textColor }]}>
+    <View style={styles.sectionHeader}>
+      <Text style={styles.sectionHeaderText}>
         {section.title}
       </Text>
     </View>
@@ -232,24 +225,24 @@ export default function AgendaScreen() {
           headerShown: true,
           title: 'Agenda',
           headerStyle: {
-            backgroundColor: isDark ? colors.backgroundDark : colors.background,
+            backgroundColor: colors.background,
           },
-          headerTintColor: textColor,
+          headerTintColor: colors.text,
         }} 
       />
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        <View style={[styles.searchContainer, { backgroundColor: bgColor, borderBottomColor: borderColorValue }]}>
-          <View style={[styles.searchInputContainer, { backgroundColor: cardBg }]}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
+        <View style={styles.searchContainer}>
+          <View style={styles.searchInputContainer}>
             <IconSymbol
               ios_icon_name="magnifyingglass"
               android_material_icon_name="search"
               size={20}
-              color={secondaryTextColor}
+              color={colors.textSecondary}
             />
             <TextInput
-              style={[styles.searchInput, { color: textColor }]}
+              style={styles.searchInput}
               placeholder="Search agenda..."
-              placeholderTextColor={secondaryTextColor}
+              placeholderTextColor={colors.textMuted}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -259,7 +252,7 @@ export default function AgendaScreen() {
                   ios_icon_name="xmark.circle.fill"
                   android_material_icon_name="cancel"
                   size={20}
-                  color={secondaryTextColor}
+                  color={colors.textSecondary}
                 />
               </TouchableOpacity>
             )}
@@ -268,8 +261,8 @@ export default function AgendaScreen() {
 
         {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>
+            <ActivityIndicator size="large" color={colors.accent} />
+            <Text style={styles.loadingText}>
               Loading agenda...
             </Text>
           </View>
@@ -281,11 +274,11 @@ export default function AgendaScreen() {
               size={48}
               color={colors.error}
             />
-            <Text style={[styles.errorText, { color: colors.error }]}>
+            <Text style={styles.errorText}>
               {error}
             </Text>
             <TouchableOpacity
-              style={[styles.retryButton, { backgroundColor: colors.primary }]}
+              style={styles.retryButton}
               onPress={loadAgenda}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
@@ -297,9 +290,9 @@ export default function AgendaScreen() {
               ios_icon_name="calendar"
               android_material_icon_name="calendar-today"
               size={48}
-              color={secondaryTextColor}
+              color={colors.textSecondary}
             />
-            <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+            <Text style={styles.emptyText}>
               {searchQuery ? 'No agenda items found' : 'No agenda items yet'}
             </Text>
           </View>
@@ -315,8 +308,8 @@ export default function AgendaScreen() {
               <RefreshControl
                 refreshing={refreshing}
                 onRefresh={onRefresh}
-                tintColor={colors.primary}
-                colors={[colors.primary]}
+                tintColor={colors.accent}
+                colors={[colors.accent]}
               />
             }
           />
@@ -329,23 +322,28 @@ export default function AgendaScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   searchContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+    backgroundColor: colors.background,
   },
   searchInputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderRadius: 10,
+    backgroundColor: colors.cardAlt,
+    borderRadius: 12,
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 10,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
+    color: colors.text,
   },
   loadingContainer: {
     flex: 1,
@@ -356,6 +354,7 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 15,
+    color: colors.textSecondary,
   },
   errorContainer: {
     flex: 1,
@@ -367,15 +366,17 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
+    color: colors.error,
   },
   retryButton: {
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
   },
   retryButtonText: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontSize: 15,
     fontWeight: '600',
   },
@@ -389,6 +390,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
+    color: colors.textSecondary,
   },
   listContent: {
     padding: 16,
@@ -398,20 +400,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     marginTop: 8,
     marginBottom: 8,
+    backgroundColor: colors.background,
   },
   sectionHeaderText: {
     fontSize: 18,
     fontWeight: '700',
+    color: colors.text,
   },
   agendaCard: {
     flexDirection: 'row',
-    borderRadius: 12,
+    backgroundColor: colors.card,
+    borderRadius: 16,
     padding: 16,
     marginBottom: 12,
-    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+    shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
   },
@@ -422,6 +426,7 @@ const styles = StyleSheet.create({
   timeText: {
     fontSize: 14,
     fontWeight: '700',
+    color: colors.accent,
   },
   agendaContent: {
     flex: 1,
@@ -430,17 +435,20 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 8,
+    color: colors.text,
   },
   typeChip: {
     alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
-    borderRadius: 6,
+    borderRadius: 8,
     marginBottom: 8,
+    backgroundColor: 'rgba(25, 181, 216, 0.2)',
   },
   typeChipText: {
     fontSize: 12,
     fontWeight: '600',
+    color: colors.accent,
   },
   infoRow: {
     flexDirection: 'row',
@@ -451,5 +459,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginLeft: 6,
     flex: 1,
+    color: colors.textSecondary,
   },
 });

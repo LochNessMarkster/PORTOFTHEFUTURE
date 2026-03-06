@@ -24,7 +24,6 @@ export default function LoginScreen() {
   const { login } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
 
   const handleLogin = async () => {
     console.log('User tapped Login button');
@@ -55,17 +54,11 @@ export default function LoginScreen() {
     }
   };
 
-  const bgColor = isDark ? colors.backgroundDark : colors.background;
-  const textColor = isDark ? colors.textDark : colors.text;
-  const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
-  const inputBg = isDark ? colors.cardDark : colors.card;
-  const inputBorder = isDark ? colors.borderDark : colors.border;
-
   return (
     <>
       <Stack.Screen options={{ headerShown: false }} />
       <KeyboardAvoidingView
-        style={[styles.container, { backgroundColor: bgColor }]}
+        style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
@@ -73,27 +66,24 @@ export default function LoginScreen() {
           keyboardShouldPersistTaps="handled"
         >
           <View style={styles.logoContainer}>
-            <View style={[styles.logoCircle, { backgroundColor: colors.primary }]}>
+            <View style={styles.logoCircle}>
               <Text style={styles.logoText}>POTF</Text>
             </View>
-            <Text style={[styles.title, { color: textColor }]}>
+            <Text style={styles.title}>
               Port of the Future
             </Text>
-            <Text style={[styles.subtitle, { color: secondaryTextColor }]}>
+            <Text style={styles.subtitle}>
               Conference 2026
             </Text>
           </View>
 
           <View style={styles.formContainer}>
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: textColor }]}>Email</Text>
+              <Text style={styles.label}>Email</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: inputBg, borderColor: inputBorder, color: textColor }
-                ]}
+                style={styles.input}
                 placeholder="Enter your email"
-                placeholderTextColor={secondaryTextColor}
+                placeholderTextColor={colors.textMuted}
                 value={email}
                 onChangeText={setEmail}
                 autoCapitalize="none"
@@ -103,14 +93,11 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputContainer}>
-              <Text style={[styles.label, { color: textColor }]}>Password</Text>
+              <Text style={styles.label}>Password</Text>
               <TextInput
-                style={[
-                  styles.input,
-                  { backgroundColor: inputBg, borderColor: inputBorder, color: textColor }
-                ]}
+                style={styles.input}
                 placeholder="Enter password"
-                placeholderTextColor={secondaryTextColor}
+                placeholderTextColor={colors.textMuted}
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry
@@ -130,14 +117,14 @@ export default function LoginScreen() {
               disabled={loading}
             >
               {loading ? (
-                <ActivityIndicator color="#FFFFFF" />
+                <ActivityIndicator color={colors.text} />
               ) : (
                 <Text style={styles.buttonText}>Sign In</Text>
               )}
             </TouchableOpacity>
 
             <View style={styles.infoContainer}>
-              <Text style={[styles.infoText, { color: secondaryTextColor }]}>
+              <Text style={styles.infoText}>
                 Use your registered email and the conference password
               </Text>
             </View>
@@ -151,6 +138,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: colors.background,
   },
   scrollContent: {
     flexGrow: 1,
@@ -169,21 +157,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 24,
+    backgroundColor: colors.accent,
   },
   logoText: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: colors.text,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
     textAlign: 'center',
     marginBottom: 8,
+    color: colors.text,
   },
   subtitle: {
     fontSize: 18,
     textAlign: 'center',
+    color: colors.textSecondary,
   },
   formContainer: {
     width: '100%',
@@ -195,27 +186,31 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginBottom: 8,
+    color: colors.text,
   },
   input: {
+    backgroundColor: colors.cardAlt,
     borderWidth: 1,
-    borderRadius: 8,
+    borderColor: colors.border,
+    borderRadius: 12,
     padding: 14,
     fontSize: 16,
+    color: colors.text,
   },
   errorContainer: {
-    backgroundColor: '#FEE2E2',
-    borderRadius: 8,
+    backgroundColor: 'rgba(255, 92, 122, 0.2)',
+    borderRadius: 12,
     padding: 12,
     marginBottom: 20,
   },
   errorText: {
-    color: '#DC2626',
+    color: colors.error,
     fontSize: 14,
     textAlign: 'center',
   },
   button: {
-    backgroundColor: colors.primary,
-    borderRadius: 8,
+    backgroundColor: colors.accent,
+    borderRadius: 12,
     padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
@@ -225,7 +220,7 @@ const styles = StyleSheet.create({
     opacity: 0.6,
   },
   buttonText: {
-    color: '#FFFFFF',
+    color: colors.text,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -235,5 +230,6 @@ const styles = StyleSheet.create({
   infoText: {
     fontSize: 13,
     textAlign: 'center',
+    color: colors.textSecondary,
   },
 });
