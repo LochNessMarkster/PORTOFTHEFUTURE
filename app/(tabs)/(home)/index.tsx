@@ -29,8 +29,8 @@ interface NavigationCard {
 const navigationCards: NavigationCard[] = [
   { id: '1', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
   { id: '2', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
-  { id: '3', title: 'Sponsors', ios_icon: 'heart.fill', android_icon: 'favorite' },
-  { id: '4', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star' },
+  { id: '3', title: 'Sponsors', ios_icon: 'award.fill', android_icon: 'star' },
+  { id: '4', title: 'Activities', ios_icon: 'ticket.fill', android_icon: 'event' },
   { id: '5', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
   { id: '6', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
   { id: '7', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
@@ -115,8 +115,8 @@ export default function HomeScreen() {
     }
   };
 
-  const handleCTAPress = (action: string) => {
-    console.log('CTA button pressed:', action);
+  const handleHeroButtonPress = (action: string) => {
+    console.log('Hero button pressed:', action);
     if (action === 'agenda') {
       router.push('/agenda');
     } else if (action === 'exhibitors') {
@@ -147,8 +147,7 @@ export default function HomeScreen() {
     const month = monthNames[date.getMonth()];
     const day = date.getDate();
     const year = date.getFullYear();
-    const formattedDate = `${month} ${day}, ${year}`;
-    return formattedDate;
+    return `${month} ${day}, ${year}`;
   };
 
   const getPreview = (content: string) => {
@@ -157,6 +156,9 @@ export default function HomeScreen() {
     const preview = content.length > maxLength ? content.substring(0, maxLength) + '...' : content;
     return preview;
   };
+
+  const dateText = 'March 24–25, 2026';
+  const locationText = 'Houston, Texas';
 
   return (
     <>
@@ -173,54 +175,71 @@ export default function HomeScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={colors.accent}
-              colors={[colors.accent]}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
         >
-          {/* Hero Section with Logo and Dates */}
+          {/* Hero Section with new design */}
           <View style={styles.heroContainer}>
             <Image
-              source={resolveImageSource('https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=1200&q=80')}
+              source={resolveImageSource(require('@/assets/images/eeac7290-d562-46fd-817e-fd72642133f1.jpeg'))}
               style={styles.heroImage}
               resizeMode="cover"
             />
             <LinearGradient
-              colors={['rgba(0,0,0,0.55)', 'rgba(0,0,0,0.75)']}
+              colors={['rgba(0, 0, 0, 0.55)', 'rgba(0, 0, 0, 0.75)']}
               style={styles.heroGradient}
             >
               <View style={styles.heroContent}>
                 <Image
-                  source={resolveImageSource('https://images.unsplash.com/photo-1599305445671-ac291c95aaa9?w=400&q=80')}
-                  style={styles.logoImage}
+                  source={resolveImageSource(require('@/assets/images/87eeaf08-35c7-4e82-adcf-c145183bd360.png'))}
+                  style={styles.heroLogo}
                   resizeMode="contain"
                 />
-                <Text style={styles.heroTitle}>Port of the Future</Text>
-                <Text style={styles.heroDates}>March 24 - 25, 2026</Text>
-                <Text style={styles.heroLocation}>Houston, TX</Text>
+                <Text style={styles.heroDate}>{dateText}</Text>
+                <Text style={styles.heroLocation}>{locationText}</Text>
+                
+                {/* Hero Action Buttons */}
+                <View style={styles.heroButtonsContainer}>
+                  <TouchableOpacity
+                    style={styles.heroButton}
+                    onPress={() => handleHeroButtonPress('agenda')}
+                    activeOpacity={0.8}
+                  >
+                    <IconSymbol
+                      ios_icon_name="calendar"
+                      android_material_icon_name="calendar-today"
+                      size={24}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.heroButtonText}>View Agenda</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.heroButton}
+                    onPress={() => handleHeroButtonPress('exhibitors')}
+                    activeOpacity={0.8}
+                  >
+                    <IconSymbol
+                      ios_icon_name="building.2.fill"
+                      android_material_icon_name="store"
+                      size={24}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.heroButtonText}>Exhibitors</Text>
+                  </TouchableOpacity>
+                </View>
               </View>
             </LinearGradient>
           </View>
 
-          {/* CTA Buttons */}
-          <View style={styles.ctaContainer}>
-            <TouchableOpacity
-              style={styles.ctaButton}
-              onPress={() => handleCTAPress('agenda')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.ctaButtonText}>View Agenda</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.ctaButton}
-              onPress={() => handleCTAPress('exhibitors')}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.ctaButtonText}>Exhibitors</Text>
-            </TouchableOpacity>
+          {/* PRIMARY Section Label */}
+          <View style={styles.sectionLabelContainer}>
+            <Text style={styles.sectionLabel}>PRIMARY</Text>
           </View>
 
-          {/* Navigation Cards Grid */}
+          {/* Navigation Cards Grid - 2 columns */}
           <View style={styles.gridContainer}>
             {navigationCards.map((card) => (
               <TouchableOpacity
@@ -229,13 +248,15 @@ export default function HomeScreen() {
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
               >
-                <IconSymbol
-                  ios_icon_name={card.ios_icon}
-                  android_material_icon_name={card.android_icon}
-                  size={32}
-                  color="#5EEBFF"
-                />
-                <Text style={styles.navCardTitle}>
+                <View style={styles.iconContainer}>
+                  <IconSymbol
+                    ios_icon_name={card.ios_icon}
+                    android_material_icon_name={card.android_icon}
+                    size={40}
+                    color="#5EEBFF"
+                  />
+                </View>
+                <Text style={styles.navCardTitle} numberOfLines={2}>
                   {card.title}
                 </Text>
               </TouchableOpacity>
@@ -249,14 +270,14 @@ export default function HomeScreen() {
                 ios_icon_name="megaphone.fill"
                 android_material_icon_name="campaign"
                 size={24}
-                color={colors.accent}
+                color={colors.primary}
               />
               <Text style={styles.sectionTitle}>Announcements</Text>
             </View>
 
             {loading && !refreshing ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.accent} />
+                <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.loadingText}>Loading announcements...</Text>
               </View>
             ) : error ? (
@@ -281,7 +302,7 @@ export default function HomeScreen() {
                   ios_icon_name="tray.fill"
                   android_material_icon_name="inbox"
                   size={48}
-                  color={colors.textSecondary}
+                  color={colors.textMuted}
                 />
                 <Text style={styles.emptyText}>No announcements yet</Text>
               </View>
@@ -316,7 +337,7 @@ export default function HomeScreen() {
                           ios_icon_name="calendar"
                           android_material_icon_name="calendar-today"
                           size={14}
-                          color={colors.textSecondary}
+                          color={colors.textMuted}
                         />
                         <Text style={styles.dateText}>
                           {formattedDate}
@@ -367,7 +388,7 @@ const styles = StyleSheet.create({
   },
   heroContainer: {
     width: '100%',
-    height: 320,
+    height: 420,
     position: 'relative',
   },
   heroImage: {
@@ -385,93 +406,106 @@ const styles = StyleSheet.create({
   },
   heroContent: {
     alignItems: 'center',
+    justifyContent: 'center',
     paddingHorizontal: 24,
+    width: '100%',
   },
-  logoImage: {
-    width: 120,
-    height: 120,
+  heroLogo: {
+    width: 280,
+    height: 100,
     marginBottom: 16,
-    borderRadius: 12,
   },
-  heroTitle: {
-    fontSize: 32,
-    fontWeight: 'bold',
+  heroDate: {
+    fontSize: 20,
+    fontWeight: '600',
     color: colors.text,
     textAlign: 'center',
+    marginBottom: 6,
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
     textShadowOffset: { width: 0, height: 2 },
     textShadowRadius: 4,
   },
-  heroDates: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: colors.text,
-    marginTop: 8,
-    textAlign: 'center',
-    textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
   heroLocation: {
     fontSize: 18,
     fontWeight: '500',
-    color: colors.textSecondary,
-    marginTop: 4,
+    color: colors.text,
     textAlign: 'center',
+    marginBottom: 24,
     textShadowColor: 'rgba(0, 0, 0, 0.75)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  ctaContainer: {
+  heroButtonsContainer: {
+    flexDirection: 'row',
+    width: '100%',
     paddingHorizontal: 16,
-    paddingTop: 20,
-    paddingBottom: 8,
     gap: 12,
   },
-  ctaButton: {
-    backgroundColor: colors.accent,
-    borderRadius: 12,
-    paddingVertical: 16,
+  heroButton: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    backgroundColor: 'rgba(30, 144, 255, 0.85)',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    gap: 10,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
   },
-  ctaButtonText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: colors.text,
+  heroButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  sectionLabelContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 12,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 1.2,
   },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     paddingHorizontal: 16,
-    paddingTop: 16,
     gap: 12,
   },
   navCard: {
     width: 'calc(50% - 6px)',
-    backgroundColor: colors.card,
-    borderRadius: 12,
-    padding: 20,
+    height: 140,
+    backgroundColor: '#1A3A52',
+    borderRadius: 16,
+    padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 120,
+    borderWidth: 1,
+    borderColor: 'rgba(94, 235, 255, 0.2)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 2,
-    elevation: 1,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
+  },
+  iconContainer: {
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navCardTitle: {
     fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
     color: colors.text,
-    marginTop: 12,
   },
   announcementsSection: {
     paddingHorizontal: 16,
@@ -495,13 +529,15 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   errorContainer: {
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
     backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   errorText: {
     fontSize: 15,
@@ -514,7 +550,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.primary,
   },
   retryButtonText: {
     color: colors.text,
@@ -526,23 +562,27 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   emptyText: {
     fontSize: 15,
     marginTop: 12,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   announcementCard: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
     borderRadius: 16,
-    padding: 16,
+    padding: 18,
     marginBottom: 12,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   announcementContent: {
     flex: 1,
@@ -559,11 +599,11 @@ const styles = StyleSheet.create({
   },
   alertChip: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 8,
     marginTop: 4,
-    backgroundColor: 'rgba(255, 92, 122, 0.2)',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
   },
   alertChipText: {
     fontSize: 12,
@@ -578,21 +618,21 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 13,
     marginLeft: 4,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   dateSeparator: {
     fontSize: 13,
     marginHorizontal: 6,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   timeText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   announcementPreview: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   announcementThumbnail: {
     width: 80,

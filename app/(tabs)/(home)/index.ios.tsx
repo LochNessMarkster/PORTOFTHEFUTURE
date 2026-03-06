@@ -3,6 +3,7 @@ import React, { useState, useEffect } from "react";
 import { StyleSheet, View, Text, ScrollView, useColorScheme, TouchableOpacity, Image, ActivityIndicator, ImageSourcePropType, RefreshControl } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from "@/contexts/AuthContext";
 import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
@@ -26,16 +27,14 @@ interface NavigationCard {
 }
 
 const navigationCards: NavigationCard[] = [
-  { id: '1', title: 'Agenda', ios_icon: 'calendar', android_icon: 'calendar-today' },
-  { id: '2', title: 'Activities', ios_icon: 'star.fill', android_icon: 'star' },
-  { id: '3', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
-  { id: '4', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
-  { id: '5', title: 'Exhibitors', ios_icon: 'building.2.fill', android_icon: 'store' },
-  { id: '6', title: 'Sponsors', ios_icon: 'heart.fill', android_icon: 'favorite' },
-  { id: '7', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
-  { id: '8', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
-  { id: '9', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
-  { id: '10', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
+  { id: '1', title: 'Speakers', ios_icon: 'person.2.fill', android_icon: 'group' },
+  { id: '2', title: 'Networking', ios_icon: 'person.3.fill', android_icon: 'people' },
+  { id: '3', title: 'Sponsors', ios_icon: 'award.fill', android_icon: 'star' },
+  { id: '4', title: 'Activities', ios_icon: 'ticket.fill', android_icon: 'event' },
+  { id: '5', title: 'Ports', ios_icon: 'ferry.fill', android_icon: 'directions-boat' },
+  { id: '6', title: 'Presentations', ios_icon: 'doc.text.fill', android_icon: 'description' },
+  { id: '7', title: 'Floor Plan', ios_icon: 'map.fill', android_icon: 'map' },
+  { id: '8', title: 'My Schedule', ios_icon: 'bookmark.fill', android_icon: 'bookmark' },
 ];
 
 export default function HomeScreen() {
@@ -86,9 +85,6 @@ export default function HomeScreen() {
     console.log('Navigation card pressed:', card.title);
     
     switch (card.title) {
-      case 'Agenda':
-        router.push('/agenda');
-        break;
       case 'My Schedule':
         router.push('/my-schedule');
         break;
@@ -97,9 +93,6 @@ export default function HomeScreen() {
         break;
       case 'Activities':
         router.push('/activities');
-        break;
-      case 'Exhibitors':
-        router.push('/exhibitors');
         break;
       case 'Sponsors':
         router.push('/sponsors');
@@ -119,6 +112,15 @@ export default function HomeScreen() {
       default:
         console.log('Navigation not yet implemented for:', card.title);
         break;
+    }
+  };
+
+  const handleHeroButtonPress = (action: string) => {
+    console.log('Hero button pressed:', action);
+    if (action === 'agenda') {
+      router.push('/agenda');
+    } else if (action === 'exhibitors') {
+      router.push('/exhibitors');
     }
   };
 
@@ -145,8 +147,7 @@ export default function HomeScreen() {
     const month = monthNames[date.getMonth()];
     const day = date.getDate();
     const year = date.getFullYear();
-    const formattedDate = `${month} ${day}, ${year}`;
-    return formattedDate;
+    return `${month} ${day}, ${year}`;
   };
 
   const getPreview = (content: string) => {
@@ -156,19 +157,17 @@ export default function HomeScreen() {
     return preview;
   };
 
+  const dateText = 'March 24–25, 2026';
+  const locationText = 'Houston, Texas';
+
   return (
     <>
       <Stack.Screen 
         options={{ 
-          headerShown: true,
-          title: 'Home',
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.text,
+          headerShown: false,
         }} 
       />
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <ScrollView 
           style={styles.scrollView} 
           contentContainerStyle={styles.scrollContent}
@@ -176,25 +175,71 @@ export default function HomeScreen() {
             <RefreshControl
               refreshing={refreshing}
               onRefresh={onRefresh}
-              tintColor={colors.accent}
-              colors={[colors.accent]}
+              tintColor={colors.primary}
+              colors={[colors.primary]}
             />
           }
         >
-          {/* Hero Image */}
+          {/* Hero Section with new design */}
           <View style={styles.heroContainer}>
             <Image
-              source={resolveImageSource('https://images.unsplash.com/photo-1578575437130-527eed3abbec?w=800&q=80')}
+              source={resolveImageSource(require('@/assets/images/eeac7290-d562-46fd-817e-fd72642133f1.jpeg'))}
               style={styles.heroImage}
               resizeMode="cover"
             />
-            <View style={styles.heroOverlay}>
-              <Text style={styles.heroTitle}>Port of the Future</Text>
-              <Text style={styles.heroSubtitle}>Conference 2026</Text>
-            </View>
+            <LinearGradient
+              colors={['rgba(0, 0, 0, 0.55)', 'rgba(0, 0, 0, 0.75)']}
+              style={styles.heroGradient}
+            >
+              <View style={styles.heroContent}>
+                <Image
+                  source={resolveImageSource(require('@/assets/images/87eeaf08-35c7-4e82-adcf-c145183bd360.png'))}
+                  style={styles.heroLogo}
+                  resizeMode="contain"
+                />
+                <Text style={styles.heroDate}>{dateText}</Text>
+                <Text style={styles.heroLocation}>{locationText}</Text>
+                
+                {/* Hero Action Buttons */}
+                <View style={styles.heroButtonsContainer}>
+                  <TouchableOpacity
+                    style={styles.heroButton}
+                    onPress={() => handleHeroButtonPress('agenda')}
+                    activeOpacity={0.8}
+                  >
+                    <IconSymbol
+                      ios_icon_name="calendar"
+                      android_material_icon_name="calendar-today"
+                      size={24}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.heroButtonText}>View Agenda</Text>
+                  </TouchableOpacity>
+
+                  <TouchableOpacity
+                    style={styles.heroButton}
+                    onPress={() => handleHeroButtonPress('exhibitors')}
+                    activeOpacity={0.8}
+                  >
+                    <IconSymbol
+                      ios_icon_name="building.2.fill"
+                      android_material_icon_name="store"
+                      size={24}
+                      color="#FFFFFF"
+                    />
+                    <Text style={styles.heroButtonText}>Exhibitors</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            </LinearGradient>
           </View>
 
-          {/* Navigation Cards Grid */}
+          {/* PRIMARY Section Label */}
+          <View style={styles.sectionLabelContainer}>
+            <Text style={styles.sectionLabel}>PRIMARY</Text>
+          </View>
+
+          {/* Navigation Cards Grid - 2 columns */}
           <View style={styles.gridContainer}>
             {navigationCards.map((card) => (
               <TouchableOpacity
@@ -203,12 +248,12 @@ export default function HomeScreen() {
                 onPress={() => handleCardPress(card)}
                 activeOpacity={0.7}
               >
-                <View style={styles.iconCircle}>
+                <View style={styles.iconContainer}>
                   <IconSymbol
                     ios_icon_name={card.ios_icon}
                     android_material_icon_name={card.android_icon}
-                    size={28}
-                    color={colors.accent}
+                    size={40}
+                    color="#5EEBFF"
                   />
                 </View>
                 <Text style={styles.navCardTitle} numberOfLines={2}>
@@ -225,14 +270,14 @@ export default function HomeScreen() {
                 ios_icon_name="megaphone.fill"
                 android_material_icon_name="campaign"
                 size={24}
-                color={colors.accent}
+                color={colors.primary}
               />
               <Text style={styles.sectionTitle}>Announcements</Text>
             </View>
 
             {loading && !refreshing ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={colors.accent} />
+                <ActivityIndicator size="large" color={colors.primary} />
                 <Text style={styles.loadingText}>Loading announcements...</Text>
               </View>
             ) : error ? (
@@ -257,7 +302,7 @@ export default function HomeScreen() {
                   ios_icon_name="tray.fill"
                   android_material_icon_name="inbox"
                   size={48}
-                  color={colors.textSecondary}
+                  color={colors.textMuted}
                 />
                 <Text style={styles.emptyText}>No announcements yet</Text>
               </View>
@@ -292,7 +337,7 @@ export default function HomeScreen() {
                           ios_icon_name="calendar"
                           android_material_icon_name="calendar-today"
                           size={14}
-                          color={colors.textSecondary}
+                          color={colors.textMuted}
                         />
                         <Text style={styles.dateText}>
                           {formattedDate}
@@ -343,68 +388,128 @@ const styles = StyleSheet.create({
   },
   heroContainer: {
     width: '100%',
-    height: 200,
+    height: 420,
     position: 'relative',
   },
   heroImage: {
     width: '100%',
     height: '100%',
   },
-  heroOverlay: {
+  heroGradient: {
     position: 'absolute',
-    bottom: 0,
+    top: 0,
     left: 0,
     right: 0,
-    backgroundColor: 'rgba(0, 0, 0, 0.6)',
-    padding: 16,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
-  heroTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
+  heroContent: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    width: '100%',
+  },
+  heroLogo: {
+    width: 280,
+    height: 100,
+    marginBottom: 16,
+  },
+  heroDate: {
+    fontSize: 20,
+    fontWeight: '600',
     color: colors.text,
+    textAlign: 'center',
+    marginBottom: 6,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
   },
-  heroSubtitle: {
+  heroLocation: {
     fontSize: 18,
+    fontWeight: '500',
     color: colors.text,
-    marginTop: 4,
+    textAlign: 'center',
+    marginBottom: 24,
+    textShadowColor: 'rgba(0, 0, 0, 0.75)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 4,
+  },
+  heroButtonsContainer: {
+    flexDirection: 'row',
+    width: '100%',
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  heroButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(30, 144, 255, 0.85)',
+    paddingVertical: 16,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    gap: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.4,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  heroButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
+    textAlign: 'center',
+  },
+  sectionLabelContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    paddingBottom: 12,
+  },
+  sectionLabel: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: colors.textMuted,
+    letterSpacing: 1.2,
   },
   gridContainer: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    padding: 16,
+    paddingHorizontal: 16,
     gap: 12,
   },
   navCard: {
-    width: '18%',
-    aspectRatio: 1,
-    backgroundColor: colors.card,
+    width: 'calc(50% - 6px)',
+    height: 140,
+    backgroundColor: '#1A3A52',
     borderRadius: 16,
-    padding: 8,
+    padding: 16,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(94, 235, 255, 0.2)',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 3,
-    elevation: 2,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    elevation: 4,
   },
-  iconCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+  iconContainer: {
+    marginBottom: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 4,
-    backgroundColor: 'rgba(25, 181, 216, 0.15)',
   },
   navCardTitle: {
-    fontSize: 11,
+    fontSize: 15,
     fontWeight: '600',
     textAlign: 'center',
     color: colors.text,
   },
   announcementsSection: {
     paddingHorizontal: 16,
+    paddingTop: 24,
   },
   sectionHeader: {
     flexDirection: 'row',
@@ -424,13 +529,15 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   errorContainer: {
     padding: 24,
     borderRadius: 16,
     alignItems: 'center',
     backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   errorText: {
     fontSize: 15,
@@ -443,7 +550,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 12,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.primary,
   },
   retryButtonText: {
     color: colors.text,
@@ -455,23 +562,27 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     alignItems: 'center',
     backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
   },
   emptyText: {
     fontSize: 15,
     marginTop: 12,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   announcementCard: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
     borderRadius: 16,
-    padding: 16,
+    padding: 18,
     marginBottom: 12,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 4,
   },
   announcementContent: {
     flex: 1,
@@ -488,11 +599,11 @@ const styles = StyleSheet.create({
   },
   alertChip: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
     borderRadius: 8,
     marginTop: 4,
-    backgroundColor: 'rgba(255, 92, 122, 0.2)',
+    backgroundColor: 'rgba(239, 68, 68, 0.2)',
   },
   alertChipText: {
     fontSize: 12,
@@ -507,21 +618,21 @@ const styles = StyleSheet.create({
   dateText: {
     fontSize: 13,
     marginLeft: 4,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   dateSeparator: {
     fontSize: 13,
     marginHorizontal: 6,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   timeText: {
     fontSize: 13,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   announcementPreview: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.textSecondary,
+    color: colors.textMuted,
   },
   announcementThumbnail: {
     width: 80,

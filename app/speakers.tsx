@@ -26,6 +26,7 @@ function resolveImageSource(source: string | number | ImageSourcePropType | unde
 
 export default function SpeakersScreen() {
   const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
   const router = useRouter();
 
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
@@ -33,6 +34,12 @@ export default function SpeakersScreen() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const bgColor = isDark ? colors.backgroundDark : colors.background;
+  const textColor = isDark ? colors.textDark : colors.text;
+  const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
+  const cardBg = isDark ? colors.cardDark : colors.card;
+  const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadSpeakers = useCallback(async () => {
     console.log('Loading speakers from backend proxy...');
@@ -105,7 +112,7 @@ export default function SpeakersScreen() {
     
     return (
       <TouchableOpacity
-        style={styles.speakerCard}
+        style={[styles.speakerCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
         onPress={() => handleSpeakerPress(item)}
         activeOpacity={0.7}
       >
@@ -117,22 +124,22 @@ export default function SpeakersScreen() {
               resizeMode="cover"
             />
           ) : (
-            <View style={styles.photoPlaceholder}>
+            <View style={[styles.photoPlaceholder, { backgroundColor: colors.primary + '20' }]}>
               <IconSymbol
                 ios_icon_name="person.fill"
                 android_material_icon_name="person"
                 size={40}
-                color={colors.accent}
+                color={colors.primary}
               />
             </View>
           )}
         </View>
         <View style={styles.speakerInfo}>
-          <Text style={styles.speakerName} numberOfLines={2}>
+          <Text style={[styles.speakerName, { color: textColor }]} numberOfLines={2}>
             {displayName}
           </Text>
           {item.title && (
-            <Text style={styles.speakerTitle} numberOfLines={2}>
+            <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={2}>
               {item.title}
             </Text>
           )}
@@ -148,24 +155,25 @@ export default function SpeakersScreen() {
           headerShown: true,
           title: 'Speakers',
           headerStyle: {
-            backgroundColor: colors.background,
+            backgroundColor: isDark ? colors.backgroundDark : colors.background,
           },
-          headerTintColor: colors.text,
+          headerTintColor: textColor,
         }}
       />
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
+        {/* Search Bar */}
         <View style={styles.searchContainer}>
-          <View style={styles.searchBar}>
+          <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
             <IconSymbol
               ios_icon_name="magnifyingglass"
               android_material_icon_name="search"
               size={20}
-              color={colors.textSecondary}
+              color={secondaryTextColor}
             />
             <TextInput
-              style={styles.searchInput}
+              style={[styles.searchInput, { color: textColor }]}
               placeholder="Search speakers..."
-              placeholderTextColor={colors.textMuted}
+              placeholderTextColor={secondaryTextColor}
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
@@ -175,7 +183,7 @@ export default function SpeakersScreen() {
                   ios_icon_name="xmark.circle.fill"
                   android_material_icon_name="cancel"
                   size={20}
-                  color={colors.textSecondary}
+                  color={secondaryTextColor}
                 />
               </TouchableOpacity>
             )}
@@ -184,8 +192,8 @@ export default function SpeakersScreen() {
 
         {loading ? (
           <View style={styles.centerContainer}>
-            <ActivityIndicator size="large" color={colors.accent} />
-            <Text style={styles.loadingText}>Loading speakers...</Text>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading speakers...</Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
@@ -195,9 +203,9 @@ export default function SpeakersScreen() {
               size={48}
               color={colors.error}
             />
-            <Text style={styles.errorText}>{error}</Text>
+            <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
             <TouchableOpacity
-              style={styles.retryButton}
+              style={[styles.retryButton, { backgroundColor: colors.primary }]}
               onPress={loadSpeakers}
             >
               <Text style={styles.retryButtonText}>Retry</Text>
@@ -209,9 +217,9 @@ export default function SpeakersScreen() {
               ios_icon_name="person.2.slash"
               android_material_icon_name="person-off"
               size={48}
-              color={colors.textSecondary}
+              color={secondaryTextColor}
             />
-            <Text style={styles.emptyText}>
+            <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
               {searchQuery ? 'No speakers found' : 'No speakers available'}
             </Text>
           </View>
@@ -232,7 +240,6 @@ export default function SpeakersScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors.background,
   },
   searchContainer: {
     paddingHorizontal: 16,
@@ -241,16 +248,15 @@ const styles = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors.cardAlt,
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
+    borderWidth: 1,
   },
   searchInput: {
     flex: 1,
     marginLeft: 8,
     fontSize: 16,
-    color: colors.text,
   },
   centerContainer: {
     flex: 1,
@@ -261,23 +267,20 @@ const styles = StyleSheet.create({
   loadingText: {
     marginTop: 12,
     fontSize: 15,
-    color: colors.textSecondary,
   },
   errorText: {
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
-    color: colors.error,
   },
   retryButton: {
     marginTop: 16,
     paddingHorizontal: 24,
     paddingVertical: 12,
-    borderRadius: 12,
-    backgroundColor: colors.accent,
+    borderRadius: 8,
   },
   retryButtonText: {
-    color: colors.text,
+    color: '#FFFFFF',
     fontSize: 15,
     fontWeight: '600',
   },
@@ -285,20 +288,19 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
-    color: colors.textSecondary,
   },
   listContent: {
     padding: 16,
   },
   speakerCard: {
     flexDirection: 'row',
-    backgroundColor: colors.card,
-    borderRadius: 16,
+    borderRadius: 12,
     padding: 16,
     marginBottom: 12,
+    borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
@@ -316,7 +318,6 @@ const styles = StyleSheet.create({
     borderRadius: 40,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: 'rgba(25, 181, 216, 0.2)',
   },
   speakerInfo: {
     flex: 1,
@@ -326,11 +327,9 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     marginBottom: 4,
-    color: colors.text,
   },
   speakerTitle: {
     fontSize: 14,
     lineHeight: 20,
-    color: colors.textSecondary,
   },
 });
