@@ -328,4 +328,17 @@ describe("API Integration Tests", () => {
     );
     expect(Array.isArray(data.sponsors)).toBe(true);
   });
+
+  // Activities
+  test("GET /api/activities - should return activities", async () => {
+    const res = await api("/api/activities");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api", "error"]).toContain(
+      data.source_used
+    );
+    expect(Array.isArray(data.activities)).toBe(true);
+  });
 });

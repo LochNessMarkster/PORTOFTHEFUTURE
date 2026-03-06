@@ -13,6 +13,7 @@ import * as agendaRoutes from './routes/agenda.js';
 import * as speakersRoutes from './routes/speakers.js';
 import * as exhibitorsRoutes from './routes/exhibitors.js';
 import * as sponsorsRoutes from './routes/sponsors.js';
+import * as activitiesRoutes from './routes/activities.js';
 
 // Create application with schema for full database type support
 export const app = await createApplication(schema);
@@ -35,6 +36,7 @@ agendaRoutes.register(app, app.fastify);
 speakersRoutes.register(app, app.fastify);
 exhibitorsRoutes.register(app, app.fastify);
 sponsorsRoutes.register(app, app.fastify);
+activitiesRoutes.register(app, app.fastify);
 
 await app.run();
 app.logger.info('Application running');
