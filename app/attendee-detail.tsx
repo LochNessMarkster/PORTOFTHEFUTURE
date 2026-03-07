@@ -21,7 +21,11 @@ import {
   createOrGetConversation,
   UserPreferences,
   AttendeeDetail,
+  submitReport,
+  blockUser,
 } from '@/utils/airtable';
+import { ReportUserModal } from '@/components/ReportUserModal';
+import { BlockUserModal } from '@/components/BlockUserModal';
 
 export default function AttendeeDetailScreen() {
   const colorScheme = useColorScheme();
@@ -40,6 +44,9 @@ export default function AttendeeDetailScreen() {
   const [loadingPreferences, setLoadingPreferences] = useState(true);
   const [messagingLoading, setMessagingLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
@@ -131,6 +138,42 @@ export default function AttendeeDetailScreen() {
   };
   const initials = getInitials(name);
 
+  const handleReportUser = async (reason: string, notes: string) => {
+    if (!user?.email) return;
+    console.log('[Report] Submitting report:', { reason, notes });
+    await submitReport(user.email, email, reason, notes);
+    setShowReportModal(false);
+  };
+
+  const handleBlockUser = async () => {
+    if (!user?.email) return;
+    console.log('[Block] Blocking user:', email);
+    await blockUser(user.email, email);
+    setShowBlockModal(false);
+    // Navigate back after blocking
+    setTimeout(() => {
+      router.back();
+    }, 1500);
+  };
+
+  const handleOpenActionsMenu = () => {
+    setShowActionsMenu(true);
+  };
+
+  const handleCloseActionsMenu = () => {
+    setShowActionsMenu(false);
+  };
+
+  const handleReportPress = () => {
+    setShowActionsMenu(false);
+    setShowReportModal(true);
+  };
+
+  const handleBlockPress = () => {
+    setShowActionsMenu(false);
+    setShowBlockModal(true);
+  };
+
   return (
     <>
       <Stack.Screen
@@ -141,6 +184,19 @@ export default function AttendeeDetailScreen() {
             backgroundColor: isDark ? colors.backgroundDark : colors.background,
           },
           headerTintColor: textColor,
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={handleOpenActionsMenu}
+              style={{ marginRight: 8, padding: 8 }}
+            >
+              <IconSymbol
+                ios_icon_name="ellipsis.circle"
+                android_material_icon_name="more-vert"
+                size={24}
+                color={textColor}
+              />
+            </TouchableOpacity>
+          ),
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
@@ -292,6 +348,65 @@ export default function AttendeeDetailScreen() {
             </>
           )}
         </ScrollView>
+
+        {/* Actions Menu Modal */}
+        {showActionsMenu && (
+          <TouchableOpacity
+            style={styles.actionsOverlay}
+            activeOpacity={1}
+            onPress={handleCloseActionsMenu}
+          >
+            <View style={[styles.actionsMenu, { backgroundColor: cardBg }]}>
+              <TouchableOpacity
+                style={styles.actionMenuItem}
+                onPress={handleReportPress}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="exclamationmark.triangle.fill"
+                  android_material_icon_name="warning"
+                  size={22}
+                  color={colors.error}
+                />
+                <Text style={[styles.actionMenuText, { color: colors.error }]}>
+                  Report User
+                </Text>
+              </TouchableOpacity>
+              <View style={[styles.actionMenuDivider, { backgroundColor: isDark ? colors.borderDark : colors.border }]} />
+              <TouchableOpacity
+                style={styles.actionMenuItem}
+                onPress={handleBlockPress}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="hand.raised.fill"
+                  android_material_icon_name="block"
+                  size={22}
+                  color={colors.error}
+                />
+                <Text style={[styles.actionMenuText, { color: colors.error }]}>
+                  Block User
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Report User Modal */}
+        <ReportUserModal
+          isVisible={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          onSubmit={handleReportUser}
+          reportedUserName={name}
+        />
+
+        {/* Block User Modal */}
+        <BlockUserModal
+          isVisible={showBlockModal}
+          onClose={() => setShowBlockModal(false)}
+          onBlock={handleBlockUser}
+          userName={name}
+        />
       </SafeAreaView>
     </>
   );
@@ -420,5 +535,41 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginLeft: 8,
     flex: 1,
+  },
+  actionsOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 60,
+    paddingRight: 16,
+  },
+  actionsMenu: {
+    borderRadius: 12,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  actionMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  actionMenuText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  actionMenuDivider: {
+    height: 1,
+    marginHorizontal: 16,
   },
 });

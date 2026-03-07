@@ -137,6 +137,27 @@ export default function ProfileScreen() {
           />
         </TouchableOpacity>
 
+        {/* Blocked Users Button */}
+        <TouchableOpacity
+          style={[styles.blockedUsersButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+          onPress={() => router.push('/blocked-users')}
+          activeOpacity={0.7}
+        >
+          <IconSymbol
+            ios_icon_name="hand.raised.fill"
+            android_material_icon_name="block"
+            size={22}
+            color={colors.error}
+          />
+          <Text style={[styles.blockedUsersButtonText, { color: textColor }]}>Blocked Users</Text>
+          <IconSymbol
+            ios_icon_name="chevron.right"
+            android_material_icon_name="chevron-right"
+            size={18}
+            color={secondaryTextColor}
+          />
+        </TouchableOpacity>
+
         {/* Privacy Preferences */}
         <View style={[styles.section, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
           <View style={styles.sectionHeader}>
@@ -317,6 +338,25 @@ const styles = StyleSheet.create({
   messagesButtonText: {
     flex: 1,
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+    marginLeft: 12,
+  },
+  blockedUsersButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  blockedUsersButtonText: {
+    flex: 1,
     fontSize: 16,
     fontWeight: '600',
     marginLeft: 12,

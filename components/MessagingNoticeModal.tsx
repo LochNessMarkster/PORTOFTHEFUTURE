@@ -25,7 +25,7 @@ export function MessagingNoticeModal({ visible, onClose }: MessagingNoticeModalP
   const titleText = 'In-App Messaging Notice';
   const bodyText1 = 'This app includes in-app messaging that allows conference attendees to communicate with one another.';
   const bodyText2 = 'If you prefer not to receive messages, you can disable messaging at any time by going to My Profile → Privacy Settings.';
-  const bodyText3 = 'Users may also report inappropriate messages to conference administrators.';
+  const bodyText3 = 'Users may report inappropriate messages or block other attendees at any time within the messaging feature.';
 
   const handlePrivacySettings = () => {
     console.log('Privacy Settings button pressed');
