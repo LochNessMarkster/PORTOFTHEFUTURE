@@ -131,8 +131,14 @@ export default function AgendaScreen() {
         console.log('[Agenda] No bookmarks found in storage');
         setBookmarkedSessions(new Set());
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Agenda] Error loading bookmarks:', err);
+      console.error('[Agenda] Error details:', {
+        message: err?.message,
+        name: err?.name,
+        type: err?.type,
+      });
+      // Gracefully handle AsyncStorage errors - continue with empty bookmarks
       setBookmarkedSessions(new Set());
     }
   };
@@ -142,8 +148,14 @@ export default function AgendaScreen() {
       const bookmarksArray = Array.from(bookmarks);
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
       console.log('[Agenda] Saved bookmarks:', bookmarksArray.length, 'sessions');
-    } catch (err) {
+    } catch (err: any) {
       console.error('[Agenda] Error saving bookmarks:', err);
+      console.error('[Agenda] Error details:', {
+        message: err?.message,
+        name: err?.name,
+        type: err?.type,
+      });
+      // Gracefully handle save errors - bookmarks will be lost but app continues
     }
   };
 

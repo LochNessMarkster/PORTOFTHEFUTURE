@@ -87,8 +87,15 @@ export default function MyScheduleScreen() {
       } else {
         setBookmarkedSessions(new Set());
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[My Schedule] Error loading bookmarks:', err);
+      console.error('[My Schedule] Error details:', {
+        message: err?.message,
+        name: err?.name,
+        type: err?.type,
+      });
+      // Gracefully handle AsyncStorage errors - continue with empty bookmarks
+      setBookmarkedSessions(new Set());
     }
   };
 
@@ -228,8 +235,17 @@ export default function MyScheduleScreen() {
       bookmarks = bookmarks.filter(id => id !== sessionId);
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
       setBookmarkedSessions(new Set(bookmarks));
-    } catch (err) {
+    } catch (err: any) {
       console.error('[My Schedule] Error removing bookmark:', err);
+      console.error('[My Schedule] Error details:', {
+        message: err?.message,
+        name: err?.name,
+        type: err?.type,
+      });
+      // Gracefully handle error - update UI anyway
+      const newBookmarks = new Set(bookmarkedSessions);
+      newBookmarks.delete(sessionId);
+      setBookmarkedSessions(newBookmarks);
     }
   };
 

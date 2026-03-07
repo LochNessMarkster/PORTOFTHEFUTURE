@@ -85,8 +85,16 @@ export default function AgendaDetailScreen() {
         setIsBookmarked(bookmarks.includes(sessionId));
         console.log('[AgendaDetail] Loaded bookmarks:', bookmarks.length, 'sessions');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[AgendaDetail] Error loading bookmark status:', err);
+      console.error('[AgendaDetail] Error details:', {
+        message: err?.message,
+        name: err?.name,
+        type: err?.type,
+      });
+      // Gracefully handle AsyncStorage errors - continue with empty bookmarks
+      setBookmarkedSessions(new Set());
+      setIsBookmarked(false);
     }
   };
 
@@ -224,8 +232,20 @@ export default function AgendaDetailScreen() {
           console.log('[AgendaDetail] Bookmark added successfully');
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('[AgendaDetail] Error toggling bookmark:', err);
+      console.error('[AgendaDetail] Error details:', {
+        message: err?.message,
+        name: err?.name,
+        type: err?.type,
+      });
+      // Gracefully handle error - update UI anyway
+      if (isBookmarked) {
+        setIsBookmarked(false);
+        const newBookmarks = new Set(bookmarkedSessions);
+        newBookmarks.delete(sessionId);
+        setBookmarkedSessions(newBookmarks);
+      }
     }
     console.log('═══════════════════════════════════════════════════');
   };
@@ -241,8 +261,20 @@ export default function AgendaDetailScreen() {
       setBookmarkedSessions(new Set(bookmarks));
       setShowConflictModal(false);
       setConflictingSession(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[AgendaDetail] Error saving bookmark:', err);
+      console.error('[AgendaDetail] Error details:', {
+        message: err?.message,
+        name: err?.name,
+        type: err?.type,
+      });
+      // Gracefully handle error - update UI anyway
+      setIsBookmarked(true);
+      const newBookmarks = new Set(bookmarkedSessions);
+      newBookmarks.add(sessionId);
+      setBookmarkedSessions(newBookmarks);
+      setShowConflictModal(false);
+      setConflictingSession(null);
     }
   };
 
@@ -272,8 +304,21 @@ export default function AgendaDetailScreen() {
       setBookmarkedSessions(new Set(bookmarks));
       setShowConflictModal(false);
       setConflictingSession(null);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[AgendaDetail] Error replacing bookmark:', err);
+      console.error('[AgendaDetail] Error details:', {
+        message: err?.message,
+        name: err?.name,
+        type: err?.type,
+      });
+      // Gracefully handle error - update UI anyway
+      setIsBookmarked(true);
+      const newBookmarks = new Set(bookmarkedSessions);
+      newBookmarks.delete(conflictingSession.id);
+      newBookmarks.add(sessionId);
+      setBookmarkedSessions(newBookmarks);
+      setShowConflictModal(false);
+      setConflictingSession(null);
     }
   };
 
