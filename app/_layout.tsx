@@ -34,6 +34,27 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="login" options={{ headerShown: false }} />
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="exhibitors" options={{ headerShown: true, title: 'Exhibitors' }} />
+          <Stack.Screen name="exhibitor-detail" options={{ headerShown: true, title: 'Exhibitor Details' }} />
+          <Stack.Screen name="speakers" options={{ headerShown: true, title: 'Speakers' }} />
+          <Stack.Screen name="speaker-detail" options={{ headerShown: true, title: 'Speaker Details' }} />
+          <Stack.Screen name="sponsors" options={{ headerShown: true, title: 'Sponsors' }} />
+          <Stack.Screen name="sponsor-detail" options={{ headerShown: true, title: 'Sponsor Details' }} />
+          <Stack.Screen name="agenda" options={{ headerShown: true, title: 'Agenda' }} />
+          <Stack.Screen name="agenda-detail" options={{ headerShown: true, title: 'Session Details' }} />
+          <Stack.Screen name="activities" options={{ headerShown: true, title: 'Activities' }} />
+          <Stack.Screen name="activity-detail" options={{ headerShown: true, title: 'Activity Details' }} />
+          <Stack.Screen name="ports" options={{ headerShown: true, title: 'Ports' }} />
+          <Stack.Screen name="port-detail" options={{ headerShown: true, title: 'Port Details' }} />
+          <Stack.Screen name="presentations" options={{ headerShown: true, title: 'Presentations' }} />
+          <Stack.Screen name="venue" options={{ headerShown: true, title: 'Venue' }} />
+          <Stack.Screen name="floor-plan" options={{ headerShown: true, title: 'Floor Plan' }} />
+          <Stack.Screen name="networking" options={{ headerShown: true, title: 'Networking' }} />
+          <Stack.Screen name="attendee-detail" options={{ headerShown: true, title: 'Attendee Details' }} />
+          <Stack.Screen name="conversation/[id]" options={{ headerShown: true, title: 'Conversation' }} />
+          <Stack.Screen name="blocked-users" options={{ headerShown: true, title: 'Blocked Users' }} />
+          <Stack.Screen name="announcement-detail" options={{ headerShown: true, title: 'Announcement' }} />
+          <Stack.Screen name="about" options={{ headerShown: true, title: 'About' }} />
           <Stack.Screen name="+not-found" />
         </Stack>
         <StatusBar style="auto" />
