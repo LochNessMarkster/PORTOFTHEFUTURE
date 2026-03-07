@@ -82,16 +82,28 @@ export default function AgendaDetailScreen() {
       
       if (stored) {
         const bookmarks = JSON.parse(stored);
-        setBookmarkedSessions(bookmarks);
-        setIsBookmarked(bookmarks.includes(sessionId));
-        console.log('[AgendaDetail] Loaded', bookmarks.length, 'bookmarked sessions:', bookmarks);
-        console.log('[AgendaDetail] Current session bookmarked?', bookmarks.includes(sessionId));
+        
+        // Ensure we have an array
+        if (Array.isArray(bookmarks)) {
+          setBookmarkedSessions(bookmarks);
+          setIsBookmarked(bookmarks.includes(sessionId));
+          console.log('[AgendaDetail] Loaded', bookmarks.length, 'bookmarked sessions:', bookmarks);
+          console.log('[AgendaDetail] Current session bookmarked?', bookmarks.includes(sessionId));
+        } else {
+          console.log('[AgendaDetail] Invalid bookmark format, resetting to empty');
+          setBookmarkedSessions([]);
+          // Fix the storage
+          await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
+        }
       } else {
         console.log('[AgendaDetail] No bookmarks found, starting with empty array');
         setBookmarkedSessions([]);
+        // Initialize storage
+        await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
       }
-    } catch (err) {
-      console.log('[AgendaDetail] Failed to load bookmarks, starting with empty array:', err);
+    } catch (err: any) {
+      console.log('[AgendaDetail] AsyncStorage error:', err?.message || err);
+      console.log('[AgendaDetail] Starting with empty bookmarks array');
       setBookmarkedSessions([]);
     }
   };
@@ -206,11 +218,17 @@ export default function AgendaDetailScreen() {
         console.log('[AgendaDetail] Removing bookmark (no conflict check needed)');
         bookmarks = bookmarks.filter(id => id !== sessionId);
         console.log('[AgendaDetail] Saving updated bookmarks:', bookmarks);
-        await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+        
+        const jsonString = JSON.stringify(bookmarks);
+        await AsyncStorage.setItem(BOOKMARKS_KEY, jsonString);
         
         // Verify the save
         const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
         console.log('[AgendaDetail] Verification read:', verification);
+        
+        if (verification !== jsonString) {
+          console.log('[AgendaDetail] WARNING: Verification failed! Saved data does not match.');
+        }
         
         setIsBookmarked(false);
         setBookmarkedSessions(bookmarks);
@@ -232,19 +250,25 @@ export default function AgendaDetailScreen() {
           // No conflict, add bookmark
           bookmarks.push(sessionId);
           console.log('[AgendaDetail] Saving updated bookmarks:', bookmarks);
-          await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+          
+          const jsonString = JSON.stringify(bookmarks);
+          await AsyncStorage.setItem(BOOKMARKS_KEY, jsonString);
           
           // Verify the save
           const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
           console.log('[AgendaDetail] Verification read:', verification);
+          
+          if (verification !== jsonString) {
+            console.log('[AgendaDetail] WARNING: Verification failed! Saved data does not match.');
+          }
           
           setIsBookmarked(true);
           setBookmarkedSessions(bookmarks);
           console.log('[AgendaDetail] Bookmark added successfully');
         }
       }
-    } catch (err) {
-      console.log('[AgendaDetail] Failed to toggle bookmark:', err);
+    } catch (err: any) {
+      console.log('[AgendaDetail] Failed to toggle bookmark:', err?.message || err);
     }
     console.log('═══════════════════════════════════════════════════');
   };
@@ -256,18 +280,24 @@ export default function AgendaDetailScreen() {
       let bookmarks: string[] = stored ? JSON.parse(stored) : [];
       bookmarks.push(sessionId);
       console.log('[AgendaDetail] Saving bookmarks (keep both):', bookmarks);
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+      
+      const jsonString = JSON.stringify(bookmarks);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, jsonString);
       
       // Verify the save
       const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
       console.log('[AgendaDetail] Verification read:', verification);
       
+      if (verification !== jsonString) {
+        console.log('[AgendaDetail] WARNING: Verification failed! Saved data does not match.');
+      }
+      
       setIsBookmarked(true);
       setBookmarkedSessions(bookmarks);
       setShowConflictModal(false);
       setConflictingSession(null);
-    } catch (err) {
-      console.log('[AgendaDetail] Failed to save bookmark:', err);
+    } catch (err: any) {
+      console.log('[AgendaDetail] Failed to save bookmark:', err?.message || err);
     }
   };
 
@@ -293,18 +323,24 @@ export default function AgendaDetailScreen() {
       bookmarks.push(sessionId);
       
       console.log('[AgendaDetail] Saving bookmarks (replace):', bookmarks);
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+      
+      const jsonString = JSON.stringify(bookmarks);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, jsonString);
       
       // Verify the save
       const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
       console.log('[AgendaDetail] Verification read:', verification);
       
+      if (verification !== jsonString) {
+        console.log('[AgendaDetail] WARNING: Verification failed! Saved data does not match.');
+      }
+      
       setIsBookmarked(true);
       setBookmarkedSessions(bookmarks);
       setShowConflictModal(false);
       setConflictingSession(null);
-    } catch (err) {
-      console.log('[AgendaDetail] Failed to replace bookmark:', err);
+    } catch (err: any) {
+      console.log('[AgendaDetail] Failed to replace bookmark:', err?.message || err);
     }
   };
 

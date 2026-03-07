@@ -123,13 +123,18 @@ export default function AgendaScreen() {
         } else {
           console.log('[Agenda] Invalid bookmark format, resetting to empty');
           setBookmarkedSessions([]);
+          // Fix the storage
+          await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
         }
       } else {
         console.log('[Agenda] No bookmarks found, starting with empty array');
         setBookmarkedSessions([]);
+        // Initialize storage
+        await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
       }
-    } catch (err) {
-      console.log('[Agenda] Failed to load bookmarks, starting with empty array:', err);
+    } catch (err: any) {
+      console.log('[Agenda] AsyncStorage error:', err?.message || err);
+      console.log('[Agenda] Starting with empty bookmarks array');
       setBookmarkedSessions([]);
     }
   };
@@ -138,14 +143,19 @@ export default function AgendaScreen() {
     try {
       console.log('[Agenda] Saving', bookmarks.length, 'bookmarks to AsyncStorage:', bookmarks);
       
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+      const jsonString = JSON.stringify(bookmarks);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, jsonString);
       console.log('[Agenda] Bookmarks saved successfully');
       
       // Verify the save
       const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
       console.log('[Agenda] Verification read:', verification);
-    } catch (err) {
-      console.log('[Agenda] Failed to save bookmarks to storage:', err);
+      
+      if (verification !== jsonString) {
+        console.log('[Agenda] WARNING: Verification failed! Saved data does not match.');
+      }
+    } catch (err: any) {
+      console.log('[Agenda] Failed to save bookmarks:', err?.message || err);
     }
   };
 
@@ -349,10 +359,8 @@ export default function AgendaScreen() {
           Title: sample.Title,
           Date: sample.Date,
           StartTime: sample.StartTime,
-          EndTime: sample.EndTime,
           Room: sample.Room,
           TypeTrack: sample.TypeTrack,
-          SpeakerNames: sample.SpeakerNames,
           hasDescription: !!sample.SessionDescription,
         });
       }
