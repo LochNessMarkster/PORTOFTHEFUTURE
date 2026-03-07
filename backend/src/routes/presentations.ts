@@ -37,7 +37,7 @@ const mockPresentations: PresentationResponse[] = [
 async function fetchPresentations(): Promise<PresentationResponse[]> {
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const timeoutId = setTimeout(() => controller.abort(), 2000);
 
     const response = await fetch(
       'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblm5YCpC7ZwRSYWy',
