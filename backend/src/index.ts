@@ -14,6 +14,8 @@ import * as speakersRoutes from './routes/speakers.js';
 import * as exhibitorsRoutes from './routes/exhibitors.js';
 import * as sponsorsRoutes from './routes/sponsors.js';
 import * as activitiesRoutes from './routes/activities.js';
+import * as reportsRoutes from './routes/reports.js';
+import * as blockedUsersRoutes from './routes/blockedUsers.js';
 
 // Create application with schema for full database type support
 export const app = await createApplication(schema);
@@ -37,6 +39,8 @@ speakersRoutes.register(app, app.fastify);
 exhibitorsRoutes.register(app, app.fastify);
 sponsorsRoutes.register(app, app.fastify);
 activitiesRoutes.register(app, app.fastify);
+reportsRoutes.register(app, app.fastify);
+blockedUsersRoutes.register(app, app.fastify);
 
 await app.run();
 app.logger.info('Application running');

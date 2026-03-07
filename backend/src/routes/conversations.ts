@@ -74,15 +74,43 @@ export function register(app: App, fastify: FastifyInstance) {
       const results: ConversationResponse[] = [];
 
       for (const conv of conversations) {
-        const lastMessage = await app.db.query.messages.findFirst({
-          where: eq(schema.messages.conversationId, conv.id),
-          orderBy: desc(schema.messages.createdAt),
-        });
-
         const otherEmail =
           conv.participant1Email === email
             ? conv.participant2Email
             : conv.participant1Email;
+
+        const isBlockedByOther = await app.db.query.blockedUsers.findFirst({
+          where: and(
+            eq(schema.blockedUsers.blockerEmail, otherEmail),
+            eq(schema.blockedUsers.blockedEmail, email)
+          ),
+        });
+
+        const hasBlockedOther = await app.db.query.blockedUsers.findFirst({
+          where: and(
+            eq(schema.blockedUsers.blockerEmail, email),
+            eq(schema.blockedUsers.blockedEmail, otherEmail)
+          ),
+        });
+
+        if (isBlockedByOther || hasBlockedOther) {
+          app.logger.info(
+            {
+              conversationId: conv.id,
+              email,
+              otherEmail,
+              isBlockedByOther: !!isBlockedByOther,
+              hasBlockedOther: !!hasBlockedOther,
+            },
+            'Conversation filtered out due to blocking'
+          );
+          continue;
+        }
+
+        const lastMessage = await app.db.query.messages.findFirst({
+          where: eq(schema.messages.conversationId, conv.id),
+          orderBy: desc(schema.messages.createdAt),
+        });
 
         results.push({
           id: conv.id,
@@ -411,6 +439,32 @@ export function register(app: App, fastify: FastifyInstance) {
           'Messaging not allowed'
         );
         return reply.status(403).send({ error: 'Messaging not allowed' });
+      }
+
+      const recipientEmail =
+        conversation.participant1Email === sender_email
+          ? conversation.participant2Email
+          : conversation.participant1Email;
+
+      const isBlocked = await app.db.query.blockedUsers.findFirst({
+        where: and(
+          eq(schema.blockedUsers.blockerEmail, recipientEmail),
+          eq(schema.blockedUsers.blockedEmail, sender_email)
+        ),
+      });
+
+      if (isBlocked) {
+        app.logger.warn(
+          {
+            conversationId: id,
+            senderEmail: sender_email,
+            recipientEmail,
+          },
+          'Sender is blocked by recipient'
+        );
+        return reply
+          .status(403)
+          .send({ error: 'Cannot send message. You have been blocked by this user.' });
       }
 
       const message = await app.db
