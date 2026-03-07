@@ -1,5 +1,11 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Stack, useRouter } from 'expo-router';
+import { IconSymbol } from '@/components/IconSymbol';
+import { fetchSpeakers, Speaker } from '@/utils/airtable';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { colors } from '@/styles/commonStyles';
 import {
   View,
   Text,
@@ -14,16 +20,11 @@ import {
   RefreshControl,
   ScrollView,
 } from 'react-native';
-import { useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { colors } from '@/styles/commonStyles';
-import { IconSymbol } from '@/components/IconSymbol';
-import { fetchSpeakers, Speaker } from '@/utils/airtable';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const SPEAKERS_CACHE_KEY = '@speakers_cache';
-const SPEAKERS_CACHE_TIMESTAMP_KEY = '@speakers_cache_timestamp';
-const CACHE_DURATION = 60 * 1000; // 60 seconds (1 minute)
+const SPEAKERS_CACHE_KEY = 'potf_speakers_cache';
+const SPEAKERS_CACHE_TIMESTAMP_KEY = 'potf_speakers_cache_timestamp';
+const CACHE_DURATION = 5 * 60 * 1000;
+
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
@@ -33,20 +34,17 @@ function resolveImageSource(source: string | number | ImageSourcePropType | unde
 }
 
 export default function SpeakersScreen() {
-  const colorScheme = useColorScheme();
-  const isDark = colorScheme === 'dark';
-  const router = useRouter();
-
   const [allSpeakers, setAllSpeakers] = useState<Speaker[]>([]);
   const [filteredSpeakers, setFilteredSpeakers] = useState<Speaker[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedLetter, setSelectedLetter] = useState<string | null>(null);
 
   const flatListRef = useRef<FlatList>(null);
-  const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const router = useRouter();
+  const colorScheme = useColorScheme();
+  const isDark = colorScheme === 'dark';
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
@@ -54,136 +52,76 @@ export default function SpeakersScreen() {
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
-  useEffect(() => {
-    loadSpeakers();
-  }, []);
-
-  // Debounced search with 300ms delay
-  useEffect(() => {
-    if (searchTimeoutRef.current) {
-      clearTimeout(searchTimeoutRef.current);
-    }
-
-    searchTimeoutRef.current = setTimeout(() => {
-      filterSpeakers();
-    }, 300);
-
-    return () => {
-      if (searchTimeoutRef.current) {
-        clearTimeout(searchTimeoutRef.current);
-      }
-    };
-  }, [searchQuery, selectedLetter, allSpeakers]);
-
-  const loadSpeakers = async () => {
+  const loadSpeakers = useCallback(async () => {
     console.log('[Speakers] Loading speakers...');
-    
     try {
-      // Check cache first (only if not refreshing)
-      if (!refreshing) {
-        const cachedData = await AsyncStorage.getItem(SPEAKERS_CACHE_KEY);
-        const cachedTimestamp = await AsyncStorage.getItem(SPEAKERS_CACHE_TIMESTAMP_KEY);
-        const now = Date.now();
+      setLoading(true);
 
-        if (cachedData && cachedTimestamp) {
-          const timestamp = parseInt(cachedTimestamp, 10);
-          if (now - timestamp < CACHE_DURATION) {
-            console.log('[Speakers] Using cached data (age:', Math.round((now - timestamp) / 1000), 'seconds)');
-            const speakers = JSON.parse(cachedData);
-            setAllSpeakers(speakers);
-            setFilteredSpeakers(speakers);
-            setLoading(false);
-            return;
-          } else {
-            console.log('[Speakers] Cache expired (age:', Math.round((now - timestamp) / 1000), 'seconds)');
-          }
-        }
-      }
-
-      // Fetch from backend proxy (single request)
-      if (!refreshing) {
-        setLoading(true);
-      }
-      setError(null);
-
-      console.log('[Speakers] Fetching from backend proxy...');
-      const response = await fetchSpeakers();
-      console.log('[Speakers] Loaded:', response.speakers.length, 'speakers from', response.source_used);
-      
-      // Sort by last name, then first name
-      const sortedSpeakers = [...response.speakers].sort((a, b) => {
-        const lastNameA = (a.lastName || '').toLowerCase();
-        const lastNameB = (b.lastName || '').toLowerCase();
-        if (lastNameA !== lastNameB) {
-          return lastNameA.localeCompare(lastNameB);
-        }
-        const firstNameA = (a.firstName || '').toLowerCase();
-        const firstNameB = (b.firstName || '').toLowerCase();
-        return firstNameA.localeCompare(firstNameB);
-      });
-
-      setAllSpeakers(sortedSpeakers);
-      setFilteredSpeakers(sortedSpeakers);
-
-      // Cache the data
+      const cachedTimestamp = await AsyncStorage.getItem(SPEAKERS_CACHE_TIMESTAMP_KEY);
       const now = Date.now();
-      await AsyncStorage.setItem(SPEAKERS_CACHE_KEY, JSON.stringify(sortedSpeakers));
-      await AsyncStorage.setItem(SPEAKERS_CACHE_TIMESTAMP_KEY, now.toString());
-      console.log('[Speakers] Data cached for 60 seconds');
+      const isCacheValid = cachedTimestamp && (now - parseInt(cachedTimestamp)) < CACHE_DURATION;
 
-    } catch (err) {
-      console.error('[Speakers] Error loading speakers:', err);
-      setError('We\'re having trouble loading speakers right now. Please try again.');
-      
-      // Try to use stale cache as fallback
-      const cachedData = await AsyncStorage.getItem(SPEAKERS_CACHE_KEY);
-      if (cachedData) {
-        console.log('[Speakers] Using stale cache as fallback');
-        const speakers = JSON.parse(cachedData);
-        setAllSpeakers(speakers);
-        setFilteredSpeakers(speakers);
+      if (isCacheValid) {
+        const cached = await AsyncStorage.getItem(SPEAKERS_CACHE_KEY);
+        if (cached) {
+          console.log('[Speakers] Using cached data');
+          const speakers = JSON.parse(cached);
+          setAllSpeakers(speakers);
+          setFilteredSpeakers(speakers);
+          setLoading(false);
+          return;
+        }
       }
+
+      console.log('[Speakers] Fetching fresh data from API');
+      const speakers = await fetchSpeakers();
+      console.log('[Speakers] Loaded speakers:', speakers.length);
+
+      await AsyncStorage.setItem(SPEAKERS_CACHE_KEY, JSON.stringify(speakers));
+      await AsyncStorage.setItem(SPEAKERS_CACHE_TIMESTAMP_KEY, now.toString());
+
+      setAllSpeakers(speakers);
+      setFilteredSpeakers(speakers);
+    } catch (error) {
+      console.error('[Speakers] Error loading speakers:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
-  const filterSpeakers = useCallback(() => {
-    console.log('[Speakers] Filtering - query:', searchQuery, 'letter:', selectedLetter);
-    
+  useEffect(() => {
+    loadSpeakers();
+  }, [loadSpeakers]);
+
+  const onRefresh = useCallback(async () => {
+    console.log('[Speakers] User triggered refresh');
+    setRefreshing(true);
+    await AsyncStorage.removeItem(SPEAKERS_CACHE_KEY);
+    await AsyncStorage.removeItem(SPEAKERS_CACHE_TIMESTAMP_KEY);
+    await loadSpeakers();
+  }, [loadSpeakers]);
+
+  useEffect(() => {
     let filtered = allSpeakers;
 
-    // Filter by selected letter (last name)
-    if (selectedLetter) {
-      filtered = filtered.filter(speaker => {
-        const lastName = (speaker.lastName || '').toUpperCase();
-        return lastName.startsWith(selectedLetter);
-      });
-    }
-
-    // Filter by search query (first name, last name, organization, job title)
     if (searchQuery.trim()) {
-      const lowerQuery = searchQuery.toLowerCase();
-      filtered = filtered.filter(speaker => {
-        const firstNameMatch = (speaker.firstName || '').toLowerCase().includes(lowerQuery);
-        const lastNameMatch = (speaker.lastName || '').toLowerCase().includes(lowerQuery);
-        const organizationMatch = (speaker.company || '').toLowerCase().includes(lowerQuery);
-        const titleMatch = (speaker.title || '').toLowerCase().includes(lowerQuery);
-        
-        return firstNameMatch || lastNameMatch || organizationMatch || titleMatch;
-      });
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(speaker =>
+        speaker.name.toLowerCase().includes(query) ||
+        speaker.company?.toLowerCase().includes(query) ||
+        speaker.title?.toLowerCase().includes(query)
+      );
     }
 
-    console.log('[Speakers] Filtered:', filtered.length, 'results');
+    if (selectedLetter) {
+      filtered = filtered.filter(speaker =>
+        speaker.name.charAt(0).toUpperCase() === selectedLetter
+      );
+    }
+
     setFilteredSpeakers(filtered);
   }, [searchQuery, selectedLetter, allSpeakers]);
-
-  const onRefresh = () => {
-    console.log('[Speakers] User initiated refresh');
-    setRefreshing(true);
-    loadSpeakers();
-  };
 
   const handleLetterPress = (letter: string) => {
     console.log('[Speakers] Letter pressed:', letter);
@@ -191,16 +129,79 @@ export default function SpeakersScreen() {
       setSelectedLetter(null);
     } else {
       setSelectedLetter(letter);
-      // Scroll to top when letter is selected
       flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     }
+  };
+
+  const handleSpeakerPress = (speaker: Speaker) => {
+    console.log('[Speakers] Speaker pressed:', speaker.name);
+    router.push({
+      pathname: '/speaker-detail',
+      params: {
+        id: speaker.id,
+        name: speaker.name,
+        title: speaker.title || '',
+        company: speaker.company || '',
+        bio: speaker.bio || '',
+        email: speaker.email || '',
+        phone: speaker.phone || '',
+        photo_url: speaker.photo_url || '',
+      },
+    });
+  };
+
+  const renderSpeakerCard = ({ item }: { item: Speaker }) => {
+    return (
+      <TouchableOpacity
+        style={[styles.speakerCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+        onPress={() => handleSpeakerPress(item)}
+        activeOpacity={0.7}
+      >
+        {item.photo_url ? (
+          <Image
+            source={resolveImageSource(item.photo_url)}
+            style={styles.speakerPhoto}
+            resizeMode="cover"
+          />
+        ) : (
+          <View style={[styles.speakerPhotoPlaceholder, { backgroundColor: colors.primary + '20' }]}>
+            <IconSymbol
+              ios_icon_name="person.fill"
+              android_material_icon_name="person"
+              size={32}
+              color={colors.primary}
+            />
+          </View>
+        )}
+        <View style={styles.speakerInfo}>
+          <Text style={[styles.speakerName, { color: textColor }]} numberOfLines={1}>
+            {item.name}
+          </Text>
+          {item.title && (
+            <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={1}>
+              {item.title}
+            </Text>
+          )}
+          {item.company && (
+            <Text style={[styles.speakerCompany, { color: secondaryTextColor }]} numberOfLines={1}>
+              {item.company}
+            </Text>
+          )}
+        </View>
+        <IconSymbol
+          ios_icon_name="chevron.right"
+          android_material_icon_name="chevron-right"
+          size={20}
+          color={secondaryTextColor}
+        />
+      </TouchableOpacity>
+    );
   };
 
   const availableLetters = useMemo(() => {
     const letters = new Set<string>();
     allSpeakers.forEach(speaker => {
-      const lastName = speaker.lastName || '';
-      const firstLetter = lastName.charAt(0).toUpperCase();
+      const firstLetter = speaker.name.charAt(0).toUpperCase();
       if (ALPHABET.includes(firstLetter)) {
         letters.add(firstLetter);
       }
@@ -208,140 +209,72 @@ export default function SpeakersScreen() {
     return letters;
   }, [allSpeakers]);
 
-  const handleSpeakerPress = (speaker: Speaker) => {
-    const displayName = `${speaker.firstName || ''} ${speaker.lastName || ''}`.trim();
-    console.log('[Speakers] Speaker pressed:', displayName);
-    router.push({
-      pathname: '/speaker-detail',
-      params: {
-        id: speaker.id,
-        firstName: speaker.firstName || '',
-        lastName: speaker.lastName || '',
-        title: speaker.title || '',
-        company: speaker.company || '',
-        speakingTopic: speaker.speakingTopic || '',
-        synopsis: speaker.synopsis || '',
-        bio: speaker.bio || '',
-        photoUrl: speaker.photoUrl || '',
-        publicPersonalData: speaker.publicPersonalData ? 'true' : 'false',
-        email: speaker.email || '',
-        phone: speaker.phone || '',
-      },
-    });
-  };
-
-  const renderSpeakerCard = ({ item }: { item: Speaker }) => {
-    const displayName = `${item.firstName || ''} ${item.lastName || ''}`.trim();
-    const displayTitle = item.title || '';
-    const displayOrganization = item.company || '';
-    
-    return (
-      <TouchableOpacity
-        style={[styles.speakerCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
-        onPress={() => handleSpeakerPress(item)}
-        activeOpacity={0.7}
-      >
-        <View style={styles.photoContainer}>
-          {item.photoUrl ? (
-            <Image
-              source={resolveImageSource(item.photoUrl)}
-              style={styles.photo}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={[styles.photoPlaceholder, { backgroundColor: colors.accent + '20' }]}>
-              <IconSymbol
-                ios_icon_name="person.fill"
-                android_material_icon_name="person"
-                size={40}
-                color={colors.accent}
-              />
-            </View>
-          )}
-        </View>
-        <View style={styles.speakerInfo}>
-          <Text style={[styles.speakerName, { color: textColor }]} numberOfLines={2}>
-            {displayName}
-          </Text>
-          {displayTitle && (
-            <Text style={[styles.speakerTitle, { color: secondaryTextColor }]} numberOfLines={3}>
-              {displayTitle}
-            </Text>
-          )}
-          {displayOrganization && (
-            <Text style={[styles.speakerOrganization, { color: secondaryTextColor }]} numberOfLines={2}>
-              {displayOrganization}
-            </Text>
-          )}
-        </View>
-      </TouchableOpacity>
-    );
-  };
-
-  const loadingText = 'Loading speakers...';
-  const emptyText = searchQuery || selectedLetter ? 'No speakers found' : 'No speakers available';
-
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-      {/* Search Bar */}
-      <View style={styles.searchContainer}>
-        <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
-          <IconSymbol
-            ios_icon_name="magnifyingglass"
-            android_material_icon_name="search"
-            size={20}
-            color={secondaryTextColor}
-          />
-          <TextInput
-            style={[styles.searchInput, { color: textColor }]}
-            placeholder="Search by name, title, or organization..."
-            placeholderTextColor={secondaryTextColor}
-            value={searchQuery}
-            onChangeText={setSearchQuery}
-          />
-          {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery('')}>
-              <IconSymbol
-                ios_icon_name="xmark.circle.fill"
-                android_material_icon_name="cancel"
-                size={20}
-                color={secondaryTextColor}
-              />
-            </TouchableOpacity>
-          )}
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title: 'Speakers',
+          headerStyle: {
+            backgroundColor: isDark ? colors.backgroundDark : colors.background,
+          },
+          headerTintColor: textColor,
+        }}
+      />
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
+        <View style={styles.searchContainer}>
+          <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+            <IconSymbol
+              ios_icon_name="magnifyingglass"
+              android_material_icon_name="search"
+              size={20}
+              color={secondaryTextColor}
+            />
+            <TextInput
+              style={[styles.searchInput, { color: textColor }]}
+              placeholder="Search speakers..."
+              placeholderTextColor={secondaryTextColor}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
+                <IconSymbol
+                  ios_icon_name="xmark.circle.fill"
+                  android_material_icon_name="cancel"
+                  size={20}
+                  color={secondaryTextColor}
+                />
+              </TouchableOpacity>
+            )}
+          </View>
         </View>
-      </View>
 
-      {/* Alphabet Navigation */}
-      <View style={styles.alphabetContainer}>
-        <ScrollView 
-          horizontal 
+        <ScrollView
+          horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.alphabetScroll}
+          style={styles.alphabetScroll}
+          contentContainerStyle={styles.alphabetContainer}
         >
-          {ALPHABET.map((letter) => {
+          {ALPHABET.map(letter => {
             const isAvailable = availableLetters.has(letter);
             const isSelected = selectedLetter === letter;
-            
             return (
               <TouchableOpacity
                 key={letter}
                 style={[
                   styles.letterButton,
-                  { 
-                    backgroundColor: isSelected ? colors.accent : cardBg,
-                    borderColor: borderColorValue,
-                    opacity: isAvailable ? 1 : 0.3,
-                  }
+                  isSelected && { backgroundColor: colors.primary },
+                  !isAvailable && styles.letterButtonDisabled,
                 ]}
-                onPress={() => handleLetterPress(letter)}
+                onPress={() => isAvailable && handleLetterPress(letter)}
                 disabled={!isAvailable}
-                activeOpacity={0.7}
               >
-                <Text 
+                <Text
                   style={[
-                    styles.letterText, 
-                    { color: isSelected ? '#FFFFFF' : textColor }
+                    styles.letterText,
+                    { color: isSelected ? '#FFFFFF' : (isAvailable ? textColor : secondaryTextColor) },
+                    !isAvailable && styles.letterTextDisabled,
                   ]}
                 >
                   {letter}
@@ -350,82 +283,44 @@ export default function SpeakersScreen() {
             );
           })}
         </ScrollView>
-      </View>
 
-      {/* Filter Indicator */}
-      {selectedLetter && (
-        <View style={styles.filterIndicator}>
-          <Text style={[styles.filterText, { color: secondaryTextColor }]}>
-            Showing speakers with last name starting with
-          </Text>
-          <Text style={[styles.filterLetter, { color: colors.accent }]}>
-            {selectedLetter}
-          </Text>
-          <TouchableOpacity onPress={() => setSelectedLetter(null)}>
+        {loading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading speakers...</Text>
+          </View>
+        ) : filteredSpeakers.length === 0 ? (
+          <View style={styles.centerContainer}>
             <IconSymbol
-              ios_icon_name="xmark.circle.fill"
-              android_material_icon_name="cancel"
-              size={20}
+              ios_icon_name="person.2"
+              android_material_icon_name="group"
+              size={48}
               color={secondaryTextColor}
             />
-          </TouchableOpacity>
-        </View>
-      )}
-
-      {loading && !refreshing ? (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.accent} />
-          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>{loadingText}</Text>
-        </View>
-      ) : error ? (
-        <View style={styles.centerContainer}>
-          <IconSymbol
-            ios_icon_name="exclamationmark.triangle.fill"
-            android_material_icon_name="warning"
-            size={48}
-            color={colors.error}
+            <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+              {searchQuery || selectedLetter ? 'No speakers found' : 'No speakers available'}
+            </Text>
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            data={filteredSpeakers}
+            renderItem={renderSpeakerCard}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={onRefresh}
+                tintColor={colors.primary}
+                colors={[colors.primary]}
+              />
+            }
           />
-          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-          <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: colors.accent }]}
-            onPress={loadSpeakers}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      ) : filteredSpeakers.length === 0 ? (
-        <View style={styles.centerContainer}>
-          <IconSymbol
-            ios_icon_name="person.2.slash"
-            android_material_icon_name="person-off"
-            size={48}
-            color={secondaryTextColor}
-          />
-          <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-            {emptyText}
-          </Text>
-        </View>
-      ) : (
-        <FlatList
-          ref={flatListRef}
-          data={filteredSpeakers}
-          renderItem={renderSpeakerCard}
-          keyExtractor={(item) => item.id}
-          numColumns={2}
-          columnWrapperStyle={styles.row}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={
-            <RefreshControl
-              refreshing={refreshing}
-              onRefresh={onRefresh}
-              tintColor={colors.accent}
-              colors={[colors.accent]}
-            />
-          }
-        />
-      )}
-    </SafeAreaView>
+        )}
+      </SafeAreaView>
+    </>
   );
 }
 
@@ -451,12 +346,13 @@ const styles = StyleSheet.create({
     marginLeft: 8,
     fontSize: 16,
   },
+  alphabetScroll: {
+    maxHeight: 50,
+    marginBottom: 8,
+  },
   alphabetContainer: {
     paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  alphabetScroll: {
-    gap: 8,
+    gap: 6,
   },
   letterButton: {
     width: 32,
@@ -464,25 +360,17 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
+    backgroundColor: colors.border + '30',
+  },
+  letterButtonDisabled: {
+    opacity: 0.3,
   },
   letterText: {
     fontSize: 14,
     fontWeight: '600',
   },
-  filterIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    gap: 8,
-  },
-  filterText: {
-    fontSize: 14,
-  },
-  filterLetter: {
-    fontSize: 14,
-    fontWeight: '700',
+  letterTextDisabled: {
+    opacity: 0.5,
   },
   centerContainer: {
     flex: 1,
@@ -494,23 +382,6 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 15,
   },
-  errorText: {
-    fontSize: 15,
-    marginTop: 12,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
   emptyText: {
     fontSize: 15,
     marginTop: 12,
@@ -519,59 +390,46 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
-  row: {
-    justifyContent: 'space-between',
-    marginBottom: 16,
-  },
   speakerCard: {
-    flex: 1,
-    maxWidth: '48%',
-    borderRadius: 16,
-    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
     borderWidth: 1,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-    minHeight: 215,
   },
-  photoContainer: {
-    alignItems: 'center',
-    marginBottom: 12,
+  speakerPhoto: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 12,
   },
-  photo: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-  },
-  photoPlaceholder: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
+  speakerPhotoPlaceholder: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    marginRight: 12,
     justifyContent: 'center',
     alignItems: 'center',
   },
   speakerInfo: {
-    alignItems: 'center',
     flex: 1,
   },
   speakerName: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '600',
-    textAlign: 'center',
-    marginBottom: 6,
-    lineHeight: 20,
+    marginBottom: 2,
   },
   speakerTitle: {
-    fontSize: 13,
-    textAlign: 'center',
-    marginBottom: 4,
-    lineHeight: 16,
+    fontSize: 14,
+    marginBottom: 2,
   },
-  speakerOrganization: {
-    fontSize: 12,
-    textAlign: 'center',
-    lineHeight: 16,
+  speakerCompany: {
+    fontSize: 14,
   },
 });
