@@ -211,27 +211,37 @@ export default function HomeScreen() {
 
           {/* Navigation Cards Grid - 3x3 Layout */}
           <View style={styles.gridContainer}>
-            {navigationCards.map((card, index) => (
-              <View key={card.id} style={styles.navCardWrapper}>
-                <TouchableOpacity
-                  style={styles.navCard}
-                  onPress={() => handleCardPress(card)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.iconContainer}>
-                    <IconSymbol
-                      ios_icon_name={card.ios_icon}
-                      android_material_icon_name={card.android_icon}
-                      size={32}
-                      color={colors.accent}
-                    />
-                  </View>
-                  <Text style={styles.navCardTitle}>
-                    {card.title}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ))}
+            {navigationCards.map((card) => {
+              const cardTitle = card.title;
+              
+              return (
+                <View key={card.id} style={styles.navCardWrapper}>
+                  <TouchableOpacity
+                    style={styles.navCard}
+                    onPress={() => handleCardPress(card)}
+                    activeOpacity={0.7}
+                  >
+                    <View style={styles.iconContainer}>
+                      <IconSymbol
+                        ios_icon_name={card.ios_icon}
+                        android_material_icon_name={card.android_icon}
+                        size={32}
+                        color={colors.accent}
+                      />
+                    </View>
+                    <View style={styles.labelContainer}>
+                      <Text 
+                        style={styles.navCardTitle}
+                        numberOfLines={1}
+                        ellipsizeMode="tail"
+                      >
+                        {cardTitle}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
           </View>
 
           {/* My Schedule Button - Full Width */}
@@ -432,10 +442,11 @@ const styles = StyleSheet.create({
   navCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
-    padding: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 110,
+    height: 110,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.15,
@@ -447,13 +458,20 @@ const styles = StyleSheet.create({
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
+  },
+  labelContainer: {
+    width: '100%',
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   navCardTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '600',
     textAlign: 'center',
     color: colors.text,
+    width: '100%',
   },
   myScheduleContainer: {
     paddingHorizontal: 16,
