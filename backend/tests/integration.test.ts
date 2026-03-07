@@ -234,6 +234,44 @@ describe("API Integration Tests", () => {
     await expectStatus(res, 400);
   });
 
+  test("DELETE /api/conversations/{id} - should delete conversation", async () => {
+    if (!conversationId) {
+      return; // Skip if conversation not created
+    }
+    const res = await api(`/api/conversations/${conversationId}`, {
+      method: "DELETE",
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.message).toBeDefined();
+  });
+
+  test("GET /api/conversations/{id}/messages - should return 404 for deleted conversation", async () => {
+    if (!conversationId) {
+      return; // Skip if conversation was not created
+    }
+    const res = await api(`/api/conversations/${conversationId}/messages`);
+    await expectStatus(res, 404);
+  });
+
+  test("DELETE /api/conversations/{id} - should return 404 for nonexistent conversation", async () => {
+    const res = await api(
+      "/api/conversations/00000000-0000-0000-0000-000000000000",
+      {
+        method: "DELETE",
+      }
+    );
+    await expectStatus(res, 404);
+  });
+
+  test("DELETE /api/conversations/{id} - should return 400 for invalid UUID format", async () => {
+    const res = await api("/api/conversations/invalid-uuid", {
+      method: "DELETE",
+    });
+    await expectStatus(res, 400);
+  });
+
   // Networking
   test("GET /api/networking/attendees - should return array of attendees", async () => {
     const res = await api("/api/networking/attendees");
