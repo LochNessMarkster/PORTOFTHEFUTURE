@@ -4,7 +4,6 @@ import {
   View,
   Text,
   StyleSheet,
-  FlatList,
   TouchableOpacity,
   TextInput,
   ActivityIndicator,
@@ -12,13 +11,16 @@ import {
 } from 'react-native';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { SwipeListView } from 'react-native-swipe-list-view';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
 import {
   fetchNetworkingAttendees,
   NetworkingAttendee,
   fetchConversations,
   Conversation,
+  deleteConversation,
 } from '@/utils/airtable';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -41,6 +43,12 @@ export default function NetworkingScreen() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [conversationsError, setConversationsError] = useState<string | null>(null);
+
+  // Delete modal state
+  const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isErrorModalVisible, setErrorModalVisible] = useState(false);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
@@ -116,6 +124,39 @@ export default function NetworkingScreen() {
     }
   }, [activeTab, user?.email, loadConversations]);
 
+  const confirmDelete = (conversation: Conversation) => {
+    console.log('[User Action] Long press or swipe to delete conversation:', conversation.id);
+    setConversationToDelete(conversation);
+    setDeleteModalVisible(true);
+  };
+
+  const handleDeleteConfirmed = async () => {
+    if (!conversationToDelete) return;
+
+    const targetId = conversationToDelete.id;
+    console.log('[User Action] User confirmed delete for conversation:', targetId);
+    setDeleteModalVisible(false);
+    setConversationToDelete(null);
+
+    try {
+      await deleteConversation(targetId);
+      console.log('[API] Conversation deleted successfully:', targetId);
+      // Optimistic UI update: remove from list immediately
+      setConversations(prev => prev.filter(conv => conv.id !== targetId));
+      console.log('[UI] Conversation removed from list');
+    } catch (err) {
+      console.error('[API] Error deleting conversation:', err);
+      setDeleteError('Failed to delete conversation. Please try again.');
+      setErrorModalVisible(true);
+    }
+  };
+
+  const handleDeleteCancelled = () => {
+    console.log('[User Action] User cancelled delete');
+    setDeleteModalVisible(false);
+    setConversationToDelete(null);
+  };
+
   const getInitials = (name: string): string => {
     const parts = name.trim().split(' ');
     if (parts.length >= 2) {
@@ -142,7 +183,7 @@ export default function NetworkingScreen() {
         ? conversation.participant2_email
         : conversation.participant1_email;
     const otherName = conversation.other_participant_name || otherEmail;
-    console.log('[API] Opening conversation:', conversation.id);
+    console.log('[User Action] Opening conversation:', conversation.id);
     router.push({
       pathname: '/conversation/[id]',
       params: {
@@ -156,10 +197,12 @@ export default function NetworkingScreen() {
   const renderConversation = ({ item }: { item: Conversation }) => {
     const otherName = item.other_participant_name || item.participant2_email;
     const timeStr = formatConversationTime(item.last_message_at || item.created_at);
+    
     return (
       <TouchableOpacity
-        style={[styles.attendeeCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}
+        style={[styles.rowFront, { backgroundColor: cardBg, borderColor: borderColorValue }]}
         onPress={() => handleConversationPress(item)}
+        onLongPress={() => confirmDelete(item)}
         activeOpacity={0.7}
       >
         <View style={[styles.avatarCircle, { backgroundColor: colors.primary + '20' }]}>
@@ -172,16 +215,16 @@ export default function NetworkingScreen() {
             <Text style={[styles.attendeeName, { color: textColor }]} numberOfLines={1}>
               {otherName}
             </Text>
-            <Text style={[styles.attendeeTitle, { color: secondaryTextColor, fontSize: 12 }]}>
+            <Text style={[styles.timeText, { color: secondaryTextColor }]}>
               {timeStr}
             </Text>
           </View>
           {item.last_message ? (
-            <Text style={[styles.attendeeCompany, { color: secondaryTextColor }]} numberOfLines={1}>
+            <Text style={[styles.lastMessageText, { color: secondaryTextColor }]} numberOfLines={1}>
               {item.last_message}
             </Text>
           ) : (
-            <Text style={[styles.attendeeCompany, { color: secondaryTextColor }]} numberOfLines={1}>
+            <Text style={[styles.lastMessageText, { color: secondaryTextColor }]} numberOfLines={1}>
               No messages yet
             </Text>
           )}
@@ -196,8 +239,27 @@ export default function NetworkingScreen() {
     );
   };
 
+  const renderHiddenItem = ({ item }: { item: Conversation }) => {
+    return (
+      <View style={styles.rowBack}>
+        <TouchableOpacity
+          style={[styles.backRightBtn, styles.backRightBtnRight]}
+          onPress={() => confirmDelete(item)}
+        >
+          <IconSymbol
+            ios_icon_name="trash.fill"
+            android_material_icon_name="delete"
+            size={24}
+            color="#FFFFFF"
+          />
+          <Text style={styles.backTextWhite}>Delete</Text>
+        </TouchableOpacity>
+      </View>
+    );
+  };
+
   const handleAttendeePress = (attendee: NetworkingAttendee) => {
-    console.log('[API] Attendee pressed:', attendee.name);
+    console.log('[User Action] Attendee pressed:', attendee.name);
     router.push({
       pathname: '/attendee-detail',
       params: {
@@ -263,6 +325,132 @@ export default function NetworkingScreen() {
           </Text>
         </View>
       </View>
+    );
+  };
+
+  const renderAttendeesTab = () => {
+    if (loading) {
+      return (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading attendees...</Text>
+        </View>
+      );
+    }
+
+    if (error) {
+      return (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle.fill"
+            android_material_icon_name="warning"
+            size={48}
+            color={colors.error}
+          />
+          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={loadAttendees}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (filteredAttendees.length === 0) {
+      return (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="person.3.fill"
+            android_material_icon_name="people"
+            size={48}
+            color={secondaryTextColor}
+          />
+          <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+            {searchQuery ? 'No attendees found' : 'No attendees available'}
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <SwipeListView
+        data={filteredAttendees}
+        renderItem={renderAttendeeCard}
+        keyExtractor={(item) => item.email}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        disableRightSwipe={true}
+        rightOpenValue={0}
+      />
+    );
+  };
+
+  const renderMessagesTab = () => {
+    if (loadingConversations) {
+      return (
+        <View style={styles.centerContainer}>
+          <ActivityIndicator size="large" color={colors.primary} />
+          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading messages...</Text>
+        </View>
+      );
+    }
+
+    if (conversationsError) {
+      return (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="exclamationmark.triangle.fill"
+            android_material_icon_name="warning"
+            size={48}
+            color={colors.error}
+          />
+          <Text style={[styles.errorText, { color: colors.error }]}>{conversationsError}</Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={loadConversations}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      );
+    }
+
+    if (conversations.length === 0) {
+      return (
+        <View style={styles.centerContainer}>
+          <IconSymbol
+            ios_icon_name="message.fill"
+            android_material_icon_name="message"
+            size={64}
+            color={secondaryTextColor}
+          />
+          <Text style={[styles.emptyText, { color: secondaryTextColor, fontSize: 17, fontWeight: '600', marginBottom: 8 }]}>
+            No Messages Yet
+          </Text>
+          <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+            Tap an attendee in the Attendees tab to start a conversation.
+          </Text>
+        </View>
+      );
+    }
+
+    return (
+      <SwipeListView
+        data={conversations}
+        renderItem={renderConversation}
+        renderHiddenItem={renderHiddenItem}
+        keyExtractor={(item) => item.id}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        rightOpenValue={-75}
+        disableRightSwipe={true}
+        stopRightSwipe={-75}
+        previewRowKey={conversations[0]?.id}
+        previewOpenValue={-40}
+        previewOpenDelay={3000}
+      />
     );
   };
 
@@ -342,102 +530,36 @@ export default function NetworkingScreen() {
               </View>
             </View>
 
-            {loading ? (
-              <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading attendees...</Text>
-              </View>
-            ) : error ? (
-              <View style={styles.centerContainer}>
-                <IconSymbol
-                  ios_icon_name="exclamationmark.triangle.fill"
-                  android_material_icon_name="warning"
-                  size={48}
-                  color={colors.error}
-                />
-                <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-                <TouchableOpacity
-                  style={[styles.retryButton, { backgroundColor: colors.primary }]}
-                  onPress={loadAttendees}
-                >
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            ) : filteredAttendees.length === 0 ? (
-              <View style={styles.centerContainer}>
-                <IconSymbol
-                  ios_icon_name="person.3.fill"
-                  android_material_icon_name="people"
-                  size={48}
-                  color={secondaryTextColor}
-                />
-                <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-                  {searchQuery ? 'No attendees found' : 'No attendees available'}
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={filteredAttendees}
-                renderItem={renderAttendeeCard}
-                keyExtractor={(item) => item.email}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-              />
-            )}
+            {renderAttendeesTab()}
           </>
         ) : (
-          /* Messages Tab */
           <>
             {/* Messaging Guideline Notice */}
             {renderMessagingGuideline()}
 
-            {loadingConversations ? (
-              <View style={styles.centerContainer}>
-                <ActivityIndicator size="large" color={colors.primary} />
-                <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading messages...</Text>
-              </View>
-            ) : conversationsError ? (
-              <View style={styles.centerContainer}>
-                <IconSymbol
-                  ios_icon_name="exclamationmark.triangle.fill"
-                  android_material_icon_name="warning"
-                  size={48}
-                  color={colors.error}
-                />
-                <Text style={[styles.errorText, { color: colors.error }]}>{conversationsError}</Text>
-                <TouchableOpacity
-                  style={[styles.retryButton, { backgroundColor: colors.primary }]}
-                  onPress={loadConversations}
-                >
-                  <Text style={styles.retryButtonText}>Retry</Text>
-                </TouchableOpacity>
-              </View>
-            ) : conversations.length === 0 ? (
-              <View style={styles.centerContainer}>
-                <IconSymbol
-                  ios_icon_name="message.fill"
-                  android_material_icon_name="message"
-                  size={64}
-                  color={secondaryTextColor}
-                />
-                <Text style={[styles.emptyText, { color: secondaryTextColor, fontSize: 17, fontWeight: '600', marginBottom: 8 }]}>
-                  No Messages Yet
-                </Text>
-                <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-                  Tap an attendee in the Attendees tab to start a conversation.
-                </Text>
-              </View>
-            ) : (
-              <FlatList
-                data={conversations}
-                renderItem={renderConversation}
-                keyExtractor={(item) => item.id}
-                contentContainerStyle={styles.listContent}
-                showsVerticalScrollIndicator={false}
-              />
-            )}
+            {renderMessagesTab()}
           </>
         )}
+
+        {/* Delete Confirmation Modal */}
+        <ConfirmDeleteModal
+          isVisible={isDeleteModalVisible}
+          title="Delete Conversation"
+          message={`Are you sure you want to delete this conversation? This action cannot be undone.`}
+          onConfirm={handleDeleteConfirmed}
+          onCancel={handleDeleteCancelled}
+        />
+
+        {/* Error Modal */}
+        <ConfirmDeleteModal
+          isVisible={isErrorModalVisible}
+          title="Error"
+          message={deleteError || 'An unexpected error occurred.'}
+          onConfirm={() => { setErrorModalVisible(false); setDeleteError(null); }}
+          onCancel={() => { setErrorModalVisible(false); setDeleteError(null); }}
+          confirmLabel="OK"
+          hideCancel={true}
+        />
       </SafeAreaView>
     </>
   );
@@ -548,6 +670,46 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  rowFront: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  rowBack: {
+    alignItems: 'center',
+    backgroundColor: '#FF3B30',
+    flex: 1,
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    paddingRight: 15,
+    marginBottom: 12,
+    borderRadius: 12,
+  },
+  backRightBtn: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: 75,
+    height: '100%',
+  },
+  backRightBtnRight: {
+    backgroundColor: '#FF3B30',
+    borderTopRightRadius: 12,
+    borderBottomRightRadius: 12,
+  },
+  backTextWhite: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontWeight: '600',
+    marginTop: 4,
+  },
   avatarCircle: {
     width: 50,
     height: 50,
@@ -567,6 +729,7 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '600',
     marginBottom: 2,
+    flex: 1,
   },
   attendeeTitle: {
     fontSize: 14,
@@ -574,5 +737,13 @@ const styles = StyleSheet.create({
   },
   attendeeCompany: {
     fontSize: 14,
+  },
+  timeText: {
+    fontSize: 12,
+    marginLeft: 8,
+  },
+  lastMessageText: {
+    fontSize: 14,
+    marginTop: 2,
   },
 });
