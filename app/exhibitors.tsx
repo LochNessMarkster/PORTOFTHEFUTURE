@@ -52,9 +52,18 @@ export default function ExhibitorsScreen() {
     try {
       setError(null);
       const response = await fetchExhibitors();
-      console.log('[Exhibitors] Loaded:', response.exhibitors.length, 'source:', response.source_used);
-      setExhibitors(response.exhibitors);
-      setFilteredExhibitors(response.exhibitors);
+      console.log('[Exhibitors] Response received:', {
+        count: response.exhibitors?.length || 0,
+        source: response.source_used,
+        updated_at: response.updated_at
+      });
+      
+      // Validate and filter exhibitors with names
+      const validExhibitors = (response.exhibitors || []).filter(e => e && e.name);
+      console.log('[Exhibitors] Valid exhibitors (with name):', validExhibitors.length);
+      
+      setExhibitors(validExhibitors);
+      setFilteredExhibitors(validExhibitors);
     } catch (err) {
       console.error('[Exhibitors] Error loading exhibitors:', err);
       const errorMessage = err instanceof Error ? err.message : 'Unable to load exhibitors. Pull to refresh.';
@@ -84,7 +93,7 @@ export default function ExhibitorsScreen() {
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(exhibitor => {
-        const nameMatch = exhibitor.name.toLowerCase().includes(query);
+        const nameMatch = exhibitor.name?.toLowerCase().includes(query);
         const boothMatch = exhibitor.boothNumber?.toLowerCase().includes(query);
         return nameMatch || boothMatch;
       });
@@ -93,7 +102,7 @@ export default function ExhibitorsScreen() {
     // Filter by selected letter
     if (selectedLetter) {
       filtered = filtered.filter(exhibitor => 
-        exhibitor.name.toUpperCase().startsWith(selectedLetter)
+        exhibitor.name?.toUpperCase().startsWith(selectedLetter)
       );
     }
 
@@ -127,9 +136,11 @@ export default function ExhibitorsScreen() {
   const availableLetters = useMemo(() => {
     const letters = new Set<string>();
     exhibitors.forEach(exhibitor => {
-      const firstLetter = exhibitor.name.charAt(0).toUpperCase();
-      if (ALPHABET.includes(firstLetter)) {
-        letters.add(firstLetter);
+      if (exhibitor.name) {
+        const firstLetter = exhibitor.name.charAt(0).toUpperCase();
+        if (ALPHABET.includes(firstLetter)) {
+          letters.add(firstLetter);
+        }
       }
     });
     return letters;
@@ -164,7 +175,7 @@ export default function ExhibitorsScreen() {
           )}
         </View>
         <Text style={[styles.exhibitorName, { color: textColor }]} numberOfLines={2}>
-          {item.name}
+          {item.name || 'Unnamed Exhibitor'}
         </Text>
         {hasBoothNumber && (
           <View style={[styles.boothBadge, { backgroundColor: colors.primary + '20' }]}>
@@ -184,12 +195,7 @@ export default function ExhibitorsScreen() {
     <>
       <Stack.Screen
         options={{
-          headerShown: true,
-          title: 'Exhibitors',
-          headerStyle: {
-            backgroundColor: isDark ? colors.backgroundDark : colors.background,
-          },
-          headerTintColor: textColor,
+          headerShown: false,
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
