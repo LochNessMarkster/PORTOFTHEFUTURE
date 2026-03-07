@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { StyleSheet, View, Text, ScrollView, useColorScheme, TouchableOpacity, Image, ActivityIndicator, ImageSourcePropType, RefreshControl, Dimensions } from "react-native";
+import { StyleSheet, View, Text, ScrollView, useColorScheme, TouchableOpacity, Image, ActivityIndicator, ImageSourcePropType, RefreshControl, Dimensions, Animated } from "react-native";
 import { Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useAuth } from "@/contexts/AuthContext";
@@ -41,6 +41,94 @@ const navigationCards: NavigationCard[] = [
 
 const CONFERENCE_DATES = "March 24 - 25, 2026";
 const CONFERENCE_LOCATION = "Houston, TX";
+
+// Animated Card Component with tap interaction
+function AnimatedNavCard({ card, onPress }: { card: NavigationCard; onPress: () => void }) {
+  const scaleAnim = new Animated.Value(1);
+  const bgOpacityAnim = new Animated.Value(0);
+
+  const handlePressIn = () => {
+    console.log('Card press in:', card.title);
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 0.95,
+        useNativeDriver: true,
+        speed: 50,
+        bounciness: 4,
+      }),
+      Animated.timing(bgOpacityAnim, {
+        toValue: 1,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const handlePressOut = () => {
+    console.log('Card press out:', card.title);
+    Animated.parallel([
+      Animated.spring(scaleAnim, {
+        toValue: 1,
+        useNativeDriver: true,
+        speed: 50,
+        bounciness: 4,
+      }),
+      Animated.timing(bgOpacityAnim, {
+        toValue: 0,
+        duration: 150,
+        useNativeDriver: true,
+      }),
+    ]).start();
+  };
+
+  const cardTitle = card.title;
+
+  return (
+    <View style={styles.navCardWrapper}>
+      <TouchableOpacity
+        onPress={onPress}
+        onPressIn={handlePressIn}
+        onPressOut={handlePressOut}
+        activeOpacity={1}
+      >
+        <Animated.View
+          style={[
+            styles.navCard,
+            {
+              transform: [{ scale: scaleAnim }],
+            },
+          ]}
+        >
+          <Animated.View
+            style={[
+              styles.pressOverlay,
+              {
+                opacity: bgOpacityAnim,
+              },
+            ]}
+          />
+          <View style={styles.iconContainer}>
+            <IconSymbol
+              ios_icon_name={card.ios_icon}
+              android_material_icon_name={card.android_icon}
+              size={36}
+              color={colors.accent}
+            />
+          </View>
+          <View style={styles.labelContainer}>
+            <Text 
+              style={styles.navCardTitle}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {cardTitle}
+            </Text>
+          </View>
+        </Animated.View>
+      </TouchableOpacity>
+    </View>
+  );
+}
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
@@ -211,37 +299,13 @@ export default function HomeScreen() {
 
           {/* Navigation Cards Grid - 3x3 Layout */}
           <View style={styles.gridContainer}>
-            {navigationCards.map((card) => {
-              const cardTitle = card.title;
-              
-              return (
-                <View key={card.id} style={styles.navCardWrapper}>
-                  <TouchableOpacity
-                    style={styles.navCard}
-                    onPress={() => handleCardPress(card)}
-                    activeOpacity={0.7}
-                  >
-                    <View style={styles.iconContainer}>
-                      <IconSymbol
-                        ios_icon_name={card.ios_icon}
-                        android_material_icon_name={card.android_icon}
-                        size={32}
-                        color={colors.accent}
-                      />
-                    </View>
-                    <View style={styles.labelContainer}>
-                      <Text 
-                        style={styles.navCardTitle}
-                        numberOfLines={1}
-                        ellipsizeMode="tail"
-                      >
-                        {cardTitle}
-                      </Text>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              );
-            })}
+            {navigationCards.map((card) => (
+              <AnimatedNavCard
+                key={card.id}
+                card={card}
+                onPress={() => handleCardPress(card)}
+              />
+            ))}
           </View>
 
           {/* My Schedule Button - Full Width */}
@@ -448,17 +512,28 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     height: 110,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 6,
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  pressOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: colors.accent,
+    opacity: 0,
   },
   iconContainer: {
     width: 48,
     height: 48,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   labelContainer: {
     width: '100%',
