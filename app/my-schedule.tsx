@@ -1,5 +1,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { Stack, useRouter, useFocusEffect } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -10,40 +12,33 @@ import {
   useColorScheme,
   RefreshControl,
 } from 'react-native';
-import { colors } from '@/styles/commonStyles';
+import { IconSymbol } from '@/components/IconSymbol';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { fetchAgenda, AgendaItem } from '@/utils/airtable';
-import { Stack, useRouter, useFocusEffect } from 'expo-router';
-import { IconSymbol } from '@/components/IconSymbol';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { colors } from '@/styles/commonStyles';
 import { getSessionStatus } from '@/utils/timeUtils';
 import { NowNextSection } from '@/components/NowNextSection';
 import { WiFiBanner } from '@/components/WiFiBanner';
 
 const BOOKMARKS_KEY = '@agenda_bookmarks';
 
-// Track color mapping - consistent across the app
+// Track color mapping - consistent with agenda.tsx
 const TRACK_COLORS: Record<string, string> = {
-  // 9 Conference Tracks
-  'Track 1 - Ensuring America\'s Maritime Security': '#3B82F6', // Blue
-  'Track 2 - Developing Ports': '#10B981', // Green
-  'Track 3 - Intermodal Connectivity': '#A855F7', // Purple
-  'Track 4 - Enhancing Ports\' Operational Efficiencies': '#14B8A6', // Teal
-  'Track 5 - Port Infrastructure 4.0': '#F59E0B', // Orange
-  'Track 6 - Decarbonization and Alternative Fuels': '#EF4444', // Red
-  'Track 7 - Port Energy and Sustainability': '#EAB308', // Yellow
-  'Track 8 - Port Security, Cybersecurity, & Emergency Management': '#6366F1', // Indigo
-  'Track 9 - Advances in Dredging Technology and Methods': '#EC4899', // Pink
-  
-  // Breaks
-  'Break': '#6B7280', // Gray
-  
-  // Events
-  'Special Event': '#F59E0B', // Gold
-  'Pre-Conference / Social': '#F59E0B', // Gold
-  'Keynote & Plenary': '#F59E0B', // Gold
-  'Luncheon (By Invitation)': '#F59E0B', // Gold
-  'Pre-Conference': '#F59E0B', // Gold
+  'Track 1 - Ensuring America\'s Maritime Security': '#3B82F6',
+  'Track 2 - Developing Ports': '#10B981',
+  'Track 3 - Intermodal Connectivity': '#A855F7',
+  'Track 4 - Enhancing Ports\' Operational Efficiencies': '#14B8A6',
+  'Track 5 - Port Infrastructure 4.0': '#F59E0B',
+  'Track 6 - Decarbonization and Alternative Fuels': '#EF4444',
+  'Track 7 - Port Energy and Sustainability': '#EAB308',
+  'Track 8 - Port Security, Cybersecurity, & Emergency Management': '#6366F1',
+  'Track 9 - Advances in Dredging Technology and Methods': '#EC4899',
+  'Break': '#6B7280',
+  'Special Event': '#F59E0B',
+  'Pre-Conference / Social': '#F59E0B',
+  'Keynote & Plenary': '#F59E0B',
+  'Luncheon (By Invitation)': '#F59E0B',
+  'Pre-Conference': '#F59E0B',
 };
 
 interface GroupedSession {
@@ -57,97 +52,95 @@ export default function MyScheduleScreen() {
 
   const [allSessions, setAllSessions] = useState<AgendaItem[]>([]);
   const [bookmarkedSessions, setBookmarkedSessions] = useState<Set<string>>(new Set());
-  const [groupedSessions, setGroupedSessions] = useState<GroupedSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // Reload bookmarks when screen comes into focus
+  // Load bookmarks and sessions on mount
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Reload bookmarks when screen comes into focus (user might have added/removed bookmarks from agenda)
   useFocusEffect(
     useCallback(() => {
-      console.log('[My Schedule] Screen focused, reloading bookmarks');
+      console.log('[MySchedule] Screen focused - reloading bookmarks');
       loadBookmarks();
     }, [])
   );
 
-  useEffect(() => {
-    loadAgenda();
-  }, []);
-
-  useEffect(() => {
-    groupByDate();
-  }, [allSessions, bookmarkedSessions]);
+  const loadData = async () => {
+    console.log('[MySchedule] Loading data...');
+    await Promise.all([loadBookmarks(), loadSessions()]);
+  };
 
   const loadBookmarks = async () => {
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      
       if (stored) {
-        const bookmarks = JSON.parse(stored);
-        setBookmarkedSessions(new Set(bookmarks));
-        console.log('[My Schedule] Loaded bookmarks:', bookmarks.length);
+        const parsed = JSON.parse(stored);
+        
+        if (Array.isArray(parsed)) {
+          const bookmarks = new Set(parsed);
+          setBookmarkedSessions(bookmarks);
+          console.log('[MySchedule] Loaded bookmarks:', bookmarks.size, 'sessions');
+        } else {
+          console.log('[MySchedule] Bookmarks not an array, resetting');
+          setBookmarkedSessions(new Set());
+        }
       } else {
+        console.log('[MySchedule] No bookmarks found');
         setBookmarkedSessions(new Set());
       }
     } catch (err: any) {
-      console.error('[My Schedule] Error loading bookmarks:', err);
-      console.error('[My Schedule] Error details:', {
-        message: err?.message,
-        name: err?.name,
-        type: err?.type,
-      });
-      // Gracefully handle AsyncStorage errors - continue with empty bookmarks
+      // Gracefully handle AsyncStorage errors
+      console.log('[MySchedule] Storage unavailable, using in-memory bookmarks only');
       setBookmarkedSessions(new Set());
     }
   };
 
-  const loadAgenda = useCallback(async () => {
-    console.log('[My Schedule] Fetching agenda...');
+  const loadSessions = async () => {
     try {
       if (!refreshing) {
         setLoading(true);
       }
+      setError(null);
 
       const data = await fetchAgenda();
-      console.log('[My Schedule] Received agenda:', data.agenda?.length || 0, 'sessions');
-
-      // Filter to only March 23-25, 2026
-      const filteredSessions = (data.agenda || []).filter(session => {
-        const date = session.Date;
-        return date === '2026-03-23' || date === '2026-03-24' || date === '2026-03-25';
-      });
-
-      setAllSessions(filteredSessions);
+      console.log('[MySchedule] Sessions loaded:', data.agenda?.length || 0);
+      
+      setAllSessions(data.agenda || []);
     } catch (err) {
-      console.error('[My Schedule] Error fetching agenda:', err);
+      console.error('[MySchedule] Error fetching sessions:', err);
+      setError('Unable to load sessions. Pull to refresh.');
       setAllSessions([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  }, [refreshing]);
+  };
 
-  const groupByDate = () => {
-    console.log('[My Schedule] Grouping sessions by date');
-    
-    // Filter sessions that are bookmarked
-    const bookmarked = allSessions.filter(session => 
-      bookmarkedSessions.has(session.id)
-    );
+  // Filter sessions to only show bookmarked ones
+  const myScheduleSessions = allSessions.filter(session => 
+    bookmarkedSessions.has(session.id)
+  );
 
-    console.log('[My Schedule] Bookmarked sessions:', bookmarked.length);
+  // Group sessions by date
+  const groupedSessions = useCallback((): GroupedSession[] => {
+    const groups: { [date: string]: AgendaItem[] } = {};
 
-    // Group by date
-    const dateMap = new Map<string, AgendaItem[]>();
-    bookmarked.forEach(session => {
-      const date = session.Date || '';
-      if (!dateMap.has(date)) {
-        dateMap.set(date, []);
+    myScheduleSessions.forEach(session => {
+      const date = session.Date;
+      if (!groups[date]) {
+        groups[date] = [];
       }
-      dateMap.get(date)!.push(session);
+      groups[date].push(session);
     });
 
     // Sort sessions within each date by start time
-    dateMap.forEach((sessions, date) => {
-      sessions.sort((a, b) => {
+    Object.keys(groups).forEach(date => {
+      groups[date].sort((a, b) => {
         const timeA = a.StartTime || '';
         const timeB = b.StartTime || '';
         return timeA.localeCompare(timeB);
@@ -155,50 +148,30 @@ export default function MyScheduleScreen() {
     });
 
     // Convert to array and sort by date
-    const grouped: GroupedSession[] = Array.from(dateMap.entries())
-      .map(([date, sessions]) => ({ date, sessions }))
-      .sort((a, b) => a.date.localeCompare(b.date));
+    const result = Object.keys(groups)
+      .sort()
+      .map(date => ({
+        date,
+        sessions: groups[date],
+      }));
 
-    console.log('[My Schedule] Grouped into', grouped.length, 'dates');
-    setGroupedSessions(grouped);
-  };
+    console.log('[MySchedule] Grouped into', result.length, 'dates');
+    return result;
+  }, [myScheduleSessions]);
 
   const onRefresh = () => {
-    console.log('[My Schedule] User initiated refresh');
+    console.log('[MySchedule] User initiated refresh');
     setRefreshing(true);
-    loadBookmarks();
-    loadAgenda();
+    loadData();
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string): string => {
     if (!dateString) return '';
-    // Parse YYYY-MM-DD directly without timezone conversion
     const parts = dateString.split('-');
     if (parts.length !== 3) return dateString;
     
     const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
-    const day = parseInt(parts[2], 10);
-    
-    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-    
-    // Create date in local timezone
-    const date = new Date(year, month, day);
-    const weekday = weekdays[date.getDay()];
-    const monthName = months[month];
-    
-    return `${weekday}, ${monthName} ${day}, ${year}`;
-  };
-
-  const formatShortDate = (dateString: string): string => {
-    if (!dateString) return '';
-    // Parse YYYY-MM-DD directly without timezone conversion
-    const parts = dateString.split('-');
-    if (parts.length !== 3) return dateString;
-    
-    const year = parseInt(parts[0], 10);
-    const month = parseInt(parts[1], 10) - 1; // Month is 0-indexed
+    const month = parseInt(parts[1], 10) - 1;
     const day = parseInt(parts[2], 10);
     
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
@@ -207,8 +180,22 @@ export default function MyScheduleScreen() {
     return `${monthName} ${day}, ${year}`;
   };
 
+  const formatShortDate = (dateString: string): string => {
+    if (!dateString) return '';
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const monthName = months[month];
+    
+    return `${monthName} ${day}`;
+  };
+
   const handleSessionPress = (item: AgendaItem) => {
-    console.log('[My Schedule] Session pressed:', item.Title);
+    console.log('[MySchedule] Session pressed:', item.Title);
     router.push({
       pathname: '/agenda-detail',
       params: {
@@ -228,24 +215,17 @@ export default function MyScheduleScreen() {
   };
 
   const removeBookmark = async (sessionId: string) => {
-    console.log('[My Schedule] Removing bookmark:', sessionId);
+    console.log('[MySchedule] Removing bookmark:', sessionId);
+    const newBookmarks = new Set(bookmarkedSessions);
+    newBookmarks.delete(sessionId);
+    setBookmarkedSessions(newBookmarks);
+    
     try {
-      const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      let bookmarks: string[] = stored ? JSON.parse(stored) : [];
-      bookmarks = bookmarks.filter(id => id !== sessionId);
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-      setBookmarkedSessions(new Set(bookmarks));
+      const bookmarksArray = Array.from(newBookmarks);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
+      console.log('[MySchedule] Bookmark removed and saved');
     } catch (err: any) {
-      console.error('[My Schedule] Error removing bookmark:', err);
-      console.error('[My Schedule] Error details:', {
-        message: err?.message,
-        name: err?.name,
-        type: err?.type,
-      });
-      // Gracefully handle error - update UI anyway
-      const newBookmarks = new Set(bookmarkedSessions);
-      newBookmarks.delete(sessionId);
-      setBookmarkedSessions(newBookmarks);
+      console.log('[MySchedule] Storage unavailable, bookmark removal will not persist');
     }
   };
 
@@ -260,14 +240,11 @@ export default function MyScheduleScreen() {
       : item.SpeakerNames || '';
     
     const trackColor = getTrackColor(item.TypeTrack);
-
-    // Format date and time display
-    const dateDisplay = formatShortDate(item.Date);
+    const dateDisplay = formatDate(item.Date);
     const timeDisplay = item.EndTime 
       ? `${item.StartTime} - ${item.EndTime}`
       : item.StartTime;
 
-    // Get session status (now/next)
     const status = item.EndTime ? getSessionStatus(item.Date, item.StartTime, item.EndTime) : null;
 
     return (
@@ -307,22 +284,16 @@ export default function MyScheduleScreen() {
         </View>
 
         <View style={styles.sessionInfo}>
-          <Text style={styles.sessionDate}>
-            {dateDisplay}
-          </Text>
+          <Text style={styles.sessionDate}>{dateDisplay}</Text>
         </View>
 
         <View style={styles.sessionInfo}>
-          <Text style={styles.sessionTime}>
-            {timeDisplay}
-          </Text>
+          <Text style={styles.sessionTime}>{timeDisplay}</Text>
         </View>
 
         {item.Room && (
           <View style={styles.sessionInfo}>
-            <Text style={styles.sessionRoom}>
-              {item.Room}
-            </Text>
+            <Text style={styles.sessionRoom}>{item.Room}</Text>
           </View>
         )}
 
@@ -343,7 +314,10 @@ export default function MyScheduleScreen() {
                 borderColor: trackColor,
               }
             ]}>
-              <Text style={[styles.trackBadgeText, { color: trackColor }]}>
+              <Text style={[
+                styles.trackBadgeText,
+                { color: trackColor }
+              ]}>
                 {item.TypeTrack}
               </Text>
             </View>
@@ -354,16 +328,15 @@ export default function MyScheduleScreen() {
   };
 
   const renderDateSection = ({ item }: { item: GroupedSession }) => {
-    const formattedDate = formatDate(item.date);
+    const shortDate = formatShortDate(item.date);
     
     return (
       <View style={styles.dateSection}>
         <View style={styles.dateSectionHeader}>
-          <Text style={styles.dateSectionTitle}>
-            {formattedDate}
-          </Text>
+          <Text style={styles.dateSectionTitle}>{shortDate}</Text>
+          <View style={styles.dateSectionDivider} />
         </View>
-        {item.sessions.map((session, index) => (
+        {item.sessions.map((session) => (
           <View key={session.id}>
             {renderSessionCard({ item: session })}
           </View>
@@ -372,24 +345,25 @@ export default function MyScheduleScreen() {
     );
   };
 
-  const renderHeader = () => {
-    return (
-      <>
-        {/* Wi-Fi Banner - Only on My Schedule screen */}
-        <WiFiBanner />
-        
-        {/* Now/Next Section */}
-        {groupedSessions.length > 0 && <NowNextSection />}
-      </>
-    );
-  };
+  const renderHeader = () => (
+    <>
+      <NowNextSection />
+      <WiFiBanner />
+      <View style={styles.headerContainer}>
+        <Text style={styles.headerTitle}>My Schedule</Text>
+        <Text style={styles.headerSubtitle}>
+          {myScheduleSessions.length} {myScheduleSessions.length === 1 ? 'session' : 'sessions'} saved
+        </Text>
+      </View>
+    </>
+  );
 
   return (
     <>
       <Stack.Screen 
         options={{ 
-          headerShown: true,
           title: 'My Schedule',
+          headerShown: true,
           headerStyle: {
             backgroundColor: colors.background,
           },
@@ -400,11 +374,25 @@ export default function MyScheduleScreen() {
         {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.accent} />
-            <Text style={styles.loadingText}>
-              Loading your schedule...
-            </Text>
+            <Text style={styles.loadingText}>Loading your schedule...</Text>
           </View>
-        ) : groupedSessions.length === 0 ? (
+        ) : error ? (
+          <View style={styles.errorContainer}>
+            <IconSymbol
+              ios_icon_name="exclamationmark.triangle.fill"
+              android_material_icon_name="warning"
+              size={48}
+              color={colors.error}
+            />
+            <Text style={styles.errorText}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={loadData}
+            >
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
+        ) : myScheduleSessions.length === 0 ? (
           <View style={styles.emptyContainer}>
             <IconSymbol
               ios_icon_name="bookmark"
@@ -412,11 +400,9 @@ export default function MyScheduleScreen() {
               size={64}
               color={colors.textSecondary}
             />
-            <Text style={styles.emptyTitle}>
-              No Sessions Saved
-            </Text>
-            <Text style={styles.emptyText}>
-              Tap the bookmark icon on any session in the Agenda to add it to your schedule.
+            <Text style={styles.emptyTitle}>No sessions saved yet</Text>
+            <Text style={styles.emptySubtitle}>
+              Tap the bookmark icon on any session in the Agenda to add it to your schedule
             </Text>
             <TouchableOpacity
               style={styles.browseButton}
@@ -427,7 +413,7 @@ export default function MyScheduleScreen() {
           </View>
         ) : (
           <FlatList
-            data={groupedSessions}
+            data={groupedSessions()}
             keyExtractor={(item) => item.date}
             renderItem={renderDateSection}
             ListHeaderComponent={renderHeader}
@@ -452,6 +438,22 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: colors.background,
   },
+  headerContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  headerTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 14,
+    color: colors.textSecondary,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
@@ -462,6 +464,30 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 15,
     color: colors.textSecondary,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  errorText: {
+    fontSize: 15,
+    marginTop: 12,
+    textAlign: 'center',
+    color: colors.error,
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 12,
+    backgroundColor: colors.accent,
+  },
+  retryButtonText: {
+    color: colors.text,
+    fontSize: 15,
+    fontWeight: '600',
   },
   emptyContainer: {
     flex: 1,
@@ -476,18 +502,18 @@ const styles = StyleSheet.create({
     marginTop: 16,
     marginBottom: 8,
   },
-  emptyText: {
+  emptySubtitle: {
     fontSize: 15,
-    textAlign: 'center',
     color: colors.textSecondary,
-    lineHeight: 22,
+    textAlign: 'center',
     marginBottom: 24,
+    lineHeight: 22,
   },
   browseButton: {
-    backgroundColor: colors.accent,
     paddingHorizontal: 24,
-    paddingVertical: 12,
+    paddingVertical: 14,
     borderRadius: 12,
+    backgroundColor: colors.accent,
   },
   browseButtonText: {
     color: colors.text,
@@ -495,23 +521,31 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   listContent: {
-    padding: 16,
+    paddingBottom: 16,
   },
   dateSection: {
     marginBottom: 24,
   },
   dateSectionHeader: {
+    paddingHorizontal: 16,
     marginBottom: 12,
   },
   dateSectionTitle: {
-    fontSize: 20,
+    fontSize: 18,
     fontWeight: '700',
     color: colors.text,
+    marginBottom: 8,
+  },
+  dateSectionDivider: {
+    height: 2,
+    backgroundColor: colors.border,
+    borderRadius: 1,
   },
   sessionCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
     padding: 16,
+    marginHorizontal: 16,
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
