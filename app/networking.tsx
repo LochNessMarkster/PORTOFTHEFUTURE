@@ -22,8 +22,6 @@ import {
 } from '@/utils/airtable';
 import { useAuth } from '@/contexts/AuthContext';
 
-
-
 export default function NetworkingScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
@@ -248,6 +246,26 @@ export default function NetworkingScreen() {
     );
   };
 
+  const renderMessagingGuideline = () => {
+    return (
+      <View style={[styles.guidelineContainer, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+        <View style={styles.guidelineIconContainer}>
+          <IconSymbol
+            ios_icon_name="info.circle.fill"
+            android_material_icon_name="info"
+            size={20}
+            color={colors.accent}
+          />
+        </View>
+        <View style={styles.guidelineTextContainer}>
+          <Text style={[styles.guidelineText, { color: textColor }]}>
+            Please communicate respectfully. Inappropriate messages can be reported to conference administrators.
+          </Text>
+        </View>
+      </View>
+    );
+  };
+
   return (
     <>
       <Stack.Screen
@@ -370,6 +388,9 @@ export default function NetworkingScreen() {
         ) : (
           /* Messages Tab */
           <>
+            {/* Messaging Guideline Notice */}
+            {renderMessagingGuideline()}
+
             {loadingConversations ? (
               <View style={styles.centerContainer}>
                 <ActivityIndicator size="large" color={colors.primary} />
@@ -441,6 +462,27 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 15,
     fontWeight: '600',
+  },
+  guidelineContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  guidelineIconContainer: {
+    marginRight: 10,
+    marginTop: 2,
+  },
+  guidelineTextContainer: {
+    flex: 1,
+  },
+  guidelineText: {
+    fontSize: 13,
+    lineHeight: 18,
   },
   searchContainer: {
     paddingHorizontal: 16,

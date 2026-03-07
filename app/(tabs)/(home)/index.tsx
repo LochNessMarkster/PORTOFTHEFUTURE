@@ -8,6 +8,7 @@ import { colors } from "@/styles/commonStyles";
 import { IconSymbol } from "@/components/IconSymbol";
 import { fetchAnnouncements, type AnnouncementItem } from "@/utils/airtable";
 import { NowNextSection } from "@/components/NowNextSection";
+import { MessagingNoticeModal } from "@/components/MessagingNoticeModal";
 
 // Helper to resolve image sources (handles both local require() and remote URLs)
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
@@ -132,17 +133,33 @@ function AnimatedNavCard({ card, onPress }: { card: NavigationCard; onPress: () 
 
 export default function HomeScreen() {
   const colorScheme = useColorScheme();
-  const { user } = useAuth();
+  const { user, isFirstLogin, markMessagingNoticeShown } = useAuth();
   const router = useRouter();
 
   const [announcements, setAnnouncements] = useState<Announcement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [showMessagingNotice, setShowMessagingNotice] = useState(false);
 
   useEffect(() => {
-    loadAnnouncements();
+    const loadAnnouncementsData = async () => {
+      await loadAnnouncements();
+    };
+    loadAnnouncementsData();
   }, []);
+
+  // Show messaging notice modal after first login
+  useEffect(() => {
+    if (isFirstLogin) {
+      console.log('[Home] First login detected - showing messaging notice after delay');
+      // Show modal after a short delay to ensure UI is ready
+      const timer = setTimeout(() => {
+        setShowMessagingNotice(true);
+      }, 800);
+      return () => clearTimeout(timer);
+    }
+  }, [isFirstLogin]);
 
   const loadAnnouncements = async () => {
     console.log('[API] Fetching announcements from backend proxy...');
@@ -176,6 +193,12 @@ export default function HomeScreen() {
     console.log('[API] User initiated refresh');
     setRefreshing(true);
     loadAnnouncements();
+  };
+
+  const handleCloseMessagingNotice = async () => {
+    console.log('[Home] User dismissed messaging notice');
+    setShowMessagingNotice(false);
+    await markMessagingNoticeShown();
   };
 
   const handleCardPress = (card: NavigationCard) => {
@@ -433,6 +456,12 @@ export default function HomeScreen() {
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      {/* Messaging Notice Modal - Shows once after first login */}
+      <MessagingNoticeModal
+        visible={showMessagingNotice}
+        onClose={handleCloseMessagingNotice}
+      />
     </>
   );
 }
