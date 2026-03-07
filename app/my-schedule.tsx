@@ -123,6 +123,7 @@ export default function MyScheduleScreen() {
       });
 
       setAllSessions(filteredSessions);
+      console.log('[My Schedule] Total sessions:', filteredSessions.length);
     } catch (err) {
       console.error('[My Schedule] Error fetching agenda:', err);
       setAllSessions([]);
@@ -388,10 +389,10 @@ export default function MyScheduleScreen() {
             {formattedDate}
           </Text>
         </View>
-        {item.sessions.map((session, index) => (
-          <View key={session.id}>
+        {item.sessions.map((session) => (
+          <React.Fragment key={session.id}>
             {renderSessionCard({ item: session })}
-          </View>
+          </React.Fragment>
         ))}
       </View>
     );
@@ -399,13 +400,10 @@ export default function MyScheduleScreen() {
 
   const renderHeader = () => {
     return (
-      <>
-        {/* Wi-Fi Banner - Only on My Schedule screen */}
+      <View>
         <WiFiBanner />
-        
-        {/* Now/Next Section */}
         {groupedSessions.length > 0 && <NowNextSection />}
-      </>
+      </View>
     );
   };
 
