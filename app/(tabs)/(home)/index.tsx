@@ -443,7 +443,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 16,
     paddingVertical: 14,
-    paddingHorizontal: 8,
+    paddingHorizontal: 6,
     alignItems: 'center',
     justifyContent: 'center',
     height: 110,
@@ -467,7 +467,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   navCardTitle: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '600',
     textAlign: 'center',
     color: colors.text,
