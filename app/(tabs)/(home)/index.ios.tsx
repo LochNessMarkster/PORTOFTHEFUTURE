@@ -69,7 +69,11 @@ export default function HomeScreen() {
       console.log('[API] Source used:', data.source_used);
       console.log('[API] Updated at:', data.updated_at);
 
-      setAnnouncements(data.announcements || []);
+      // Validate announcements have required fields
+      const validAnnouncements = (data.announcements || []).filter(a => a && a.Title && a.Content);
+      console.log('[API] Valid announcements (with Title and Content):', validAnnouncements.length);
+
+      setAnnouncements(validAnnouncements);
     } catch (err) {
       console.error('[API] Error fetching announcements:', err);
       setError('Announcements unavailable. Pull to refresh.');
@@ -134,10 +138,10 @@ export default function HomeScreen() {
       pathname: '/announcement-detail',
       params: {
         id: announcement.id,
-        title: announcement.Title,
-        content: announcement.Content,
+        title: announcement.Title || '',
+        content: announcement.Content || '',
         alert_tag: announcement.Alert || '',
-        date: announcement.Date,
+        date: announcement.Date || '',
         time_display: announcement.Time || '',
         image_url: announcement.ImageUrl || '',
       },
@@ -292,8 +296,8 @@ export default function HomeScreen() {
               </View>
             ) : (
               announcements.map((announcement) => {
-                const formattedDate = formatDate(announcement.Date);
-                const preview = getPreview(announcement.Content);
+                const formattedDate = formatDate(announcement.Date || '');
+                const preview = getPreview(announcement.Content || '');
                 
                 return (
                   <TouchableOpacity
