@@ -195,7 +195,13 @@ export default function ExhibitorsScreen() {
     <>
       <Stack.Screen
         options={{
-          headerShown: false,
+          headerShown: true,
+          title: 'Exhibitors',
+          headerStyle: {
+            backgroundColor: isDark ? colors.backgroundDark : colors.background,
+          },
+          headerTintColor: textColor,
+          headerShadowVisible: false,
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
