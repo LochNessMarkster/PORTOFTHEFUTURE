@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { Stack, useRouter } from 'expo-router';
 import { IconSymbol } from '@/components/IconSymbol';
-import { fetchSpeakers, Speaker } from '@/utils/airtable';
+import { fetchSpeakers, Speaker, normalizeToArray } from '@/utils/airtable';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
@@ -74,16 +74,42 @@ export default function SpeakersScreen() {
       }
 
       console.log('[Speakers] Fetching fresh data from API');
-      const speakers = await fetchSpeakers();
-      console.log('[Speakers] Loaded speakers:', speakers.length);
+      const response = await fetchSpeakers();
+      
+      console.log('[Speakers] Raw API response type:', typeof response);
+      console.log('[Speakers] Is response an array?', Array.isArray(response));
+      
+      // Normalize the response to ensure we have an array
+      let normalizedSpeakers: Speaker[] = [];
+      
+      if (Array.isArray(response)) {
+        normalizedSpeakers = response;
+        console.log('[Speakers] Response is already an array');
+      } else if (response && typeof response === 'object' && 'speakers' in response) {
+        const speakersData = (response as { speakers: unknown }).speakers;
+        normalizedSpeakers = normalizeToArray<Speaker>(speakersData);
+        console.log('[Speakers] Using response.speakers');
+      } else if (response && typeof response === 'object' && 'data' in response) {
+        const data = (response as { data: unknown }).data;
+        normalizedSpeakers = normalizeToArray<Speaker>(data);
+        console.log('[Speakers] Using response.data');
+      } else {
+        normalizedSpeakers = [];
+        console.warn('[Speakers] Response format not recognized, using empty array');
+      }
+      
+      console.log('[Speakers] Normalized speakers - Is array?', Array.isArray(normalizedSpeakers));
+      console.log('[Speakers] Normalized speakers - Length:', normalizedSpeakers.length);
 
-      await AsyncStorage.setItem(SPEAKERS_CACHE_KEY, JSON.stringify(speakers));
+      await AsyncStorage.setItem(SPEAKERS_CACHE_KEY, JSON.stringify(normalizedSpeakers));
       await AsyncStorage.setItem(SPEAKERS_CACHE_TIMESTAMP_KEY, now.toString());
 
-      setAllSpeakers(speakers);
-      setFilteredSpeakers(speakers);
+      setAllSpeakers(normalizedSpeakers);
+      setFilteredSpeakers(normalizedSpeakers);
     } catch (error) {
       console.error('[Speakers] Error loading speakers:', error);
+      setAllSpeakers([]);
+      setFilteredSpeakers([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -103,7 +129,17 @@ export default function SpeakersScreen() {
   }, [loadSpeakers]);
 
   useEffect(() => {
-    let filtered = allSpeakers;
+    console.log('[Speakers] Filtering speakers. Total:', allSpeakers.length);
+    console.log('[Speakers] allSpeakers is array?', Array.isArray(allSpeakers));
+    
+    // Defensive check
+    if (!Array.isArray(allSpeakers)) {
+      console.error('[Speakers] allSpeakers is not an array!', typeof allSpeakers);
+      setFilteredSpeakers([]);
+      return;
+    }
+
+    let filtered = [...allSpeakers];
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -120,6 +156,7 @@ export default function SpeakersScreen() {
       );
     }
 
+    console.log('[Speakers] Filtered speakers:', filtered.length);
     setFilteredSpeakers(filtered);
   }, [searchQuery, selectedLetter, allSpeakers]);
 
@@ -199,6 +236,15 @@ export default function SpeakersScreen() {
   };
 
   const availableLetters = useMemo(() => {
+    console.log('[Speakers] Computing available letters. allSpeakers:', allSpeakers.length);
+    console.log('[Speakers] allSpeakers is array?', Array.isArray(allSpeakers));
+    
+    // Defensive check
+    if (!Array.isArray(allSpeakers)) {
+      console.error('[Speakers] allSpeakers is not an array in useMemo!', typeof allSpeakers);
+      return new Set<string>();
+    }
+
     const letters = new Set<string>();
     allSpeakers.forEach(speaker => {
       const firstLetter = speaker.name.charAt(0).toUpperCase();

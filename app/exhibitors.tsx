@@ -3,7 +3,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import { Stack, useRouter } from 'expo-router';
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchExhibitors, Exhibitor } from '@/utils/airtable';
+import { fetchExhibitors, Exhibitor, normalizeToArray } from '@/utils/airtable';
 import { colors } from '@/styles/commonStyles';
 import {
   View,
@@ -50,12 +50,39 @@ export default function ExhibitorsScreen() {
     console.log('[Exhibitors] Loading exhibitors...');
     try {
       setLoading(true);
-      const data = await fetchExhibitors();
-      console.log('[Exhibitors] Loaded exhibitors:', data.length);
-      setExhibitors(data);
-      setFilteredExhibitors(data);
+      const response = await fetchExhibitors();
+      
+      console.log('[Exhibitors] Raw API response type:', typeof response);
+      console.log('[Exhibitors] Is response an array?', Array.isArray(response));
+      
+      // Normalize the response to ensure we have an array
+      let normalizedExhibitors: Exhibitor[] = [];
+      
+      if (Array.isArray(response)) {
+        normalizedExhibitors = response;
+        console.log('[Exhibitors] Response is already an array');
+      } else if (response && typeof response === 'object' && 'exhibitors' in response) {
+        const exhibitorsData = (response as { exhibitors: unknown }).exhibitors;
+        normalizedExhibitors = normalizeToArray<Exhibitor>(exhibitorsData);
+        console.log('[Exhibitors] Using response.exhibitors');
+      } else if (response && typeof response === 'object' && 'data' in response) {
+        const data = (response as { data: unknown }).data;
+        normalizedExhibitors = normalizeToArray<Exhibitor>(data);
+        console.log('[Exhibitors] Using response.data');
+      } else {
+        normalizedExhibitors = [];
+        console.warn('[Exhibitors] Response format not recognized, using empty array');
+      }
+      
+      console.log('[Exhibitors] Normalized exhibitors - Is array?', Array.isArray(normalizedExhibitors));
+      console.log('[Exhibitors] Normalized exhibitors - Length:', normalizedExhibitors.length);
+      
+      setExhibitors(normalizedExhibitors);
+      setFilteredExhibitors(normalizedExhibitors);
     } catch (error) {
       console.error('[Exhibitors] Error loading exhibitors:', error);
+      setExhibitors([]);
+      setFilteredExhibitors([]);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -67,7 +94,17 @@ export default function ExhibitorsScreen() {
   }, [loadExhibitors]);
 
   const filterExhibitors = useCallback(() => {
-    let filtered = exhibitors;
+    console.log('[Exhibitors] Filtering exhibitors. Total:', exhibitors.length);
+    console.log('[Exhibitors] exhibitors is array?', Array.isArray(exhibitors));
+    
+    // Defensive check
+    if (!Array.isArray(exhibitors)) {
+      console.error('[Exhibitors] exhibitors is not an array!', typeof exhibitors);
+      setFilteredExhibitors([]);
+      return;
+    }
+
+    let filtered = [...exhibitors];
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -83,6 +120,7 @@ export default function ExhibitorsScreen() {
       );
     }
 
+    console.log('[Exhibitors] Filtered exhibitors:', filtered.length);
     setFilteredExhibitors(filtered);
   }, [searchQuery, selectedLetter, exhibitors]);
 
@@ -117,6 +155,15 @@ export default function ExhibitorsScreen() {
   };
 
   const availableLetters = useMemo(() => {
+    console.log('[Exhibitors] Computing available letters. exhibitors:', exhibitors.length);
+    console.log('[Exhibitors] exhibitors is array?', Array.isArray(exhibitors));
+    
+    // Defensive check
+    if (!Array.isArray(exhibitors)) {
+      console.error('[Exhibitors] exhibitors is not an array in useMemo!', typeof exhibitors);
+      return new Set<string>();
+    }
+
     const letters = new Set<string>();
     exhibitors.forEach(exhibitor => {
       const firstLetter = exhibitor.name.charAt(0).toUpperCase();

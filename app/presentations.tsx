@@ -15,7 +15,7 @@ import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { fetchBackendPresentations, BackendPresentation as Presentation } from '@/utils/airtable';
+import { fetchBackendPresentations, BackendPresentation as Presentation, normalizeToArray } from '@/utils/airtable';
 
 export default function PresentationsScreen() {
   const colorScheme = useColorScheme();
@@ -34,18 +34,29 @@ export default function PresentationsScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadPresentations = useCallback(async () => {
-    console.log('[API] Loading presentations from backend...');
+    console.log('[Presentations] Loading presentations from backend...');
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchBackendPresentations();
-      console.log('[API] Presentations loaded:', data.length);
-      setPresentations(data);
-      setFilteredPresentations(data);
+      const response = await fetchBackendPresentations();
+      
+      console.log('[Presentations] Raw API response type:', typeof response);
+      console.log('[Presentations] Is response an array?', Array.isArray(response));
+      
+      // Normalize the response to ensure we have an array
+      const normalizedPresentations = normalizeToArray<Presentation>(response);
+      
+      console.log('[Presentations] Normalized presentations - Is array?', Array.isArray(normalizedPresentations));
+      console.log('[Presentations] Normalized presentations - Length:', normalizedPresentations.length);
+      
+      setPresentations(normalizedPresentations);
+      setFilteredPresentations(normalizedPresentations);
     } catch (err) {
-      console.error('[API] Error loading presentations:', err);
+      console.error('[Presentations] Error loading presentations:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load presentations';
       setError(errorMessage);
+      setPresentations([]);
+      setFilteredPresentations([]);
     } finally {
       setLoading(false);
     }
@@ -56,6 +67,16 @@ export default function PresentationsScreen() {
   }, [loadPresentations]);
 
   const filterPresentations = useCallback(() => {
+    console.log('[Presentations] Filtering presentations. Total:', presentations.length);
+    console.log('[Presentations] presentations is array?', Array.isArray(presentations));
+    
+    // Defensive check
+    if (!Array.isArray(presentations)) {
+      console.error('[Presentations] presentations is not an array!', typeof presentations);
+      setFilteredPresentations([]);
+      return;
+    }
+
     if (!searchQuery.trim()) {
       setFilteredPresentations(presentations);
       return;
@@ -68,7 +89,7 @@ export default function PresentationsScreen() {
       return titleMatch || descriptionMatch;
     });
 
-    console.log('Filtered presentations:', filtered.length, 'from', presentations.length);
+    console.log('[Presentations] Filtered presentations:', filtered.length);
     setFilteredPresentations(filtered);
   }, [searchQuery, presentations]);
 
@@ -78,9 +99,9 @@ export default function PresentationsScreen() {
 
   const handleDownloadPress = (presentation: Presentation) => {
     if (presentation.file_url) {
-      console.log('Opening presentation file:', presentation.file_url);
+      console.log('[Presentations] Opening presentation file:', presentation.file_url);
       Linking.openURL(presentation.file_url).catch(err => {
-        console.error('Failed to open file URL:', err);
+        console.error('[Presentations] Failed to open file URL:', err);
       });
     }
   };
@@ -130,7 +151,6 @@ export default function PresentationsScreen() {
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
             <IconSymbol

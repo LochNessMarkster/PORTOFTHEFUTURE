@@ -17,7 +17,7 @@ import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { fetchBackendPorts, BackendPort as Port } from '@/utils/airtable';
+import { fetchBackendPorts, BackendPort as Port, normalizeToArray } from '@/utils/airtable';
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -48,14 +48,25 @@ export default function PortsScreen() {
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchBackendPorts();
-      console.log('[Ports] Ports loaded:', data.length);
-      setPorts(data);
-      setFilteredPorts(data);
+      const response = await fetchBackendPorts();
+      
+      console.log('[Ports] Raw API response type:', typeof response);
+      console.log('[Ports] Is response an array?', Array.isArray(response));
+      
+      // Normalize the response to ensure we have an array
+      const normalizedPorts = normalizeToArray<Port>(response);
+      
+      console.log('[Ports] Normalized ports - Is array?', Array.isArray(normalizedPorts));
+      console.log('[Ports] Normalized ports - Length:', normalizedPorts.length);
+      
+      setPorts(normalizedPorts);
+      setFilteredPorts(normalizedPorts);
     } catch (err) {
       console.error('[Ports] Error loading ports:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load ports';
       setError(errorMessage);
+      setPorts([]);
+      setFilteredPorts([]);
     } finally {
       setLoading(false);
     }
@@ -89,7 +100,17 @@ export default function PortsScreen() {
   };
 
   const filterPorts = useCallback(() => {
-    let filtered = ports;
+    console.log('[Ports] Filtering ports. Total:', ports.length);
+    console.log('[Ports] ports is array?', Array.isArray(ports));
+    
+    // Defensive check
+    if (!Array.isArray(ports)) {
+      console.error('[Ports] ports is not an array!', typeof ports);
+      setFilteredPorts([]);
+      return;
+    }
+
+    let filtered = [...ports];
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -101,7 +122,7 @@ export default function PortsScreen() {
       });
     }
 
-    console.log('[Ports] Filtered:', filtered.length, 'from', ports.length);
+    console.log('[Ports] Filtered ports:', filtered.length);
     setFilteredPorts(filtered);
   }, [searchQuery, ports]);
 
