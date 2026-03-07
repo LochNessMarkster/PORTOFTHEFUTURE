@@ -388,15 +388,10 @@ export default function MyScheduleScreen() {
     <>
       <Stack.Screen 
         options={{ 
-          headerShown: true,
-          title: 'My Schedule',
-          headerStyle: {
-            backgroundColor: colors.background,
-          },
-          headerTintColor: colors.text,
+          headerShown: false,
         }} 
       />
-      <SafeAreaView style={styles.container} edges={['bottom']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         {loading && !refreshing ? (
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.accent} />
