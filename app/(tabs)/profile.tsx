@@ -29,33 +29,44 @@ export default function ProfileScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadPreferences = useCallback(async () => {
-    if (!user?.email) return;
-    console.log('[API] Loading preferences for profile:', user.email);
+    if (!user?.email) {
+      console.log('[Profile] No user email available, skipping preferences load');
+      setLoadingPrefs(false);
+      return;
+    }
+    console.log('[Profile] Loading preferences for:', user.email);
     try {
       setLoadingPrefs(true);
       setPrefsError(null);
       const prefs = await fetchPreferences(user.email);
+      console.log('[Profile] Preferences loaded successfully:', prefs);
       setPreferences(prefs);
-      console.log('[API] Preferences loaded');
     } catch (err) {
-      console.error('[API] Error loading preferences:', err);
-      setPrefsError(err instanceof Error ? err.message : 'Failed to load preferences');
+      console.error('[Profile] Error loading preferences:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to load preferences';
+      console.error('[Profile] Error message:', errorMessage);
+      setPrefsError(errorMessage);
     } finally {
       setLoadingPrefs(false);
+      console.log('[Profile] Preferences loading complete');
     }
   }, [user?.email]);
 
   useFocusEffect(
     useCallback(() => {
+      console.log('[Profile] Screen focused, user email:', user?.email);
       if (user?.email) {
         loadPreferences();
+      } else {
+        console.log('[Profile] No user email on focus, setting loading to false');
+        setLoadingPrefs(false);
       }
     }, [user?.email, loadPreferences])
   );
 
   const handleToggle = async (key: keyof Omit<UserPreferences, 'email'>, value: boolean) => {
     if (!user?.email || !preferences) return;
-    console.log('[API] Updating preference:', key, '=', value);
+    console.log('[Profile] Updating preference:', key, '=', value);
 
     // Optimistic update
     const updated = { ...preferences, [key]: value };
@@ -65,9 +76,9 @@ export default function ProfileScreen() {
       setSavingPrefs(true);
       const saved = await updatePreferences(user.email, { [key]: value });
       setPreferences(saved);
-      console.log('[API] Preference saved:', key);
+      console.log('[Profile] Preference saved successfully:', key);
     } catch (err) {
-      console.error('[API] Error saving preference:', err);
+      console.error('[Profile] Error saving preference:', err);
       // Revert on error
       setPreferences(preferences);
       setPrefsError(err instanceof Error ? err.message : 'Failed to save preference');
@@ -172,11 +183,23 @@ export default function ProfileScreen() {
           </View>
 
           {prefsError ? (
-            <Text style={[styles.errorText, { color: colors.error }]}>{prefsError}</Text>
+            <View style={styles.errorContainer}>
+              <Text style={[styles.errorText, { color: colors.error }]}>{prefsError}</Text>
+              <TouchableOpacity
+                style={[styles.retryButton, { backgroundColor: colors.primary }]}
+                onPress={loadPreferences}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
           ) : null}
 
           {loadingPrefs ? (
-            <ActivityIndicator size="small" color={colors.primary} style={{ marginVertical: 16 }} />
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="small" color={colors.primary} />
+              <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading privacy settings...</Text>
+            </View>
           ) : preferences ? (
             <>
               <View style={[styles.preferenceRow, { borderBottomColor: borderColorValue }]}>
@@ -254,6 +277,19 @@ export default function ProfileScreen() {
                 />
               </View>
             </>
+          ) : !loadingPrefs && !prefsError ? (
+            <View style={styles.emptyContainer}>
+              <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+                No preferences available. Please try refreshing.
+              </Text>
+              <TouchableOpacity
+                style={[styles.retryButton, { backgroundColor: colors.primary }]}
+                onPress={loadPreferences}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.retryButtonText}>Refresh</Text>
+              </TouchableOpacity>
+            </View>
           ) : null}
         </View>
         </ScrollView>
@@ -385,9 +421,40 @@ const styles = StyleSheet.create({
   savingIndicator: {
     marginLeft: 8,
   },
+  errorContainer: {
+    marginBottom: 16,
+  },
   errorText: {
     fontSize: 13,
     marginBottom: 12,
+  },
+  retryButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  loadingText: {
+    fontSize: 13,
+    marginTop: 8,
+  },
+  emptyContainer: {
+    alignItems: 'center',
+    paddingVertical: 16,
+  },
+  emptyText: {
+    fontSize: 13,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   preferenceRow: {
     flexDirection: 'row',
