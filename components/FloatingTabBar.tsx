@@ -140,9 +140,9 @@ export default function FloatingTabBar({
       borderWidth: 0,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: -2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 8,
+      shadowOpacity: 0.15,
+      shadowRadius: 10,
+      elevation: 10,
       ...Platform.select({
         ios: {
           backgroundColor: theme.dark
@@ -172,8 +172,8 @@ export default function FloatingTabBar({
       right: 0,
       height: 1,
       backgroundColor: theme.dark
-        ? 'rgba(255, 255, 255, 0.1)'
-        : 'rgba(0, 0, 0, 0.1)',
+        ? 'rgba(255, 255, 255, 0.15)'
+        : 'rgba(0, 0, 0, 0.15)',
     },
   };
 
@@ -210,7 +210,7 @@ export default function FloatingTabBar({
                     <IconSymbol
                       android_material_icon_name={tab.icon}
                       ios_icon_name={tab.icon}
-                      size={22}
+                      size={24}
                       color={iconColor}
                     />
                     <Text
@@ -245,10 +245,12 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 1000,
     alignItems: 'center',
+    pointerEvents: 'box-none',
   },
   container: {
     marginHorizontal: 12,
     alignSelf: 'center',
+    pointerEvents: 'box-none',
   },
   blurContainer: {
     overflow: 'hidden',
@@ -267,7 +269,7 @@ const styles = StyleSheet.create({
   },
   tabsContainer: {
     flexDirection: 'row',
-    height: 64,
+    height: 68,
     alignItems: 'center',
     justifyContent: 'space-evenly',
     paddingHorizontal: 8,
@@ -284,11 +286,11 @@ const styles = StyleSheet.create({
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 3,
+    gap: 4,
     width: '100%',
   },
   tabLabel: {
-    fontSize: 10,
+    fontSize: 11,
     fontWeight: '500',
     marginTop: 2,
     textAlign: 'center',

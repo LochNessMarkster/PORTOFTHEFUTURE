@@ -195,7 +195,12 @@ export default function ExhibitorsScreen() {
     <>
       <Stack.Screen
         options={{
-          headerShown: false,
+          headerShown: true,
+          title: 'Exhibitors',
+          headerStyle: {
+            backgroundColor: bgColor,
+          },
+          headerTintColor: textColor,
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
@@ -431,6 +436,7 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+    paddingBottom: 100,
   },
   row: {
     justifyContent: 'space-between',
