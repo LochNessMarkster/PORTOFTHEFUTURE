@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useCallback } from 'react';
+import { IconSymbol } from '@/components/IconSymbol';
 import {
   View,
   Text,
@@ -11,13 +11,19 @@ import {
   RefreshControl,
 } from 'react-native';
 import { colors } from '@/styles/commonStyles';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { fetchAgenda, AgendaItem } from '@/utils/airtable';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Stack, useRouter, useFocusEffect } from 'expo-router';
-import { IconSymbol } from '@/components/IconSymbol';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSessionStatus } from '@/utils/timeUtils';
+import { fetchAgenda, AgendaItem } from '@/utils/airtable';
 import { NowNextSection } from '@/components/NowNextSection';
+import { WiFiBanner } from '@/components/WiFiBanner';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
+interface GroupedSession {
+  date: string;
+  sessions: AgendaItem[];
+}
 
 const BOOKMARKS_KEY = '@agenda_bookmarks';
 
@@ -44,11 +50,6 @@ const TRACK_COLORS: Record<string, string> = {
   'Luncheon (By Invitation)': '#F59E0B', // Gold
   'Pre-Conference': '#F59E0B', // Gold
 };
-
-interface GroupedSession {
-  date: string;
-  sessions: AgendaItem[];
-}
 
 export default function MyScheduleScreen() {
   const colorScheme = useColorScheme();
@@ -356,9 +357,12 @@ export default function MyScheduleScreen() {
   };
 
   const renderHeader = () => {
-    if (groupedSessions.length === 0) return null;
-    
-    return <NowNextSection />;
+    return (
+      <>
+        <WiFiBanner />
+        {groupedSessions.length > 0 && <NowNextSection />}
+      </>
+    );
   };
 
   return (
@@ -383,24 +387,27 @@ export default function MyScheduleScreen() {
           </View>
         ) : groupedSessions.length === 0 ? (
           <View style={styles.emptyContainer}>
-            <IconSymbol
-              ios_icon_name="bookmark"
-              android_material_icon_name="bookmark-border"
-              size={64}
-              color={colors.textSecondary}
-            />
-            <Text style={styles.emptyTitle}>
-              No Sessions Saved
-            </Text>
-            <Text style={styles.emptyText}>
-              Tap the bookmark icon on any session in the Agenda to add it to your schedule.
-            </Text>
-            <TouchableOpacity
-              style={styles.browseButton}
-              onPress={() => router.push('/agenda')}
-            >
-              <Text style={styles.browseButtonText}>Browse Agenda</Text>
-            </TouchableOpacity>
+            <WiFiBanner />
+            <View style={styles.emptyContent}>
+              <IconSymbol
+                ios_icon_name="bookmark"
+                android_material_icon_name="bookmark-border"
+                size={64}
+                color={colors.textSecondary}
+              />
+              <Text style={styles.emptyTitle}>
+                No Sessions Saved
+              </Text>
+              <Text style={styles.emptyText}>
+                Tap the bookmark icon on any session in the Agenda to add it to your schedule.
+              </Text>
+              <TouchableOpacity
+                style={styles.browseButton}
+                onPress={() => router.push('/agenda')}
+              >
+                <Text style={styles.browseButtonText}>Browse Agenda</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <FlatList
@@ -442,9 +449,13 @@ const styles = StyleSheet.create({
   },
   emptyContainer: {
     flex: 1,
+    padding: 16,
+  },
+  emptyContent: {
+    flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 32,
+    paddingHorizontal: 16,
   },
   emptyTitle: {
     fontSize: 20,
