@@ -43,15 +43,20 @@ const storage = {
 interface AuthContextType {
   user: Attendee | null;
   isLoading: boolean;
+  isFirstLogin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  markMessagingNoticeShown: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const MESSAGING_NOTICE_KEY = 'potf_messaging_notice_shown';
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Attendee | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -109,6 +114,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Store user
       await storage.setItem('potf_user', JSON.stringify(attendee));
       setUser(attendee);
+
+      // Check if this is the first time the user is logging in (messaging notice not shown)
+      const hasShownNotice = await storage.getItem(MESSAGING_NOTICE_KEY);
+      console.log('[Auth] Messaging notice shown before:', hasShownNotice);
+      
+      if (!hasShownNotice) {
+        console.log('[Auth] First login detected - will show messaging notice');
+        setIsFirstLogin(true);
+      } else {
+        setIsFirstLogin(false);
+      }
     } catch (error) {
       console.error('[API] Login error:', error);
       if (error instanceof Error) {
@@ -121,6 +137,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = async () => {
     // Clear local state immediately (don't wait for storage)
     setUser(null);
+    setIsFirstLogin(false);
     console.log('[API] User logged out');
     try {
       await storage.deleteItem('potf_user');
@@ -129,8 +146,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const markMessagingNoticeShown = async () => {
+    console.log('[Auth] Marking messaging notice as shown');
+    try {
+      await storage.setItem(MESSAGING_NOTICE_KEY, 'true');
+      setIsFirstLogin(false);
+    } catch (error) {
+      console.error('[Auth] Error marking messaging notice as shown:', error);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isFirstLogin, login, logout, markMessagingNoticeShown }}>
       {children}
     </AuthContext.Provider>
   );

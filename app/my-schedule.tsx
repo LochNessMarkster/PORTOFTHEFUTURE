@@ -18,6 +18,7 @@ import { IconSymbol } from '@/components/IconSymbol';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getSessionStatus } from '@/utils/timeUtils';
 import { NowNextSection } from '@/components/NowNextSection';
+import { WiFiBanner } from '@/components/WiFiBanner';
 
 const BOOKMARKS_KEY = '@agenda_bookmarks';
 
@@ -356,9 +357,15 @@ export default function MyScheduleScreen() {
   };
 
   const renderHeader = () => {
-    if (groupedSessions.length === 0) return null;
-    
-    return <NowNextSection />;
+    return (
+      <>
+        {/* Wi-Fi Banner - Only on My Schedule screen */}
+        <WiFiBanner />
+        
+        {/* Now/Next Section */}
+        {groupedSessions.length > 0 && <NowNextSection />}
+      </>
+    );
   };
 
   return (
