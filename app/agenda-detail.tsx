@@ -77,22 +77,21 @@ export default function AgendaDetailScreen() {
 
   const loadBookmarkStatus = async () => {
     try {
-      console.log('[AgendaDetail] 🔍 Loading bookmarks from AsyncStorage...');
+      console.log('[AgendaDetail] Loading bookmarks from AsyncStorage...');
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      console.log('[AgendaDetail] Raw stored bookmarks:', stored);
       
       if (stored) {
         const bookmarks = JSON.parse(stored);
         const bookmarksSet = new Set(bookmarks);
         setBookmarkedSessions(bookmarksSet);
         setIsBookmarked(bookmarks.includes(sessionId));
-        console.log('[AgendaDetail] ✅ Loaded bookmarks:', bookmarks.length, 'sessions');
+        console.log('[AgendaDetail] Loaded', bookmarks.length, 'bookmarked sessions');
         console.log('[AgendaDetail] Current session bookmarked?', bookmarks.includes(sessionId));
       } else {
-        console.log('[AgendaDetail] ℹ️ No bookmarks found in storage');
+        console.log('[AgendaDetail] No bookmarks found, starting with empty set');
       }
     } catch (err) {
-      console.error('[AgendaDetail] ❌ Error loading bookmark status:', err);
+      console.log('[AgendaDetail] Failed to load bookmarks, starting with empty set');
     }
   };
 
@@ -203,76 +202,64 @@ export default function AgendaDetailScreen() {
       
       if (isBookmarked) {
         // Remove bookmark
-        console.log('[AgendaDetail] ➖ Removing bookmark (no conflict check needed)');
+        console.log('[AgendaDetail] Removing bookmark (no conflict check needed)');
         bookmarks = bookmarks.filter(id => id !== sessionId);
-        console.log('[AgendaDetail] 💾 Saving updated bookmarks:', bookmarks);
+        console.log('[AgendaDetail] Saving updated bookmarks:', bookmarks);
         await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-        
-        // Verify the save
-        const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
-        console.log('[AgendaDetail] ✅ Verification read:', verification);
         
         setIsBookmarked(false);
         setBookmarkedSessions(new Set(bookmarks));
-        console.log('[AgendaDetail] ✅ Bookmark removed successfully');
+        console.log('[AgendaDetail] Bookmark removed successfully');
       } else {
         // Check for conflicts BEFORE adding
-        console.log('[AgendaDetail] ➕ Adding bookmark - checking for conflicts FIRST...');
+        console.log('[AgendaDetail] Adding bookmark - checking for conflicts FIRST...');
         const conflict = checkForConflicts();
         
         if (conflict) {
-          console.log('[AgendaDetail] 🚨 Conflict found - showing modal BEFORE saving');
+          console.log('[AgendaDetail] Conflict found - showing modal BEFORE saving');
           console.log('[AgendaDetail] Save is happening: NO ❌ (waiting for user choice)');
           // Show conflict modal - DO NOT SAVE YET
           setConflictingSession(conflict);
           setShowConflictModal(true);
         } else {
-          console.log('[AgendaDetail] ✅ No conflict - saving bookmark immediately');
+          console.log('[AgendaDetail] No conflict - saving bookmark immediately');
           console.log('[AgendaDetail] Save is happening: YES ✅');
           // No conflict, add bookmark
           bookmarks.push(sessionId);
-          console.log('[AgendaDetail] 💾 Saving updated bookmarks:', bookmarks);
+          console.log('[AgendaDetail] Saving updated bookmarks:', bookmarks);
           await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-          
-          // Verify the save
-          const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
-          console.log('[AgendaDetail] ✅ Verification read:', verification);
           
           setIsBookmarked(true);
           setBookmarkedSessions(new Set(bookmarks));
-          console.log('[AgendaDetail] ✅ Bookmark added successfully');
+          console.log('[AgendaDetail] Bookmark added successfully');
         }
       }
     } catch (err) {
-      console.error('[AgendaDetail] ❌ Error toggling bookmark:', err);
+      console.log('[AgendaDetail] Failed to toggle bookmark');
     }
     console.log('═══════════════════════════════════════════════════');
   };
 
   const handleKeepBoth = async () => {
-    console.log('[AgendaDetail] 👥 User chose: KEEP BOTH sessions');
+    console.log('[AgendaDetail] User chose: KEEP BOTH sessions');
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
       let bookmarks: string[] = stored ? JSON.parse(stored) : [];
       bookmarks.push(sessionId);
-      console.log('[AgendaDetail] 💾 Saving bookmarks (keep both):', bookmarks);
+      console.log('[AgendaDetail] Saving bookmarks (keep both):', bookmarks);
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-      
-      // Verify the save
-      const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      console.log('[AgendaDetail] ✅ Verification read:', verification);
       
       setIsBookmarked(true);
       setBookmarkedSessions(new Set(bookmarks));
       setShowConflictModal(false);
       setConflictingSession(null);
     } catch (err) {
-      console.error('[AgendaDetail] ❌ Error saving bookmark:', err);
+      console.log('[AgendaDetail] Failed to save bookmark');
     }
   };
 
   const handleCancel = () => {
-    console.log('[AgendaDetail] ❌ User chose: CANCEL (do not save new session)');
+    console.log('[AgendaDetail] User chose: CANCEL (do not save new session)');
     setShowConflictModal(false);
     setConflictingSession(null);
   };
@@ -280,7 +267,7 @@ export default function AgendaDetailScreen() {
   const handleReplace = async () => {
     if (!conflictingSession) return;
     
-    console.log('[AgendaDetail] 🔄 User chose: REPLACE existing session');
+    console.log('[AgendaDetail] User chose: REPLACE existing session');
     console.log('[AgendaDetail] Removing:', conflictingSession.Title);
     console.log('[AgendaDetail] Adding:', title);
     
@@ -292,19 +279,15 @@ export default function AgendaDetailScreen() {
       bookmarks = bookmarks.filter(id => id !== conflictingSession.id);
       bookmarks.push(sessionId);
       
-      console.log('[AgendaDetail] 💾 Saving bookmarks (replace):', bookmarks);
+      console.log('[AgendaDetail] Saving bookmarks (replace):', bookmarks);
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-      
-      // Verify the save
-      const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      console.log('[AgendaDetail] ✅ Verification read:', verification);
       
       setIsBookmarked(true);
       setBookmarkedSessions(new Set(bookmarks));
       setShowConflictModal(false);
       setConflictingSession(null);
     } catch (err) {
-      console.error('[AgendaDetail] ❌ Error replacing bookmark:', err);
+      console.log('[AgendaDetail] Failed to replace bookmark');
     }
   };
 

@@ -110,31 +110,27 @@ export default function AgendaScreen() {
 
   const loadBookmarks = async () => {
     try {
-      console.log('[Agenda] 🔍 Loading bookmarks from AsyncStorage...');
+      console.log('[Agenda] Loading bookmarks from AsyncStorage...');
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      console.log('[Agenda] Raw stored bookmarks:', stored);
       
       if (stored) {
         const parsed = JSON.parse(stored);
-        console.log('[Agenda] Parsed bookmarks:', parsed);
-        console.log('[Agenda] Parsed bookmarks type:', typeof parsed, Array.isArray(parsed));
         
         // Ensure we have an array
         if (Array.isArray(parsed)) {
           const bookmarks = new Set(parsed);
           setBookmarkedSessions(bookmarks);
-          console.log('[Agenda] ✅ Loaded bookmarks:', bookmarks.size, 'sessions');
-          console.log('[Agenda] Bookmark IDs:', Array.from(bookmarks));
+          console.log('[Agenda] Loaded', bookmarks.size, 'bookmarked sessions');
         } else {
-          console.warn('[Agenda] ⚠️ Bookmarks not an array, resetting');
+          console.log('[Agenda] Invalid bookmark format, resetting to empty');
           setBookmarkedSessions(new Set());
         }
       } else {
-        console.log('[Agenda] ℹ️ No bookmarks found in storage');
+        console.log('[Agenda] No bookmarks found, starting with empty set');
         setBookmarkedSessions(new Set());
       }
     } catch (err) {
-      console.error('[Agenda] ❌ Error loading bookmarks:', err);
+      console.log('[Agenda] Failed to load bookmarks, starting with empty set');
       setBookmarkedSessions(new Set());
     }
   };
@@ -142,24 +138,12 @@ export default function AgendaScreen() {
   const saveBookmarks = async (bookmarks: Set<string>) => {
     try {
       const bookmarksArray = Array.from(bookmarks);
-      console.log('[Agenda] 💾 Saving bookmarks to AsyncStorage...');
-      console.log('[Agenda] Bookmarks to save:', bookmarksArray.length, 'sessions');
-      console.log('[Agenda] Bookmark IDs:', bookmarksArray);
+      console.log('[Agenda] Saving', bookmarksArray.length, 'bookmarks to AsyncStorage...');
       
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
-      
-      // Verify the save by reading it back
-      const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      console.log('[Agenda] ✅ Verification read:', verification);
-      
-      if (verification) {
-        const verifiedData = JSON.parse(verification);
-        console.log('[Agenda] ✅ Verified saved bookmarks:', verifiedData.length, 'sessions');
-      } else {
-        console.error('[Agenda] ❌ Verification failed - no data found after save!');
-      }
+      console.log('[Agenda] Bookmarks saved successfully');
     } catch (err) {
-      console.error('[Agenda] ❌ Error saving bookmarks:', err);
+      console.log('[Agenda] Failed to save bookmarks to storage');
     }
   };
 
