@@ -43,15 +43,20 @@ const storage = {
 interface AuthContextType {
   user: Attendee | null;
   isLoading: boolean;
+  isFirstLogin: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  markMessagingNoticeShown: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const FIRST_LOGIN_KEY = 'potf_messaging_notice_shown';
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Attendee | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isFirstLogin, setIsFirstLogin] = useState(false);
 
   useEffect(() => {
     loadUser();
@@ -106,6 +111,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       console.log('[API] Login successful for:', attendee.displayName);
 
+      // Check if this is the first login (messaging notice not shown yet)
+      const noticeShown = await storage.getItem(FIRST_LOGIN_KEY);
+      const isFirst = !noticeShown;
+      
+      console.log('[Auth] First login check:', isFirst);
+      setIsFirstLogin(isFirst);
+
       // Store user
       await storage.setItem('potf_user', JSON.stringify(attendee));
       setUser(attendee);
@@ -118,19 +130,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const markMessagingNoticeShown = async () => {
+    console.log('[Auth] Marking messaging notice as shown');
+    try {
+      await storage.setItem(FIRST_LOGIN_KEY, 'true');
+      setIsFirstLogin(false);
+    } catch (error) {
+      console.error('[Auth] Error marking notice as shown:', error);
+    }
+  };
+
   const logout = async () => {
     // Clear local state immediately (don't wait for storage)
     setUser(null);
+    setIsFirstLogin(false);
     console.log('[API] User logged out');
     try {
       await storage.deleteItem('potf_user');
+      // Note: We keep the messaging notice flag even after logout
+      // so users don't see it again on subsequent logins
     } catch (error) {
       console.error('Error clearing stored user:', error);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, isLoading, login, logout }}>
+    <AuthContext.Provider value={{ user, isLoading, isFirstLogin, login, logout, markMessagingNoticeShown }}>
       {children}
     </AuthContext.Provider>
   );
