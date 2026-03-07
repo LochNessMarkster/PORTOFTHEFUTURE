@@ -110,6 +110,7 @@ export default function AgendaScreen() {
 
   const loadBookmarks = async () => {
     try {
+      console.log('[Agenda] 🔍 Loading bookmarks from AsyncStorage...');
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
       console.log('[Agenda] Raw stored bookmarks:', stored);
       
@@ -122,17 +123,18 @@ export default function AgendaScreen() {
         if (Array.isArray(parsed)) {
           const bookmarks = new Set(parsed);
           setBookmarkedSessions(bookmarks);
-          console.log('[Agenda] Loaded bookmarks:', bookmarks.size, 'sessions');
+          console.log('[Agenda] ✅ Loaded bookmarks:', bookmarks.size, 'sessions');
+          console.log('[Agenda] Bookmark IDs:', Array.from(bookmarks));
         } else {
-          console.warn('[Agenda] Bookmarks not an array, resetting');
+          console.warn('[Agenda] ⚠️ Bookmarks not an array, resetting');
           setBookmarkedSessions(new Set());
         }
       } else {
-        console.log('[Agenda] No bookmarks found in storage');
+        console.log('[Agenda] ℹ️ No bookmarks found in storage');
         setBookmarkedSessions(new Set());
       }
     } catch (err) {
-      console.error('[Agenda] Error loading bookmarks:', err);
+      console.error('[Agenda] ❌ Error loading bookmarks:', err);
       setBookmarkedSessions(new Set());
     }
   };
@@ -140,10 +142,24 @@ export default function AgendaScreen() {
   const saveBookmarks = async (bookmarks: Set<string>) => {
     try {
       const bookmarksArray = Array.from(bookmarks);
+      console.log('[Agenda] 💾 Saving bookmarks to AsyncStorage...');
+      console.log('[Agenda] Bookmarks to save:', bookmarksArray.length, 'sessions');
+      console.log('[Agenda] Bookmark IDs:', bookmarksArray);
+      
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
-      console.log('[Agenda] Saved bookmarks:', bookmarksArray.length, 'sessions');
+      
+      // Verify the save by reading it back
+      const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      console.log('[Agenda] ✅ Verification read:', verification);
+      
+      if (verification) {
+        const verifiedData = JSON.parse(verification);
+        console.log('[Agenda] ✅ Verified saved bookmarks:', verifiedData.length, 'sessions');
+      } else {
+        console.error('[Agenda] ❌ Verification failed - no data found after save!');
+      }
     } catch (err) {
-      console.error('[Agenda] Error saving bookmarks:', err);
+      console.error('[Agenda] ❌ Error saving bookmarks:', err);
     }
   };
 
@@ -230,7 +246,7 @@ export default function AgendaScreen() {
     return null;
   };
 
-  const toggleBookmark = (sessionId: string) => {
+  const toggleBookmark = async (sessionId: string) => {
     console.log('═══════════════════════════════════════════════════');
     console.log('[Agenda] 📌 BOOKMARK TOGGLE INITIATED');
     console.log('[Agenda] Session ID:', sessionId);
@@ -251,7 +267,8 @@ export default function AgendaScreen() {
       const newBookmarks = new Set(bookmarkedSessions);
       newBookmarks.delete(sessionId);
       setBookmarkedSessions(newBookmarks);
-      saveBookmarks(newBookmarks);
+      await saveBookmarks(newBookmarks);
+      console.log('[Agenda] ✅ Bookmark removed and saved');
       console.log('═══════════════════════════════════════════════════');
       return;
     }
@@ -274,19 +291,20 @@ export default function AgendaScreen() {
       const newBookmarks = new Set(bookmarkedSessions);
       newBookmarks.add(sessionId);
       setBookmarkedSessions(newBookmarks);
-      saveBookmarks(newBookmarks);
+      await saveBookmarks(newBookmarks);
+      console.log('[Agenda] ✅ Bookmark added and saved');
     }
     console.log('═══════════════════════════════════════════════════');
   };
 
-  const handleKeepBoth = () => {
+  const handleKeepBoth = async () => {
     if (!pendingSession) return;
     
     console.log('[Agenda] 👥 User chose: KEEP BOTH sessions');
     const newBookmarks = new Set(bookmarkedSessions);
     newBookmarks.add(pendingSession.id);
     setBookmarkedSessions(newBookmarks);
-    saveBookmarks(newBookmarks);
+    await saveBookmarks(newBookmarks);
     
     setShowConflictModal(false);
     setPendingSession(null);
@@ -300,7 +318,7 @@ export default function AgendaScreen() {
     setConflictingSession(null);
   };
 
-  const handleReplace = () => {
+  const handleReplace = async () => {
     if (!pendingSession || !conflictingSession) return;
     
     console.log('[Agenda] 🔄 User chose: REPLACE existing session');
@@ -310,7 +328,7 @@ export default function AgendaScreen() {
     newBookmarks.delete(conflictingSession.id);
     newBookmarks.add(pendingSession.id);
     setBookmarkedSessions(newBookmarks);
-    saveBookmarks(newBookmarks);
+    await saveBookmarks(newBookmarks);
     
     setShowConflictModal(false);
     setPendingSession(null);
