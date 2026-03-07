@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   View,
   Text,
@@ -9,52 +10,38 @@ import {
   useColorScheme,
   TouchableOpacity,
 } from 'react-native';
-import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import { fetchAgenda, AgendaItem } from '@/utils/airtable';
+import { colors } from '@/styles/commonStyles';
 import { hasSameStartTime } from '@/utils/timeUtils';
 import { ConflictModal } from '@/components/ConflictModal';
 
 const BOOKMARKS_KEY = '@agenda_bookmarks';
 
-// Track color mapping - consistent across the app
+// Track color mapping
 const TRACK_COLORS: Record<string, string> = {
-  // 9 Conference Tracks
-  'Track 1 - Ensuring America\'s Maritime Security': '#3B82F6', // Blue
-  'Track 2 - Developing Ports': '#10B981', // Green
-  'Track 3 - Intermodal Connectivity': '#A855F7', // Purple
-  'Track 4 - Enhancing Ports\' Operational Efficiencies': '#14B8A6', // Teal
-  'Track 5 - Port Infrastructure 4.0': '#F59E0B', // Orange
-  'Track 6 - Decarbonization and Alternative Fuels': '#EF4444', // Red
-  'Track 7 - Port Energy and Sustainability': '#EAB308', // Yellow
-  'Track 8 - Port Security, Cybersecurity, & Emergency Management': '#6366F1', // Indigo
-  'Track 9 - Advances in Dredging Technology and Methods': '#EC4899', // Pink
-  
-  // Breaks
-  'Break': '#6B7280', // Gray
-  
-  // Events
-  'Special Event': '#F59E0B', // Gold
-  'Pre-Conference / Social': '#F59E0B', // Gold
-  'Keynote & Plenary': '#F59E0B', // Gold
-  'Luncheon (By Invitation)': '#F59E0B', // Gold
-  'Pre-Conference': '#F59E0B', // Gold
+  'Track 1 - Ensuring America\'s Maritime Security': '#3B82F6',
+  'Track 2 - Developing Ports': '#10B981',
+  'Track 3 - Intermodal Connectivity': '#A855F7',
+  'Track 4 - Enhancing Ports\' Operational Efficiencies': '#14B8A6',
+  'Track 5 - Port Infrastructure 4.0': '#F59E0B',
+  'Track 6 - Decarbonization and Alternative Fuels': '#EF4444',
+  'Track 7 - Port Energy and Sustainability': '#EAB308',
+  'Track 8 - Port Security, Cybersecurity, & Emergency Management': '#6366F1',
+  'Track 9 - Advances in Dredging Technology and Methods': '#EC4899',
+  'Break': '#6B7280',
+  'Special Event': '#F59E0B',
+  'Pre-Conference / Social': '#F59E0B',
+  'Keynote & Plenary': '#F59E0B',
+  'Luncheon (By Invitation)': '#F59E0B',
+  'Pre-Conference': '#F59E0B',
 };
 
 export default function AgendaDetailScreen() {
   const colorScheme = useColorScheme();
-  const params = useLocalSearchParams();
   const router = useRouter();
-
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [allSessions, setAllSessions] = useState<AgendaItem[]>([]);
-  const [bookmarkedSessions, setBookmarkedSessions] = useState<Set<string>>(new Set());
-  
-  // Conflict modal state
-  const [showConflictModal, setShowConflictModal] = useState(false);
-  const [conflictingSession, setConflictingSession] = useState<AgendaItem | null>(null);
+  const params = useLocalSearchParams();
 
   const sessionId = params.id as string;
   const title = params.title as string;
@@ -66,33 +53,49 @@ export default function AgendaDetailScreen() {
   const sessionDescription = params.sessionDescription as string;
   const speakerNames = params.speakerNames as string;
 
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [allSessions, setAllSessions] = useState<AgendaItem[]>([]);
+  const [bookmarkedSessions, setBookmarkedSessions] = useState<Set<string>>(new Set());
+
+  // Conflict modal state
+  const [showConflictModal, setShowConflictModal] = useState(false);
+  const [conflictingSession, setConflictingSession] = useState<AgendaItem | null>(null);
+
   useEffect(() => {
-    loadData();
+    if (sessionId) {
+      loadData();
+    }
   }, [sessionId]);
 
   const loadData = async () => {
-    await loadBookmarkStatus();
-    await loadAllSessions();
+    await Promise.all([
+      loadBookmarkStatus(),
+      loadAllSessions(),
+    ]);
   };
 
   const loadBookmarkStatus = async () => {
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      
       if (stored) {
-        const bookmarks = JSON.parse(stored);
-        const bookmarksSet = new Set(bookmarks);
-        setBookmarkedSessions(bookmarksSet);
-        setIsBookmarked(bookmarks.includes(sessionId));
-        console.log('[AgendaDetail] Loaded bookmarks:', bookmarks.length, 'sessions');
+        const parsed = JSON.parse(stored);
+        
+        if (Array.isArray(parsed)) {
+          const bookmarks = new Set(parsed);
+          setBookmarkedSessions(bookmarks);
+          setIsBookmarked(bookmarks.has(sessionId));
+          console.log('[AgendaDetail] Bookmark status loaded:', bookmarks.has(sessionId));
+        } else {
+          setBookmarkedSessions(new Set());
+          setIsBookmarked(false);
+        }
+      } else {
+        setBookmarkedSessions(new Set());
+        setIsBookmarked(false);
       }
     } catch (err: any) {
-      console.error('[AgendaDetail] Error loading bookmark status:', err);
-      console.error('[AgendaDetail] Error details:', {
-        message: err?.message,
-        name: err?.name,
-        type: err?.type,
-      });
-      // Gracefully handle AsyncStorage errors - continue with empty bookmarks
+      console.log('[AgendaDetail] Storage unavailable, using in-memory bookmarks only');
       setBookmarkedSessions(new Set());
       setIsBookmarked(false);
     }
@@ -102,70 +105,32 @@ export default function AgendaDetailScreen() {
     try {
       const data = await fetchAgenda();
       setAllSessions(data.agenda || []);
-      console.log('[AgendaDetail] Loaded all sessions:', data.agenda?.length || 0);
+      console.log('[AgendaDetail] All sessions loaded:', data.agenda?.length || 0);
     } catch (err) {
       console.error('[AgendaDetail] Error loading sessions:', err);
+      setAllSessions([]);
     }
   };
 
   const checkForConflicts = (): AgendaItem | null => {
-    console.log('═══════════════════════════════════════════════════');
-    console.log('[AgendaDetail] 🔍 CONFLICT CHECK STARTED');
-    console.log('[AgendaDetail] Candidate session ID:', sessionId);
-    console.log('[AgendaDetail] Candidate session title:', title);
-    console.log('[AgendaDetail] Candidate session date:', date);
-    console.log('[AgendaDetail] Candidate session start time:', startTime);
-    console.log('═══════════════════════════════════════════════════');
+    console.log('[AgendaDetail] Checking for conflicts...');
     
-    // Check if new session has required time fields
-    if (!startTime) {
-      console.warn('[AgendaDetail] ⚠️ Candidate session missing StartTime, cannot check conflicts');
+    if (!startTime || !date) {
+      console.log('[AgendaDetail] Missing date or start time, cannot check conflicts');
       return null;
     }
     
-    if (!date) {
-      console.warn('[AgendaDetail] ⚠️ Candidate session missing Date, cannot check conflicts');
-      return null;
-    }
-    
-    // Find all bookmarked sessions
     const bookmarkedSessionsList = allSessions.filter(s => 
       bookmarkedSessions.has(s.id) && s.id !== sessionId
     );
     
-    console.log('[AgendaDetail] 📚 Current saved My Schedule sessions:', bookmarkedSessionsList.length);
+    console.log('[AgendaDetail] Checking against', bookmarkedSessionsList.length, 'bookmarked sessions');
     
-    if (bookmarkedSessionsList.length === 0) {
-      console.log('[AgendaDetail] ✅ No saved sessions to check against - no conflicts possible');
-      console.log('═══════════════════════════════════════════════════');
-      return null;
-    }
-    
-    // Log all saved sessions
-    bookmarkedSessionsList.forEach((saved, index) => {
-      console.log(`[AgendaDetail] Saved session ${index + 1}:`, {
-        id: saved.id,
-        title: saved.Title,
-        date: saved.Date,
-        startTime: saved.StartTime,
-      });
-    });
-    
-    // Check for same date + same start time conflicts
-    let matchCount = 0;
     for (const existing of bookmarkedSessionsList) {
-      console.log('---------------------------------------------------');
-      console.log('[AgendaDetail] Comparing with existing session:', existing.Title);
-      console.log('[AgendaDetail] Existing session date:', existing.Date);
-      console.log('[AgendaDetail] Existing session start time:', existing.StartTime);
-      
-      // Skip if existing session is missing required fields
       if (!existing.StartTime || !existing.Date) {
-        console.warn('[AgendaDetail] ⚠️ Existing session missing Date or StartTime, skipping');
         continue;
       }
       
-      // Check for EXACT same date and start time
       const hasConflict = hasSameStartTime(
         date,
         startTime,
@@ -174,112 +139,79 @@ export default function AgendaDetailScreen() {
       );
       
       if (hasConflict) {
-        matchCount++;
-        console.log('[AgendaDetail] 🚨 CONFLICT DETECTED!');
-        console.log('[AgendaDetail] Number of matches with same date + start time:', matchCount);
-        console.log('[AgendaDetail] Conflicting session:', existing.Title);
-        console.log('[AgendaDetail] Modal trigger condition: REACHED ✅');
-        console.log('═══════════════════════════════════════════════════');
+        console.log('[AgendaDetail] Conflict found with:', existing.Title);
         return existing;
       }
     }
     
-    console.log('[AgendaDetail] ✅ No conflicts found - all sessions have different date or start time');
-    console.log('[AgendaDetail] Number of matches with same date + start time:', matchCount);
-    console.log('[AgendaDetail] Modal trigger condition: NOT REACHED ❌');
-    console.log('═══════════════════════════════════════════════════');
+    console.log('[AgendaDetail] No conflicts found');
     return null;
   };
 
   const toggleBookmark = async () => {
-    console.log('═══════════════════════════════════════════════════');
-    console.log('[AgendaDetail] 📌 BOOKMARK TOGGLE INITIATED');
-    console.log('[AgendaDetail] Session ID:', sessionId);
-    console.log('[AgendaDetail] Session title:', title);
-    console.log('[AgendaDetail] Currently bookmarked?', isBookmarked);
+    console.log('[AgendaDetail] Toggle bookmark for session:', sessionId);
     
-    try {
-      const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      let bookmarks: string[] = stored ? JSON.parse(stored) : [];
+    if (isBookmarked) {
+      console.log('[AgendaDetail] Removing bookmark');
+      const newBookmarks = new Set(bookmarkedSessions);
+      newBookmarks.delete(sessionId);
+      setBookmarkedSessions(newBookmarks);
+      setIsBookmarked(false);
       
-      if (isBookmarked) {
-        // Remove bookmark
-        console.log('[AgendaDetail] ➖ Removing bookmark (no conflict check needed)');
-        bookmarks = bookmarks.filter(id => id !== sessionId);
-        await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-        setIsBookmarked(false);
-        setBookmarkedSessions(new Set(bookmarks));
-        console.log('[AgendaDetail] Bookmark removed successfully');
-      } else {
-        // Check for conflicts BEFORE adding
-        console.log('[AgendaDetail] ➕ Adding bookmark - checking for conflicts FIRST...');
-        const conflict = checkForConflicts();
-        
-        if (conflict) {
-          console.log('[AgendaDetail] 🚨 Conflict found - showing modal BEFORE saving');
-          console.log('[AgendaDetail] Save is happening: NO ❌ (waiting for user choice)');
-          // Show conflict modal - DO NOT SAVE YET
-          setConflictingSession(conflict);
-          setShowConflictModal(true);
-        } else {
-          console.log('[AgendaDetail] ✅ No conflict - saving bookmark immediately');
-          console.log('[AgendaDetail] Save is happening: YES ✅');
-          // No conflict, add bookmark
-          bookmarks.push(sessionId);
-          await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-          setIsBookmarked(true);
-          setBookmarkedSessions(new Set(bookmarks));
-          console.log('[AgendaDetail] Bookmark added successfully');
-        }
+      try {
+        const bookmarksArray = Array.from(newBookmarks);
+        await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
+        console.log('[AgendaDetail] Bookmark removed and saved');
+      } catch (err: any) {
+        console.log('[AgendaDetail] Storage unavailable, bookmark removal will not persist');
       }
-    } catch (err: any) {
-      console.error('[AgendaDetail] Error toggling bookmark:', err);
-      console.error('[AgendaDetail] Error details:', {
-        message: err?.message,
-        name: err?.name,
-        type: err?.type,
-      });
-      // Gracefully handle error - update UI anyway
-      if (isBookmarked) {
-        setIsBookmarked(false);
-        const newBookmarks = new Set(bookmarkedSessions);
-        newBookmarks.delete(sessionId);
-        setBookmarkedSessions(newBookmarks);
-      }
+      return;
     }
-    console.log('═══════════════════════════════════════════════════');
-  };
-
-  const handleKeepBoth = async () => {
-    console.log('[AgendaDetail] 👥 User chose: KEEP BOTH sessions');
-    try {
-      const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      let bookmarks: string[] = stored ? JSON.parse(stored) : [];
-      bookmarks.push(sessionId);
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-      setIsBookmarked(true);
-      setBookmarkedSessions(new Set(bookmarks));
-      setShowConflictModal(false);
-      setConflictingSession(null);
-    } catch (err: any) {
-      console.error('[AgendaDetail] Error saving bookmark:', err);
-      console.error('[AgendaDetail] Error details:', {
-        message: err?.message,
-        name: err?.name,
-        type: err?.type,
-      });
-      // Gracefully handle error - update UI anyway
-      setIsBookmarked(true);
+    
+    console.log('[AgendaDetail] Adding bookmark - checking for conflicts...');
+    const conflict = checkForConflicts();
+    
+    if (conflict) {
+      console.log('[AgendaDetail] Conflict detected - showing modal');
+      setConflictingSession(conflict);
+      setShowConflictModal(true);
+    } else {
+      console.log('[AgendaDetail] No conflict - adding bookmark');
       const newBookmarks = new Set(bookmarkedSessions);
       newBookmarks.add(sessionId);
       setBookmarkedSessions(newBookmarks);
-      setShowConflictModal(false);
-      setConflictingSession(null);
+      setIsBookmarked(true);
+      
+      try {
+        const bookmarksArray = Array.from(newBookmarks);
+        await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
+        console.log('[AgendaDetail] Bookmark added and saved');
+      } catch (err: any) {
+        console.log('[AgendaDetail] Storage unavailable, bookmark will not persist');
+      }
     }
   };
 
+  const handleKeepBoth = async () => {
+    console.log('[AgendaDetail] User chose: KEEP BOTH');
+    const newBookmarks = new Set(bookmarkedSessions);
+    newBookmarks.add(sessionId);
+    setBookmarkedSessions(newBookmarks);
+    setIsBookmarked(true);
+    
+    try {
+      const bookmarksArray = Array.from(newBookmarks);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
+    } catch (err: any) {
+      console.log('[AgendaDetail] Storage unavailable, bookmark will not persist');
+    }
+    
+    setShowConflictModal(false);
+    setConflictingSession(null);
+  };
+
   const handleCancel = () => {
-    console.log('[AgendaDetail] ❌ User chose: CANCEL (do not save new session)');
+    console.log('[AgendaDetail] User chose: CANCEL');
     setShowConflictModal(false);
     setConflictingSession(null);
   };
@@ -287,90 +219,116 @@ export default function AgendaDetailScreen() {
   const handleReplace = async () => {
     if (!conflictingSession) return;
     
-    console.log('[AgendaDetail] 🔄 User chose: REPLACE existing session');
-    console.log('[AgendaDetail] Removing:', conflictingSession.Title);
-    console.log('[AgendaDetail] Adding:', title);
+    console.log('[AgendaDetail] User chose: REPLACE');
+    const newBookmarks = new Set(bookmarkedSessions);
+    newBookmarks.delete(conflictingSession.id);
+    newBookmarks.add(sessionId);
+    setBookmarkedSessions(newBookmarks);
+    setIsBookmarked(true);
     
     try {
-      const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      let bookmarks: string[] = stored ? JSON.parse(stored) : [];
-      
-      // Remove conflicting session and add new one
-      bookmarks = bookmarks.filter(id => id !== conflictingSession.id);
-      bookmarks.push(sessionId);
-      
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
-      setIsBookmarked(true);
-      setBookmarkedSessions(new Set(bookmarks));
-      setShowConflictModal(false);
-      setConflictingSession(null);
+      const bookmarksArray = Array.from(newBookmarks);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
     } catch (err: any) {
-      console.error('[AgendaDetail] Error replacing bookmark:', err);
-      console.error('[AgendaDetail] Error details:', {
-        message: err?.message,
-        name: err?.name,
-        type: err?.type,
-      });
-      // Gracefully handle error - update UI anyway
-      setIsBookmarked(true);
-      const newBookmarks = new Set(bookmarkedSessions);
-      newBookmarks.delete(conflictingSession.id);
-      newBookmarks.add(sessionId);
-      setBookmarkedSessions(newBookmarks);
-      setShowConflictModal(false);
-      setConflictingSession(null);
+      console.log('[AgendaDetail] Storage unavailable, bookmark will not persist');
     }
+    
+    setShowConflictModal(false);
+    setConflictingSession(null);
   };
 
-  const formatDate = (dateString: string) => {
+  const formatDate = (dateString: string): string => {
     if (!dateString) return '';
-    const dateObj = new Date(dateString);
-    const weekdays = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const parts = dateString.split('-');
+    if (parts.length !== 3) return dateString;
+    
+    const year = parseInt(parts[0], 10);
+    const month = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const monthName = months[month];
     
-    const weekday = weekdays[dateObj.getDay()];
-    const month = months[dateObj.getMonth()];
-    const day = dateObj.getDate();
-    const year = dateObj.getFullYear();
-    
-    return `${weekday}, ${month} ${day}, ${year}`;
+    return `${monthName} ${day}, ${year}`;
   };
 
   const getTrackColor = (track: string): string => {
     return TRACK_COLORS[track] || colors.textSecondary;
   };
 
-  const formattedDate = formatDate(date);
+  const dateDisplay = formatDate(date);
+  const timeDisplay = endTime ? `${startTime} - ${endTime}` : startTime;
   const trackColor = getTrackColor(typeTrack);
-  
-  // Format time display
-  const timeDisplay = endTime 
-    ? `${startTime} - ${endTime}`
-    : startTime;
 
   return (
     <>
       <Stack.Screen 
         options={{ 
-          headerShown: true,
           title: 'Session Details',
+          headerShown: true,
           headerStyle: {
             backgroundColor: colors.background,
           },
           headerTintColor: colors.text,
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={toggleBookmark}
+              style={styles.headerButton}
+            >
+              <IconSymbol
+                ios_icon_name={isBookmarked ? "bookmark.fill" : "bookmark"}
+                android_material_icon_name={isBookmarked ? "bookmark" : "bookmark-border"}
+                size={24}
+                color={isBookmarked ? colors.accent : colors.text}
+              />
+            </TouchableOpacity>
+          ),
         }} 
       />
       <SafeAreaView style={styles.container} edges={['bottom']}>
-        <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <View style={styles.card}>
-            <View style={styles.headerRow}>
-              <Text style={styles.title}>
-                {title}
-              </Text>
+        <ScrollView 
+          style={styles.scrollView}
+          contentContainerStyle={styles.scrollContent}
+        >
+          <View style={styles.content}>
+            <Text style={styles.title}>{title}</Text>
+
+            <View style={styles.infoSection}>
+              <View style={styles.infoRow}>
+                <IconSymbol
+                  ios_icon_name="calendar"
+                  android_material_icon_name="calendar-today"
+                  size={20}
+                  color={colors.accent}
+                />
+                <Text style={styles.infoText}>{dateDisplay}</Text>
+              </View>
+
+              <View style={styles.infoRow}>
+                <IconSymbol
+                  ios_icon_name="clock"
+                  android_material_icon_name="schedule"
+                  size={20}
+                  color={colors.accent}
+                />
+                <Text style={styles.infoText}>{timeDisplay}</Text>
+              </View>
+
+              {room && (
+                <View style={styles.infoRow}>
+                  <IconSymbol
+                    ios_icon_name="location.fill"
+                    android_material_icon_name="place"
+                    size={20}
+                    color={colors.accent}
+                  />
+                  <Text style={styles.infoText}>{room}</Text>
+                </View>
+              )}
             </View>
 
             {typeTrack && (
-              <View style={styles.trackBadgeContainer}>
+              <View style={styles.trackContainer}>
                 <View style={[
                   styles.trackBadge,
                   { 
@@ -378,116 +336,30 @@ export default function AgendaDetailScreen() {
                     borderColor: trackColor,
                   }
                 ]}>
-                  <Text style={[styles.trackBadgeText, { color: trackColor }]}>
+                  <Text style={[
+                    styles.trackBadgeText,
+                    { color: trackColor }
+                  ]}>
                     {typeTrack}
                   </Text>
                 </View>
               </View>
             )}
 
-            <View style={styles.detailsContainer}>
-              <View style={styles.detailRow}>
-                <IconSymbol
-                  ios_icon_name="calendar"
-                  android_material_icon_name="calendar-today"
-                  size={20}
-                  color={colors.accent}
-                />
-                <View style={styles.detailTextContainer}>
-                  <Text style={styles.detailLabel}>
-                    Date
-                  </Text>
-                  <Text style={styles.detailValue}>
-                    {formattedDate}
-                  </Text>
-                </View>
+            {speakerNames && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Speakers</Text>
+                <Text style={styles.sectionContent}>{speakerNames}</Text>
               </View>
-
-              <View style={styles.detailRow}>
-                <IconSymbol
-                  ios_icon_name="clock.fill"
-                  android_material_icon_name="access-time"
-                  size={20}
-                  color={colors.accent}
-                />
-                <View style={styles.detailTextContainer}>
-                  <Text style={styles.detailLabel}>
-                    Time
-                  </Text>
-                  <Text style={styles.detailValue}>
-                    {timeDisplay}
-                  </Text>
-                </View>
-              </View>
-
-              {room && (
-                <View style={styles.detailRow}>
-                  <IconSymbol
-                    ios_icon_name="location.fill"
-                    android_material_icon_name="location-on"
-                    size={20}
-                    color={colors.accent}
-                  />
-                  <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>
-                      Room
-                    </Text>
-                    <Text style={styles.detailValue}>
-                      {room}
-                    </Text>
-                  </View>
-                </View>
-              )}
-
-              {speakerNames && (
-                <View style={styles.detailRow}>
-                  <IconSymbol
-                    ios_icon_name="person.fill"
-                    android_material_icon_name="person"
-                    size={20}
-                    color={colors.accent}
-                  />
-                  <View style={styles.detailTextContainer}>
-                    <Text style={styles.detailLabel}>
-                      Speaker(s)
-                    </Text>
-                    <Text style={styles.detailValue}>
-                      {speakerNames}
-                    </Text>
-                  </View>
-                </View>
-              )}
-            </View>
+            )}
 
             {sessionDescription && (
-              <View style={styles.descriptionContainer}>
-                <Text style={styles.descriptionLabel}>
-                  Synopsis
-                </Text>
-                <Text style={styles.descriptionText}>
-                  {sessionDescription}
-                </Text>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Description</Text>
+                <Text style={styles.sectionContent}>{sessionDescription}</Text>
               </View>
             )}
           </View>
-
-          <TouchableOpacity
-            style={[
-              styles.bookmarkButton,
-              isBookmarked && styles.bookmarkButtonActive
-            ]}
-            onPress={toggleBookmark}
-          >
-            <IconSymbol
-              ios_icon_name={isBookmarked ? "bookmark.fill" : "bookmark"}
-              android_material_icon_name={isBookmarked ? "bookmark" : "bookmark-border"}
-              size={20}
-              color={colors.text}
-            />
-            <Text style={styles.bookmarkButtonText}>
-              {isBookmarked ? 'Remove from My Schedule' : 'Add to My Schedule'}
-            </Text>
-          </TouchableOpacity>
         </ScrollView>
 
         {/* Conflict Modal */}
@@ -499,8 +371,8 @@ export default function AgendaDetailScreen() {
               title: title,
               date: date,
               startTime: startTime,
-              endTime: endTime || '',
-              room: room || '',
+              endTime: endTime,
+              room: room,
             }}
             existingSession={{
               id: conflictingSession.id,
@@ -529,98 +401,62 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    paddingBottom: 24,
+  },
+  headerButton: {
+    padding: 8,
+    marginRight: 8,
+  },
+  content: {
     padding: 16,
   },
-  card: {
-    backgroundColor: colors.card,
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  headerRow: {
-    marginBottom: 16,
-  },
   title: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: '700',
     color: colors.text,
-    lineHeight: 32,
-  },
-  trackBadgeContainer: {
     marginBottom: 20,
+    lineHeight: 36,
+  },
+  infoSection: {
+    marginBottom: 20,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  infoText: {
+    fontSize: 16,
+    color: colors.text,
+    marginLeft: 12,
+    fontWeight: '600',
+  },
+  trackContainer: {
+    marginBottom: 24,
   },
   trackBadge: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
   },
   trackBadgeText: {
-    fontSize: 12,
+    fontSize: 14,
     fontWeight: '700',
   },
-  detailsContainer: {
-    marginBottom: 20,
+  section: {
+    marginBottom: 24,
   },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginBottom: 16,
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 12,
   },
-  detailTextContainer: {
-    marginLeft: 12,
-    flex: 1,
-  },
-  detailLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 4,
-    textTransform: 'uppercase',
-    color: colors.textSecondary,
-  },
-  detailValue: {
+  sectionContent: {
     fontSize: 16,
-    color: colors.text,
-  },
-  descriptionContainer: {
-    marginTop: 8,
-  },
-  descriptionLabel: {
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 8,
-    textTransform: 'uppercase',
     color: colors.textSecondary,
-  },
-  descriptionText: {
-    fontSize: 15,
-    lineHeight: 22,
-    color: colors.text,
-  },
-  bookmarkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 16,
-    borderRadius: 12,
-    marginTop: 16,
-    backgroundColor: colors.cardAlt,
-    borderWidth: 2,
-    borderColor: colors.textSecondary,
-  },
-  bookmarkButtonActive: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  bookmarkButtonText: {
-    color: colors.text,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 8,
+    lineHeight: 24,
   },
 });

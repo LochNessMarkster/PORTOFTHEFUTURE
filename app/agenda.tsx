@@ -111,12 +111,9 @@ export default function AgendaScreen() {
   const loadBookmarks = async () => {
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      console.log('[Agenda] Raw stored bookmarks:', stored);
       
       if (stored) {
         const parsed = JSON.parse(stored);
-        console.log('[Agenda] Parsed bookmarks:', parsed);
-        console.log('[Agenda] Parsed bookmarks type:', typeof parsed, Array.isArray(parsed));
         
         // Ensure we have an array
         if (Array.isArray(parsed)) {
@@ -124,7 +121,7 @@ export default function AgendaScreen() {
           setBookmarkedSessions(bookmarks);
           console.log('[Agenda] Loaded bookmarks:', bookmarks.size, 'sessions');
         } else {
-          console.warn('[Agenda] Bookmarks not an array, resetting');
+          console.log('[Agenda] Bookmarks not an array, resetting');
           setBookmarkedSessions(new Set());
         }
       } else {
@@ -132,13 +129,8 @@ export default function AgendaScreen() {
         setBookmarkedSessions(new Set());
       }
     } catch (err: any) {
-      console.error('[Agenda] Error loading bookmarks:', err);
-      console.error('[Agenda] Error details:', {
-        message: err?.message,
-        name: err?.name,
-        type: err?.type,
-      });
       // Gracefully handle AsyncStorage errors - continue with empty bookmarks
+      console.log('[Agenda] Storage unavailable, using in-memory bookmarks only');
       setBookmarkedSessions(new Set());
     }
   };
@@ -149,13 +141,8 @@ export default function AgendaScreen() {
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarksArray));
       console.log('[Agenda] Saved bookmarks:', bookmarksArray.length, 'sessions');
     } catch (err: any) {
-      console.error('[Agenda] Error saving bookmarks:', err);
-      console.error('[Agenda] Error details:', {
-        message: err?.message,
-        name: err?.name,
-        type: err?.type,
-      });
-      // Gracefully handle save errors - bookmarks will be lost but app continues
+      // Gracefully handle save errors - bookmarks will be lost on app restart but app continues
+      console.log('[Agenda] Storage unavailable, bookmarks will not persist');
     }
   };
 
