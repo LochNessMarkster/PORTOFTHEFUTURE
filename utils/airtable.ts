@@ -494,6 +494,21 @@ export const sendMessage = (
     { sender_email, content }
   );
 
+export const deleteConversation = async (
+  conversationId: string
+): Promise<{ success: boolean; message: string }> => {
+  console.log(`[API] DELETE /api/conversations/${conversationId}`);
+  const response = await fetch(
+    `${BACKEND_URL}/api/conversations/${encodeURIComponent(conversationId)}`,
+    { method: 'DELETE', headers: { 'Content-Type': 'application/json' } }
+  );
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`DELETE /api/conversations/${conversationId} failed (${response.status}): ${errorBody}`);
+  }
+  return response.json() as Promise<{ success: boolean; message: string }>;
+};
+
 // ─── Reports & Moderation ─────────────────────────────────────────────────────
 
 export interface UserReport {
