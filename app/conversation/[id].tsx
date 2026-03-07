@@ -11,19 +11,23 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { Stack, useLocalSearchParams } from 'expo-router';
+import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchMessages, sendMessage, ConversationMessage } from '@/utils/airtable';
+import { fetchMessages, sendMessage, ConversationMessage, submitReport, blockUser } from '@/utils/airtable';
+import { ReportUserModal } from '@/components/ReportUserModal';
+import { BlockUserModal } from '@/components/BlockUserModal';
 
 export default function ConversationScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const params = useLocalSearchParams();
   const { user } = useAuth();
+  const router = useRouter();
   const flatListRef = useRef<FlatList>(null);
 
   const conversationId = params.id as string;
@@ -35,11 +39,15 @@ export default function ConversationScreen() {
   const [messageText, setMessageText] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [showBlockModal, setShowBlockModal] = useState(false);
+  const [showActionsMenu, setShowActionsMenu] = useState(false);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
   const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
   const cardBg = isDark ? colors.cardDark : colors.card;
+  const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadMessages = useCallback(async () => {
     console.log('[API] Loading messages for conversation:', conversationId);
@@ -87,6 +95,48 @@ export default function ConversationScreen() {
     }
   };
 
+  const handleReportUser = async (reason: string, notes: string) => {
+    if (!user?.email) return;
+    console.log('[Report] Submitting report:', { reason, notes });
+    await submitReport(
+      user.email,
+      otherParticipantEmail,
+      reason,
+      notes,
+      conversationId
+    );
+    setShowReportModal(false);
+  };
+
+  const handleBlockUser = async () => {
+    if (!user?.email) return;
+    console.log('[Block] Blocking user:', otherParticipantEmail);
+    await blockUser(user.email, otherParticipantEmail);
+    setShowBlockModal(false);
+    // Navigate back after blocking
+    setTimeout(() => {
+      router.back();
+    }, 1500);
+  };
+
+  const handleOpenActionsMenu = () => {
+    setShowActionsMenu(true);
+  };
+
+  const handleCloseActionsMenu = () => {
+    setShowActionsMenu(false);
+  };
+
+  const handleReportPress = () => {
+    setShowActionsMenu(false);
+    setShowReportModal(true);
+  };
+
+  const handleBlockPress = () => {
+    setShowActionsMenu(false);
+    setShowBlockModal(true);
+  };
+
   const renderMessage = ({ item }: { item: ConversationMessage }) => {
     const isCurrentUser = item.sender_email === user?.email;
     const messageTime = new Date(item.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -122,6 +172,19 @@ export default function ConversationScreen() {
             backgroundColor: isDark ? colors.backgroundDark : colors.background,
           },
           headerTintColor: textColor,
+          headerRight: () => (
+            <TouchableOpacity
+              onPress={handleOpenActionsMenu}
+              style={{ marginRight: 8, padding: 8 }}
+            >
+              <IconSymbol
+                ios_icon_name="ellipsis.circle"
+                android_material_icon_name="more-vert"
+                size={24}
+                color={textColor}
+              />
+            </TouchableOpacity>
+          ),
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
@@ -198,6 +261,65 @@ export default function ConversationScreen() {
             </TouchableOpacity>
           </View>
         </KeyboardAvoidingView>
+
+        {/* Actions Menu Modal */}
+        {showActionsMenu && (
+          <TouchableOpacity
+            style={styles.actionsOverlay}
+            activeOpacity={1}
+            onPress={handleCloseActionsMenu}
+          >
+            <View style={[styles.actionsMenu, { backgroundColor: cardBg }]}>
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={handleReportPress}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="exclamationmark.triangle.fill"
+                  android_material_icon_name="warning"
+                  size={22}
+                  color={colors.error}
+                />
+                <Text style={[styles.actionText, { color: colors.error }]}>
+                  Report User
+                </Text>
+              </TouchableOpacity>
+              <View style={[styles.actionDivider, { backgroundColor: borderColorValue }]} />
+              <TouchableOpacity
+                style={styles.actionItem}
+                onPress={handleBlockPress}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="hand.raised.fill"
+                  android_material_icon_name="block"
+                  size={22}
+                  color={colors.error}
+                />
+                <Text style={[styles.actionText, { color: colors.error }]}>
+                  Block User
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </TouchableOpacity>
+        )}
+
+        {/* Report User Modal */}
+        <ReportUserModal
+          isVisible={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          onSubmit={handleReportUser}
+          reportedUserName={otherParticipantName}
+        />
+
+        {/* Block User Modal */}
+        <BlockUserModal
+          isVisible={showBlockModal}
+          onClose={() => setShowBlockModal(false)}
+          onBlock={handleBlockUser}
+          userName={otherParticipantName}
+        />
       </SafeAreaView>
     </>
   );
@@ -283,5 +405,41 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginLeft: 8,
+  },
+  actionsOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    justifyContent: 'flex-start',
+    alignItems: 'flex-end',
+    paddingTop: 60,
+    paddingRight: 16,
+  },
+  actionsMenu: {
+    borderRadius: 12,
+    minWidth: 200,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  actionItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    gap: 12,
+  },
+  actionText: {
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  actionDivider: {
+    height: 1,
+    marginHorizontal: 16,
   },
 });

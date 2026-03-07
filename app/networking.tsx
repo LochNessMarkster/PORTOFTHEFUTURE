@@ -259,7 +259,7 @@ export default function NetworkingScreen() {
         </View>
         <View style={styles.guidelineTextContainer}>
           <Text style={[styles.guidelineText, { color: textColor }]}>
-            Please communicate respectfully. Inappropriate messages can be reported to conference administrators.
+            Please be respectful when communicating with other attendees. Inappropriate behavior can be reported, and users may be blocked.
           </Text>
         </View>
       </View>

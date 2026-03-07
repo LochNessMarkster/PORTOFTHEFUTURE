@@ -494,6 +494,77 @@ export const sendMessage = (
     { sender_email, content }
   );
 
+// ─── Reports & Moderation ─────────────────────────────────────────────────────
+
+export interface UserReport {
+  id: string;
+  reporting_user_email: string;
+  reported_user_email: string;
+  reason: string;
+  notes?: string;
+  conversation_id?: string;
+  message_id?: string;
+  created_at: string;
+  status: string;
+}
+
+export interface BlockedUser {
+  id: string;
+  blocked_email: string;
+  created_at: string;
+}
+
+export const submitReport = (
+  reporting_user_email: string,
+  reported_user_email: string,
+  reason: string,
+  notes?: string,
+  conversation_id?: string,
+  message_id?: string
+): Promise<{ id: string; created_at: string; message: string }> =>
+  apiPost('/api/reports', {
+    reporting_user_email,
+    reported_user_email,
+    reason,
+    notes,
+    conversation_id,
+    message_id,
+  });
+
+export const blockUser = (
+  blocker_email: string,
+  blocked_email: string
+): Promise<{ id: string; created_at: string; message: string }> =>
+  apiPost('/api/blocked-users', { blocker_email, blocked_email });
+
+export const unblockUser = (
+  blocker_email: string,
+  blocked_email: string
+): Promise<{ success: boolean; message: string }> => {
+  console.log(`[API] DELETE /api/blocked-users/${encodeURIComponent(blocked_email)}?blocker_email=${encodeURIComponent(blocker_email)}`);
+  return fetch(
+    `${BACKEND_URL}/api/blocked-users/${encodeURIComponent(blocked_email)}?blocker_email=${encodeURIComponent(blocker_email)}`,
+    { method: 'DELETE' }
+  ).then(async (response) => {
+    if (!response.ok) {
+      const errorBody = await response.text();
+      throw new Error(`DELETE /api/blocked-users/${blocked_email} failed (${response.status}): ${errorBody}`);
+    }
+    return response.json();
+  });
+};
+
+export const fetchBlockedUsers = (blocker_email: string): Promise<BlockedUser[]> =>
+  apiGet<BlockedUser[]>(`/api/blocked-users?blocker_email=${encodeURIComponent(blocker_email)}`);
+
+export const checkIfBlocked = (
+  blocker_email: string,
+  blocked_email: string
+): Promise<{ is_blocked: boolean }> =>
+  apiGet<{ is_blocked: boolean }>(
+    `/api/blocked-users/check?blocker_email=${encodeURIComponent(blocker_email)}&blocked_email=${encodeURIComponent(blocked_email)}`
+  );
+
 // ─── Announcements ────────────────────────────────────────────────────────────
 
 export interface AnnouncementItem {
