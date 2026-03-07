@@ -50,6 +50,20 @@ export default function FloatingTabBar({
   const theme = useTheme();
   const animatedValue = useSharedValue(0);
 
+  // Debug logging for tab rendering
+  React.useEffect(() => {
+    console.log('[FloatingTabBar] Rendering with tabs:', tabs.length);
+    tabs.forEach((tab, index) => {
+      console.log(`[FloatingTabBar] Tab ${index}:`, {
+        name: tab.name,
+        label: tab.label,
+        icon: tab.icon,
+        route: tab.route,
+        isValidIcon: tab.icon in MaterialIcons.glyphMap
+      });
+    });
+  }, [tabs]);
+
   // Improved active tab detection with better path matching
   const activeTabIndex = React.useMemo(() => {
     // Find the best matching tab based on the current pathname
@@ -83,7 +97,9 @@ export default function FloatingTabBar({
     });
 
     // Default to first tab if no match found
-    return bestMatch >= 0 ? bestMatch : 0;
+    const finalIndex = bestMatch >= 0 ? bestMatch : 0;
+    console.log('[FloatingTabBar] Active tab index:', finalIndex, 'for pathname:', pathname);
+    return finalIndex;
   }, [pathname, tabs]);
 
   React.useEffect(() => {
@@ -96,7 +112,8 @@ export default function FloatingTabBar({
     }
   }, [activeTabIndex, animatedValue]);
 
-  const handleTabPress = (route: Href) => {
+  const handleTabPress = (route: Href, label: string) => {
+    console.log('[FloatingTabBar] Tab pressed:', label, 'route:', route);
     router.push(route);
   };
 
@@ -185,12 +202,14 @@ export default function FloatingTabBar({
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
+              const iconColor = isActive ? '#FFFFFF' : (theme.dark ? '#98989D' : '#8E8E93');
+              const labelColor = isActive ? '#FFFFFF' : (theme.dark ? '#98989D' : '#8E8E93');
 
               return (
-                <React.Fragment key={index}>
+                <React.Fragment key={`tab-${index}-${tab.name}`}>
                 <TouchableOpacity
                   style={styles.tab}
-                  onPress={() => handleTabPress(tab.route)}
+                  onPress={() => handleTabPress(tab.route, tab.label)}
                   activeOpacity={0.7}
                 >
                   <View style={styles.tabContent}>
@@ -198,14 +217,16 @@ export default function FloatingTabBar({
                       android_material_icon_name={tab.icon}
                       ios_icon_name={tab.icon}
                       size={22}
-                      color={isActive ? '#FFFFFF' : (theme.dark ? '#98989D' : '#8E8E93')}
+                      color={iconColor}
                     />
                     <Text
                       style={[
                         styles.tabLabel,
-                        { color: theme.dark ? '#98989D' : '#8E8E93' },
-                        isActive && { color: '#FFFFFF', fontWeight: '600' },
+                        { color: labelColor },
+                        isActive && { fontWeight: '600' },
                       ]}
+                      numberOfLines={1}
+                      adjustsFontSizeToFit
                     >
                       {tab.label}
                     </Text>
@@ -258,15 +279,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
+    paddingHorizontal: 2,
   },
   tabContent: {
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
+    width: '100%',
   },
   tabLabel: {
     fontSize: 10,
     fontWeight: '500',
     marginTop: 2,
+    textAlign: 'center',
   },
 });

@@ -26,16 +26,19 @@ export default function TabLayout() {
     {
       name: 'speakers',
       route: '/speakers',
-      icon: 'mic',
+      icon: 'person',
       label: 'Speakers',
     },
     {
       name: 'more',
       route: '/(tabs)/more',
-      icon: 'apps',
+      icon: 'menu',
       label: 'More',
     },
   ];
+
+  // Debug logging for tab configuration
+  console.log('[TabLayout] Configured tabs:', tabs.map(t => ({ name: t.name, icon: t.icon, label: t.label })));
 
   return (
     <>
