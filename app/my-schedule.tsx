@@ -64,7 +64,7 @@ export default function MyScheduleScreen() {
   // Reload bookmarks when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('[My Schedule] Screen focused, reloading bookmarks');
+      console.log('[My Schedule] 🔄 Screen focused, reloading bookmarks');
       loadBookmarks();
     }, [])
   );
@@ -79,16 +79,21 @@ export default function MyScheduleScreen() {
 
   const loadBookmarks = async () => {
     try {
+      console.log('[My Schedule] 🔍 Loading bookmarks from AsyncStorage...');
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      console.log('[My Schedule] Raw stored bookmarks:', stored);
+      
       if (stored) {
         const bookmarks = JSON.parse(stored);
         setBookmarkedSessions(new Set(bookmarks));
-        console.log('[My Schedule] Loaded bookmarks:', bookmarks.length);
+        console.log('[My Schedule] ✅ Loaded bookmarks:', bookmarks.length, 'sessions');
+        console.log('[My Schedule] Bookmark IDs:', bookmarks);
       } else {
+        console.log('[My Schedule] ℹ️ No bookmarks found in storage');
         setBookmarkedSessions(new Set());
       }
     } catch (err) {
-      console.error('[My Schedule] Error loading bookmarks:', err);
+      console.error('[My Schedule] ❌ Error loading bookmarks:', err);
     }
   };
 
@@ -119,14 +124,20 @@ export default function MyScheduleScreen() {
   }, [refreshing]);
 
   const groupByDate = () => {
-    console.log('[My Schedule] Grouping sessions by date');
+    console.log('[My Schedule] 📊 Grouping sessions by date');
+    console.log('[My Schedule] Total sessions:', allSessions.length);
+    console.log('[My Schedule] Bookmarked session IDs:', Array.from(bookmarkedSessions));
     
     // Filter sessions that are bookmarked
-    const bookmarked = allSessions.filter(session => 
-      bookmarkedSessions.has(session.id)
-    );
+    const bookmarked = allSessions.filter(session => {
+      const isBookmarked = bookmarkedSessions.has(session.id);
+      if (isBookmarked) {
+        console.log('[My Schedule] ✅ Found bookmarked session:', session.Title, '(ID:', session.id, ')');
+      }
+      return isBookmarked;
+    });
 
-    console.log('[My Schedule] Bookmarked sessions:', bookmarked.length);
+    console.log('[My Schedule] 📚 Bookmarked sessions:', bookmarked.length);
 
     // Group by date
     const dateMap = new Map<string, AgendaItem[]>();
@@ -152,12 +163,12 @@ export default function MyScheduleScreen() {
       .map(([date, sessions]) => ({ date, sessions }))
       .sort((a, b) => a.date.localeCompare(b.date));
 
-    console.log('[My Schedule] Grouped into', grouped.length, 'dates');
+    console.log('[My Schedule] ✅ Grouped into', grouped.length, 'dates');
     setGroupedSessions(grouped);
   };
 
   const onRefresh = () => {
-    console.log('[My Schedule] User initiated refresh');
+    console.log('[My Schedule] 🔄 User initiated refresh');
     setRefreshing(true);
     loadBookmarks();
     loadAgenda();
@@ -221,15 +232,25 @@ export default function MyScheduleScreen() {
   };
 
   const removeBookmark = async (sessionId: string) => {
-    console.log('[My Schedule] Removing bookmark:', sessionId);
+    console.log('[My Schedule] ➖ Removing bookmark:', sessionId);
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
       let bookmarks: string[] = stored ? JSON.parse(stored) : [];
+      console.log('[My Schedule] Current bookmarks before removal:', bookmarks);
+      
       bookmarks = bookmarks.filter(id => id !== sessionId);
+      console.log('[My Schedule] 💾 Saving updated bookmarks:', bookmarks);
+      
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+      
+      // Verify the save
+      const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      console.log('[My Schedule] ✅ Verification read:', verification);
+      
       setBookmarkedSessions(new Set(bookmarks));
+      console.log('[My Schedule] ✅ Bookmark removed successfully');
     } catch (err) {
-      console.error('[My Schedule] Error removing bookmark:', err);
+      console.error('[My Schedule] ❌ Error removing bookmark:', err);
     }
   };
 
