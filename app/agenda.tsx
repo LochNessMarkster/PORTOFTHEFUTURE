@@ -19,7 +19,7 @@ import {
   Modal,
   ScrollView,
 } from 'react-native';
-import { fetchAgenda, AgendaItem } from '@/utils/airtable';
+import { fetchAgenda, AgendaItem, normalizeToArray } from '@/utils/airtable';
 import { colors } from '@/styles/commonStyles';
 
 interface TimeGroup {
@@ -28,39 +28,35 @@ interface TimeGroup {
   sessions: AgendaItem[];
 }
 
-const BOOKMARKS_KEY = 'potf_bookmarks';
+const BOOKMARKS_KEY = 'potf_bookmarked_sessions';
 
 const TRACK_COLORS: Record<string, string> = {
   'Keynote': '#FF6B6B',
-  'Technical': '#4ECDC4',
-  'Business': '#45B7D1',
-  'Workshop': '#FFA07A',
-  'Panel': '#98D8C8',
-  'Networking': '#F7DC6F',
-  'default': '#95A5A6',
+  'Panel': '#4ECDC4',
+  'Workshop': '#45B7D1',
+  'Networking': '#FFA07A',
+  'Break': '#95E1D3',
+  'default': colors.primary,
 };
 
 const TRACK_OPTIONS = [
   'All Tracks',
   'Keynote',
-  'Technical',
-  'Business',
-  'Workshop',
   'Panel',
+  'Workshop',
   'Networking',
+  'Break',
 ];
 
 export default function AgendaScreen() {
   const [sessions, setSessions] = useState<AgendaItem[]>([]);
   const [filteredSessions, setFilteredSessions] = useState<AgendaItem[]>([]);
-  const [bookmarks, setBookmarks] = useState<Set<string>>(new Set());
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTrack, setSelectedTrack] = useState('All Tracks');
-  const [showTrackDropdown, setShowTrackDropdown] = useState(false);
-  const [conflictSession, setConflictSession] = useState<AgendaItem | null>(null);
-  const [conflictingWith, setConflictingWith] = useState<AgendaItem | null>(null);
+  const [showTrackModal, setShowTrackModal] = useState(false);
+  const [bookmarkedSessions, setBookmarkedSessions] = useState<Set<string>>(new Set());
 
   const router = useRouter();
   const colorScheme = useColorScheme();
@@ -76,148 +72,138 @@ export default function AgendaScreen() {
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
       if (stored) {
-        setBookmarks(new Set(JSON.parse(stored)));
+        const bookmarks = JSON.parse(stored);
+        setBookmarkedSessions(new Set(bookmarks));
+        console.log('[Agenda] Loaded bookmarks:', bookmarks.length);
       }
     } catch (error) {
-      console.log('[Agenda] Could not load bookmarks');
-      setBookmarks(new Set());
+      console.error('[Agenda] Error loading bookmarks:', error);
     }
   }, []);
 
-  const saveBookmarks = useCallback(async (bookmarks: Set<string>) => {
+  const loadAgenda = useCallback(async () => {
+    console.log('[Agenda] Loading agenda...');
     try {
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(Array.from(bookmarks)));
-    } catch (error) {
-      console.log('[Agenda] Could not save bookmarks');
-    }
-  }, []);
-
-  const checkForConflicts = useCallback((session: AgendaItem): AgendaItem | null => {
-    for (const bookmarkedId of bookmarks) {
-      const bookmarkedSession = sessions.find(s => s.id === bookmarkedId);
-      if (bookmarkedSession && bookmarkedSession.id !== session.id) {
-        if (hasSameStartTime(session, bookmarkedSession)) {
-          return bookmarkedSession;
-        }
-      }
-    }
-    return null;
-  }, [bookmarks, sessions]);
-
-  const toggleBookmark = useCallback((sessionId: string) => {
-    const session = sessions.find(s => s.id === sessionId);
-    if (!session) return;
-
-    if (bookmarks.has(sessionId)) {
-      const newBookmarks = new Set(bookmarks);
-      newBookmarks.delete(sessionId);
-      setBookmarks(newBookmarks);
-      saveBookmarks(newBookmarks);
-    } else {
-      const conflict = checkForConflicts(session);
-      if (conflict) {
-        setConflictSession(session);
-        setConflictingWith(conflict);
+      setLoading(true);
+      const response = await fetchAgenda();
+      
+      console.log('[Agenda] Raw API response:', JSON.stringify(response).substring(0, 200));
+      console.log('[Agenda] Response type:', typeof response);
+      console.log('[Agenda] Is response an array?', Array.isArray(response));
+      
+      // Normalize the response to ensure we have an array
+      let normalizedSessions: AgendaItem[] = [];
+      
+      if (Array.isArray(response)) {
+        normalizedSessions = response;
+        console.log('[Agenda] Response is already an array');
+      } else if (response && typeof response === 'object' && 'agenda' in response) {
+        const agendaData = (response as { agenda: unknown }).agenda;
+        normalizedSessions = normalizeToArray<AgendaItem>(agendaData);
+        console.log('[Agenda] Using response.agenda');
+      } else if (response && typeof response === 'object' && 'data' in response) {
+        const data = (response as { data: unknown }).data;
+        normalizedSessions = normalizeToArray<AgendaItem>(data);
+        console.log('[Agenda] Using response.data');
       } else {
-        const newBookmarks = new Set(bookmarks);
-        newBookmarks.add(sessionId);
-        setBookmarks(newBookmarks);
-        saveBookmarks(newBookmarks);
+        normalizedSessions = [];
+        console.warn('[Agenda] Response format not recognized, using empty array');
       }
-    }
-  }, [bookmarks, sessions, checkForConflicts, saveBookmarks]);
-
-  const handleKeepBoth = useCallback(() => {
-    if (conflictSession) {
-      const newBookmarks = new Set(bookmarks);
-      newBookmarks.add(conflictSession.id);
-      setBookmarks(newBookmarks);
-      saveBookmarks(newBookmarks);
-    }
-    setConflictSession(null);
-    setConflictingWith(null);
-  }, [conflictSession, bookmarks, saveBookmarks]);
-
-  const handleCancel = useCallback(() => {
-    setConflictSession(null);
-    setConflictingWith(null);
-  }, []);
-
-  const handleReplace = useCallback(() => {
-    if (conflictSession && conflictingWith) {
-      const newBookmarks = new Set(bookmarks);
-      newBookmarks.delete(conflictingWith.id);
-      newBookmarks.add(conflictSession.id);
-      setBookmarks(newBookmarks);
-      saveBookmarks(newBookmarks);
-    }
-    setConflictSession(null);
-    setConflictingWith(null);
-  }, [conflictSession, conflictingWith, bookmarks, saveBookmarks]);
-
-  const isPastSession = useCallback((sessionStartTime: string, sessionDate: string): boolean => {
-    const status = getSessionStatus(sessionStartTime, sessionDate);
-    return status === 'past';
-  }, []);
-
-  useEffect(() => {
-    const loadData = async () => {
-      console.log('[Agenda] Loading agenda data...');
-      try {
-        setLoading(true);
-        await loadBookmarks();
-        const agendaData = await fetchAgenda();
-        console.log('[Agenda] Loaded sessions:', agendaData.length);
-        setSessions(agendaData);
-        setFilteredSessions(agendaData);
-      } catch (error) {
-        console.error('[Agenda] Error loading data:', error);
-      } finally {
-        setLoading(false);
+      
+      console.log('[Agenda] Normalized sessions - Is array?', Array.isArray(normalizedSessions));
+      console.log('[Agenda] Normalized sessions - Length:', normalizedSessions.length);
+      
+      if (normalizedSessions.length > 0) {
+        console.log('[Agenda] First session:', JSON.stringify(normalizedSessions[0]));
       }
-    };
-    loadData();
-  }, [loadBookmarks]);
-
-  const onRefresh = useCallback(async () => {
-    console.log('[Agenda] User triggered refresh');
-    setRefreshing(true);
-    try {
-      const agendaData = await fetchAgenda();
-      setSessions(agendaData);
-      setFilteredSessions(agendaData);
+      
+      setSessions(normalizedSessions);
+      setFilteredSessions(normalizedSessions);
     } catch (error) {
-      console.error('[Agenda] Error refreshing:', error);
+      console.error('[Agenda] Error loading agenda:', error);
+      setSessions([]);
+      setFilteredSessions([]);
     } finally {
+      setLoading(false);
       setRefreshing(false);
     }
   }, []);
 
   useEffect(() => {
-    let filtered = sessions;
+    loadBookmarks();
+    loadAgenda();
+  }, [loadBookmarks, loadAgenda]);
+
+  const filterAndGroupSessions = useCallback(() => {
+    console.log('[Agenda] Filtering sessions. Total sessions:', sessions.length);
+    console.log('[Agenda] Sessions is array?', Array.isArray(sessions));
+    
+    // Defensive check: ensure sessions is an array
+    if (!Array.isArray(sessions)) {
+      console.error('[Agenda] sessions is not an array!', typeof sessions);
+      setFilteredSessions([]);
+      return;
+    }
+
+    let filtered = [...sessions];
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
       filtered = filtered.filter(session =>
-        session.title.toLowerCase().includes(query) ||
-        session.description?.toLowerCase().includes(query) ||
-        session.speaker?.toLowerCase().includes(query) ||
-        session.location?.toLowerCase().includes(query)
+        session.Title?.toLowerCase().includes(query) ||
+        session.SessionDescription?.toLowerCase().includes(query) ||
+        session.Room?.toLowerCase().includes(query)
       );
     }
 
     if (selectedTrack !== 'All Tracks') {
-      filtered = filtered.filter(session => session.track === selectedTrack);
+      filtered = filtered.filter(session => session.TypeTrack === selectedTrack);
     }
 
+    console.log('[Agenda] Filtered sessions:', filtered.length);
     setFilteredSessions(filtered);
   }, [searchQuery, selectedTrack, sessions]);
 
+  useEffect(() => {
+    filterAndGroupSessions();
+  }, [filterAndGroupSessions]);
+
+  const timeGroups = useMemo(() => {
+    console.log('[Agenda] Building time groups. Filtered sessions:', filteredSessions.length);
+    console.log('[Agenda] Filtered sessions is array?', Array.isArray(filteredSessions));
+    
+    // Defensive check
+    if (!Array.isArray(filteredSessions)) {
+      console.error('[Agenda] filteredSessions is not an array!', typeof filteredSessions);
+      return [];
+    }
+
+    const groups: Record<string, TimeGroup> = {};
+
+    filteredSessions.forEach(session => {
+      const timeKey = `${session.Date}_${session.StartTime}`;
+      if (!groups[timeKey]) {
+        groups[timeKey] = {
+          timeKey,
+          displayTime: session.StartTime || '',
+          sessions: [],
+        };
+      }
+      groups[timeKey].sessions.push(session);
+    });
+
+    const groupArray = Object.values(groups);
+    console.log('[Agenda] Time groups created:', groupArray.length);
+    return groupArray;
+  }, [filteredSessions]);
+
   const handleSessionPress = (item: AgendaItem) => {
-    console.log('[Agenda] Session pressed:', item.title);
+    console.log('[Agenda] Session pressed:', item.Title);
     router.push({
       pathname: '/agenda-detail',
-      params: { sessionId: item.id },
+      params: {
+        sessionId: item.id,
+      },
     });
   };
 
@@ -227,174 +213,172 @@ export default function AgendaScreen() {
   };
 
   const formatDate = (dateString: string): string => {
+    if (!dateString) return '';
     const date = new Date(dateString);
-    const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const month = monthNames[date.getMonth()];
-    const day = date.getDate();
-    const year = date.getFullYear();
-    return `${month} ${day}, ${year}`;
+    const options: Intl.DateTimeFormatOptions = { 
+      weekday: 'long', 
+      month: 'long', 
+      day: 'numeric' 
+    };
+    return date.toLocaleDateString('en-US', options);
   };
 
-  const timeGroups = useMemo(() => {
-    const groups: Record<string, TimeGroup> = {};
-
-    filteredSessions.forEach(session => {
-      const timeKey = `${session.date}_${session.start_time}`;
-      if (!groups[timeKey]) {
-        groups[timeKey] = {
-          timeKey,
-          displayTime: session.start_time,
-          sessions: [],
-        };
-      }
-      groups[timeKey].sessions.push(session);
-    });
-
-    const sortedGroups = Object.values(groups).sort((a, b) => {
-      const dateA = new Date(a.sessions[0].date + ' ' + a.displayTime);
-      const dateB = new Date(b.sessions[0].date + ' ' + b.displayTime);
-      return dateA.getTime() - dateB.getTime();
-    });
-
-    return sortedGroups;
-  }, [filteredSessions]);
-
   const renderSessionCard = (item: AgendaItem) => {
-    const isBookmarked = bookmarks.has(item.id);
-    const trackColor = getTrackColor(item.track);
-    const isPast = isPastSession(item.start_time, item.date);
-    const cardOpacity = isPast ? 0.6 : 1;
+    const trackColor = getTrackColor(item.TypeTrack);
+    const isBookmarked = bookmarkedSessions.has(item.id);
+    const status = getSessionStatus(item.Date, item.StartTime, item.EndTime);
+    const isPast = status === 'past';
+
+    const sessionTitle = item.Title || 'Untitled Session';
+    const sessionRoom = item.Room || '';
+    const sessionTrack = item.TypeTrack || '';
+    const sessionTime = item.StartTime || '';
 
     return (
       <TouchableOpacity
-        key={item.id}
         style={[
           styles.sessionCard,
-          { backgroundColor: cardBg, borderColor: borderColorValue, opacity: cardOpacity },
+          { backgroundColor: cardBg, borderColor: borderColorValue },
+          isPast && styles.pastSession,
         ]}
         onPress={() => handleSessionPress(item)}
         activeOpacity={0.7}
       >
         <View style={styles.sessionHeader}>
-          <View style={styles.sessionTitleRow}>
-            <Text style={[styles.sessionTitle, { color: textColor }]} numberOfLines={2}>
-              {item.title}
+          <View style={[styles.trackBadge, { backgroundColor: trackColor + '20' }]}>
+            <Text style={[styles.trackText, { color: trackColor }]}>
+              {sessionTrack}
             </Text>
-            <TouchableOpacity
-              onPress={() => toggleBookmark(item.id)}
-              hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-            >
-              <IconSymbol
-                ios_icon_name={isBookmarked ? 'bookmark.fill' : 'bookmark'}
-                android_material_icon_name={isBookmarked ? 'bookmark' : 'bookmark-border'}
-                size={24}
-                color={isBookmarked ? colors.accent : secondaryTextColor}
-              />
-            </TouchableOpacity>
           </View>
-
-          {item.track && (
-            <View style={[styles.trackBadge, { backgroundColor: trackColor + '20' }]}>
-              <Text style={[styles.trackText, { color: trackColor }]}>{item.track}</Text>
+          {isBookmarked && (
+            <IconSymbol
+              ios_icon_name="bookmark.fill"
+              android_material_icon_name="bookmark"
+              size={20}
+              color={colors.primary}
+            />
+          )}
+          {isPast && (
+            <View style={[styles.completedBadge, { backgroundColor: secondaryTextColor + '20' }]}>
+              <Text style={[styles.completedText, { color: secondaryTextColor }]}>
+                Completed
+              </Text>
             </View>
           )}
         </View>
 
-        {item.speaker && (
-          <View style={styles.sessionMeta}>
+        <Text
+          style={[
+            styles.sessionTitle,
+            { color: textColor },
+            isPast && { color: secondaryTextColor },
+          ]}
+          numberOfLines={2}
+        >
+          {sessionTitle}
+        </Text>
+
+        <View style={styles.sessionMeta}>
+          <View style={styles.metaRow}>
             <IconSymbol
-              ios_icon_name="person.fill"
-              android_material_icon_name="person"
+              ios_icon_name="clock"
+              android_material_icon_name="access-time"
               size={14}
               color={secondaryTextColor}
             />
-            <Text style={[styles.metaText, { color: secondaryTextColor }]}>{item.speaker}</Text>
+            <Text style={[styles.metaText, { color: secondaryTextColor }]}>
+              {sessionTime}
+            </Text>
           </View>
-        )}
-
-        {item.location && (
-          <View style={styles.sessionMeta}>
-            <IconSymbol
-              ios_icon_name="location.fill"
-              android_material_icon_name="location-on"
-              size={14}
-              color={secondaryTextColor}
-            />
-            <Text style={[styles.metaText, { color: secondaryTextColor }]}>{item.location}</Text>
-          </View>
-        )}
-
-        {item.description && (
-          <Text style={[styles.sessionDescription, { color: secondaryTextColor }]} numberOfLines={2}>
-            {item.description}
-          </Text>
-        )}
+          {sessionRoom && (
+            <View style={styles.metaRow}>
+              <IconSymbol
+                ios_icon_name="location.fill"
+                android_material_icon_name="place"
+                size={14}
+                color={secondaryTextColor}
+              />
+              <Text style={[styles.metaText, { color: secondaryTextColor }]}>
+                {sessionRoom}
+              </Text>
+            </View>
+          )}
+        </View>
       </TouchableOpacity>
     );
   };
 
   const renderTimeGroup = ({ item }: { item: TimeGroup }) => {
-    const firstSession = item.sessions[0];
-    const formattedDate = formatDate(firstSession.date);
+    const displayTime = item.displayTime;
+    const sessionsInGroup = item.sessions;
 
     return (
-      <View key={item.timeKey} style={styles.timeGroupContainer}>
-        <View style={styles.timeHeader}>
-          <Text style={[styles.timeText, { color: colors.primary }]}>{item.displayTime}</Text>
-          <Text style={[styles.dateText, { color: secondaryTextColor }]}>{formattedDate}</Text>
+      <View style={styles.timeGroupContainer}>
+        <View style={[styles.timeHeader, { backgroundColor: isDark ? colors.cardDark : colors.card }]}>
+          <Text style={[styles.timeHeaderText, { color: textColor }]}>
+            {displayTime}
+          </Text>
         </View>
-        {item.sessions.map(session => renderSessionCard(session))}
+        {sessionsInGroup.map((session, index) => (
+          <View key={`${session.id}-${index}`}>
+            {renderSessionCard(session)}
+          </View>
+        ))}
       </View>
     );
   };
 
   const renderTrackDropdown = () => {
-    if (!showTrackDropdown) return null;
-
     return (
       <Modal
-        visible={showTrackDropdown}
+        visible={showTrackModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowTrackDropdown(false)}
+        onRequestClose={() => setShowTrackModal(false)}
       >
         <TouchableOpacity
-          style={styles.dropdownOverlay}
+          style={styles.modalOverlay}
           activeOpacity={1}
-          onPress={() => setShowTrackDropdown(false)}
+          onPress={() => setShowTrackModal(false)}
         >
-          <View style={[styles.dropdownContent, { backgroundColor: cardBg }]}>
-            <ScrollView>
-              {TRACK_OPTIONS.map((track) => (
-                <TouchableOpacity
-                  key={track}
-                  style={[
-                    styles.dropdownItem,
-                    selectedTrack === track && { backgroundColor: colors.primary + '10' },
-                  ]}
-                  onPress={() => {
-                    setSelectedTrack(track);
-                    setShowTrackDropdown(false);
-                  }}
-                >
-                  <Text
+          <View style={[styles.modalContent, { backgroundColor: cardBg }]}>
+            <Text style={[styles.modalTitle, { color: textColor }]}>
+              Select Track
+            </Text>
+            <ScrollView style={styles.trackList}>
+              {TRACK_OPTIONS.map((track) => {
+                const isSelected = selectedTrack === track;
+                return (
+                  <TouchableOpacity
+                    key={track}
                     style={[
-                      styles.dropdownItemText,
-                      { color: selectedTrack === track ? colors.primary : textColor },
+                      styles.trackOption,
+                      isSelected && { backgroundColor: colors.primary + '20' },
                     ]}
+                    onPress={() => {
+                      setSelectedTrack(track);
+                      setShowTrackModal(false);
+                    }}
                   >
-                    {track}
-                  </Text>
-                  {selectedTrack === track && (
-                    <IconSymbol
-                      ios_icon_name="checkmark"
-                      android_material_icon_name="check"
-                      size={20}
-                      color={colors.primary}
-                    />
-                  )}
-                </TouchableOpacity>
-              ))}
+                    <Text
+                      style={[
+                        styles.trackOptionText,
+                        { color: isSelected ? colors.primary : textColor },
+                      ]}
+                    >
+                      {track}
+                    </Text>
+                    {isSelected && (
+                      <IconSymbol
+                        ios_icon_name="checkmark"
+                        android_material_icon_name="check"
+                        size={20}
+                        color={colors.primary}
+                      />
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
         </TouchableOpacity>
@@ -444,15 +428,15 @@ export default function AgendaScreen() {
 
           <TouchableOpacity
             style={[styles.filterButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
-            onPress={() => setShowTrackDropdown(true)}
+            onPress={() => setShowTrackModal(true)}
           >
             <IconSymbol
               ios_icon_name="line.3.horizontal.decrease.circle"
               android_material_icon_name="filter-list"
               size={20}
-              color={colors.primary}
+              color={textColor}
             />
-            <Text style={[styles.filterButtonText, { color: textColor }]} numberOfLines={1}>
+            <Text style={[styles.filterButtonText, { color: textColor }]}>
               {selectedTrack}
             </Text>
           </TouchableOpacity>
@@ -461,7 +445,9 @@ export default function AgendaScreen() {
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading agenda...</Text>
+            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>
+              Loading agenda...
+            </Text>
           </View>
         ) : timeGroups.length === 0 ? (
           <View style={styles.centerContainer}>
@@ -487,7 +473,10 @@ export default function AgendaScreen() {
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
-                onRefresh={onRefresh}
+                onRefresh={() => {
+                  setRefreshing(true);
+                  loadAgenda();
+                }}
                 tintColor={colors.primary}
                 colors={[colors.primary]}
               />
@@ -496,15 +485,6 @@ export default function AgendaScreen() {
         )}
 
         {renderTrackDropdown()}
-
-        <ConflictModal
-          visible={!!conflictSession}
-          newSession={conflictSession}
-          conflictingSession={conflictingWith}
-          onKeepBoth={handleKeepBoth}
-          onReplace={handleReplace}
-          onCancel={handleCancel}
-        />
       </SafeAreaView>
     </>
   );
@@ -515,13 +495,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   searchContainer: {
-    flexDirection: 'row',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 12,
+    paddingBottom: 8,
     gap: 8,
   },
   searchBar: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     borderRadius: 12,
@@ -537,17 +516,16 @@ const styles = StyleSheet.create({
   filterButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    justifyContent: 'center',
     borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     borderWidth: 1,
-    gap: 6,
-    minWidth: 100,
+    gap: 8,
   },
   filterButtonText: {
-    fontSize: 14,
-    fontWeight: '500',
-    flex: 1,
+    fontSize: 15,
+    fontWeight: '600',
   },
   centerContainer: {
     flex: 1,
@@ -571,18 +549,14 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   timeHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
     marginBottom: 12,
   },
-  timeText: {
-    fontSize: 18,
+  timeHeaderText: {
+    fontSize: 16,
     fontWeight: '700',
-  },
-  dateText: {
-    fontSize: 14,
-    fontWeight: '500',
   },
   sessionCard: {
     borderRadius: 12,
@@ -595,23 +569,16 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
+  pastSession: {
+    opacity: 0.6,
+  },
   sessionHeader: {
-    marginBottom: 8,
-  },
-  sessionTitleRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginBottom: 8,
-  },
-  sessionTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    flex: 1,
-    marginRight: 8,
+    gap: 8,
   },
   trackBadge: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 10,
     paddingVertical: 4,
     borderRadius: 6,
@@ -620,48 +587,63 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
+  completedBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginLeft: 'auto',
+  },
+  completedText: {
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  sessionTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
   sessionMeta: {
     flexDirection: 'row',
+    gap: 16,
+  },
+  metaRow: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 6,
+    gap: 4,
   },
   metaText: {
-    fontSize: 14,
-    marginLeft: 6,
+    fontSize: 13,
   },
-  sessionDescription: {
-    fontSize: 14,
-    lineHeight: 20,
-    marginTop: 8,
-  },
-  dropdownOverlay: {
+  modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 24,
   },
-  dropdownContent: {
-    borderRadius: 12,
-    width: '100%',
-    maxWidth: 300,
-    maxHeight: 400,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 8,
+  modalContent: {
+    width: '80%',
+    maxHeight: '60%',
+    borderRadius: 16,
+    padding: 20,
   },
-  dropdownItem: {
+  modalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    marginBottom: 16,
+  },
+  trackList: {
+    maxHeight: 300,
+  },
+  trackOption: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border + '30',
+    paddingVertical: 14,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 4,
   },
-  dropdownItemText: {
+  trackOptionText: {
     fontSize: 16,
-    flex: 1,
   },
 });
