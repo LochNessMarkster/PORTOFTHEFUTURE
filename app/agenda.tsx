@@ -764,10 +764,14 @@ export default function AgendaScreen() {
       <Stack.Screen 
         options={{ 
           title: 'Agenda',
-          headerShown: false,
+          headerShown: true,
+          headerStyle: {
+            backgroundColor: colors.background,
+          },
+          headerTintColor: colors.text,
         }} 
       />
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      <SafeAreaView style={styles.container} edges={['bottom']}>
         {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>

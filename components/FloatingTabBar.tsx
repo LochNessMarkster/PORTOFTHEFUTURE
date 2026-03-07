@@ -210,7 +210,7 @@ export default function FloatingTabBar({
                     <IconSymbol
                       android_material_icon_name={tab.icon}
                       ios_icon_name={tab.icon}
-                      size={24}
+                      size={22}
                       color={iconColor}
                     />
                     <Text
