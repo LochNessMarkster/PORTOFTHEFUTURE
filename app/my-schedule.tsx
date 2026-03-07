@@ -84,14 +84,26 @@ export default function MyScheduleScreen() {
       
       if (stored) {
         const bookmarks = JSON.parse(stored);
-        setBookmarkedSessions(bookmarks);
-        console.log('[My Schedule] Loaded', bookmarks.length, 'bookmarked sessions:', bookmarks);
+        
+        // Ensure we have an array
+        if (Array.isArray(bookmarks)) {
+          setBookmarkedSessions(bookmarks);
+          console.log('[My Schedule] Loaded', bookmarks.length, 'bookmarked sessions:', bookmarks);
+        } else {
+          console.log('[My Schedule] Invalid bookmark format, resetting to empty');
+          setBookmarkedSessions([]);
+          // Fix the storage
+          await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
+        }
       } else {
         console.log('[My Schedule] No bookmarks found, starting with empty array');
         setBookmarkedSessions([]);
+        // Initialize storage
+        await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
       }
-    } catch (err) {
-      console.log('[My Schedule] Failed to load bookmarks, starting with empty array:', err);
+    } catch (err: any) {
+      console.log('[My Schedule] AsyncStorage error:', err?.message || err);
+      console.log('[My Schedule] Starting with empty bookmarks array');
       setBookmarkedSessions([]);
     }
   };
@@ -240,16 +252,21 @@ export default function MyScheduleScreen() {
       bookmarks = bookmarks.filter(id => id !== sessionId);
       console.log('[My Schedule] Saving updated bookmarks:', bookmarks);
       
-      await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
+      const jsonString = JSON.stringify(bookmarks);
+      await AsyncStorage.setItem(BOOKMARKS_KEY, jsonString);
       
       // Verify the save
       const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
       console.log('[My Schedule] Verification read:', verification);
       
+      if (verification !== jsonString) {
+        console.log('[My Schedule] WARNING: Verification failed! Saved data does not match.');
+      }
+      
       setBookmarkedSessions(bookmarks);
       console.log('[My Schedule] Bookmark removed successfully');
-    } catch (err) {
-      console.log('[My Schedule] Failed to remove bookmark:', err);
+    } catch (err: any) {
+      console.log('[My Schedule] Failed to remove bookmark:', err?.message || err);
     }
   };
 
