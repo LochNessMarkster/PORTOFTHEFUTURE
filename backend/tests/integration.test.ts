@@ -397,4 +397,112 @@ describe("API Integration Tests", () => {
     );
     expect(Array.isArray(data.activities)).toBe(true);
   });
+
+  // Reports
+  test("POST /api/reports - should submit a report", async () => {
+    const res = await api("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reporting_user_email: participant1Email,
+        reported_user_email: participant2Email,
+        reason: "Harassment",
+        notes: "Test report for integration",
+      }),
+    });
+    await expectStatus(res, 201);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
+    expect(data.created_at).toBeDefined();
+    expect(data.message).toBeDefined();
+  });
+
+  test("POST /api/reports - should return 400 for missing required fields", async () => {
+    const res = await api("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reporting_user_email: participant1Email,
+        // Missing reported_user_email and reason
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("GET /api/reports - should return list of reports", async () => {
+    const res = await api("/api/reports");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      expect(data[0].id).toBeDefined();
+      expect(data[0].reporting_user_email).toBeDefined();
+      expect(data[0].reported_user_email).toBeDefined();
+    }
+  });
+
+  // Blocked Users
+  test("POST /api/blocked-users - should block a user", async () => {
+    const res = await api("/api/blocked-users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blocker_email: participant1Email,
+        blocked_email: participant2Email,
+      }),
+    });
+    await expectStatus(res, 201);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
+    expect(data.created_at).toBeDefined();
+    expect(data.message).toBeDefined();
+  });
+
+  test("POST /api/blocked-users - should return 400 for missing required fields", async () => {
+    const res = await api("/api/blocked-users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blocker_email: participant1Email,
+        // Missing blocked_email
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("GET /api/blocked-users - should return list of blocked users", async () => {
+    const res = await api(
+      `/api/blocked-users?blocker_email=${participant1Email}`
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      expect(data[0].id).toBeDefined();
+      expect(data[0].blocked_email).toBeDefined();
+      expect(data[0].created_at).toBeDefined();
+    }
+  });
+
+  test("GET /api/blocked-users/check - should check if a user is blocked", async () => {
+    const res = await api(
+      `/api/blocked-users/check?blocker_email=${participant1Email}&blocked_email=${participant2Email}`
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data.is_blocked).toBe("boolean");
+  });
+
+  test("DELETE /api/blocked-users/{blocked_email} - should unblock a user", async () => {
+    const res = await api(
+      `/api/blocked-users/${participant2Email}?blocker_email=${participant1Email}`,
+      {
+        method: "DELETE",
+      }
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.message).toBeDefined();
+  });
 });
