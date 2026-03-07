@@ -41,7 +41,7 @@ interface FloatingTabBarProps {
 
 export default function FloatingTabBar({
   tabs,
-  containerWidth = screenWidth - 32,
+  containerWidth = screenWidth - 24,
   borderRadius = 20,
   bottomMargin
 }: FloatingTabBarProps) {
@@ -117,8 +117,6 @@ export default function FloatingTabBar({
     router.push(route);
   };
 
-  const tabWidthPercent = ((100 / tabs.length) - 1).toFixed(2);
-
   const indicatorStyle = useAnimatedStyle(() => {
     const tabWidth = (containerWidth - 16) / tabs.length;
     return {
@@ -131,6 +129,7 @@ export default function FloatingTabBar({
           ),
         },
       ],
+      width: tabWidth,
     };
   });
 
@@ -166,11 +165,6 @@ export default function FloatingTabBar({
     background: {
       ...styles.background,
     },
-    indicator: {
-      ...styles.indicator,
-      backgroundColor: colors.primary,
-      width: `${tabWidthPercent}%` as `${number}%`,
-    },
     topBorder: {
       position: 'absolute' as const,
       top: 0,
@@ -198,7 +192,7 @@ export default function FloatingTabBar({
         >
           <View style={dynamicStyles.topBorder} />
           <View style={dynamicStyles.background} />
-          <Animated.View style={[dynamicStyles.indicator, indicatorStyle]} />
+          <Animated.View style={[styles.indicator, indicatorStyle]} />
           <View style={styles.tabsContainer}>
             {tabs.map((tab, index) => {
               const isActive = activeTabIndex === index;
@@ -227,6 +221,7 @@ export default function FloatingTabBar({
                       ]}
                       numberOfLines={1}
                       adjustsFontSizeToFit
+                      minimumFontScale={0.7}
                     >
                       {tab.label}
                     </Text>
@@ -252,11 +247,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   container: {
-    marginHorizontal: 16,
+    marginHorizontal: 12,
     alignSelf: 'center',
   },
   blurContainer: {
     overflow: 'hidden',
+    width: '100%',
   },
   background: {
     ...StyleSheet.absoluteFillObject,
@@ -267,19 +263,23 @@ const styles = StyleSheet.create({
     left: 8,
     bottom: 6,
     borderRadius: 14,
+    backgroundColor: colors.primary,
   },
   tabsContainer: {
     flexDirection: 'row',
     height: 64,
     alignItems: 'center',
+    justifyContent: 'space-evenly',
     paddingHorizontal: 8,
+    width: '100%',
   },
   tab: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 8,
-    paddingHorizontal: 2,
+    paddingHorizontal: 4,
+    minWidth: 0,
   },
   tabContent: {
     alignItems: 'center',
@@ -292,5 +292,6 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginTop: 2,
     textAlign: 'center',
+    width: '100%',
   },
 });

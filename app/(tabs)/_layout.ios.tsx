@@ -38,7 +38,7 @@ export default function TabLayout() {
   ];
 
   // Debug logging for tab configuration
-  console.log('[TabLayout] Configured tabs:', tabs.map(t => ({ name: t.name, icon: t.icon, label: t.label })));
+  console.log('[TabLayout iOS] Configured tabs:', tabs.map(t => ({ name: t.name, icon: t.icon, label: t.label })));
 
   return (
     <>
