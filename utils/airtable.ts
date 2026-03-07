@@ -22,36 +22,6 @@ interface AirtableResponse<T> {
 }
 
 /**
- * Normalize API responses to ensure we always get an array.
- * Handles three cases:
- * 1. Response is already an array → use it
- * 2. Response is an object with a data property that's an array → use response.data
- * 3. Otherwise → return empty array
- * 
- * This prevents crashes from .forEach(), .map(), .filter(), .sort() on non-arrays.
- */
-export function normalizeToArray<T>(response: unknown): T[] {
-  // Case 1: Already an array
-  if (Array.isArray(response)) {
-    console.log('[normalizeToArray] Response is already an array, length:', response.length);
-    return response;
-  }
-
-  // Case 2: Object with data property that's an array
-  if (response && typeof response === 'object' && 'data' in response) {
-    const data = (response as { data: unknown }).data;
-    if (Array.isArray(data)) {
-      console.log('[normalizeToArray] Using response.data array, length:', data.length);
-      return data;
-    }
-  }
-
-  // Case 3: Fallback to empty array
-  console.warn('[normalizeToArray] Response is not an array or object with data array. Returning empty array. Response type:', typeof response);
-  return [];
-}
-
-/**
  * Fetch all pages from an Airtable table, handling pagination
  */
 export async function fetchPaginatedAirtableData<T>(
