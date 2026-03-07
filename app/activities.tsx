@@ -17,7 +17,7 @@ import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { fetchActivities, Activity, normalizeToArray } from '@/utils/airtable';
+import { fetchActivities, Activity } from '@/utils/airtable';
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -48,39 +48,24 @@ export default function ActivitiesScreen() {
     try {
       setIsError(false);
       const response = await fetchActivities();
+      console.log('[Activities] Response received:', {
+        count: response.activities?.length ?? 0,
+        source: response.source_used,
+        updated_at: response.updated_at,
+      });
       
-      console.log('[Activities] Raw API response type:', typeof response);
-      console.log('[Activities] Is response an array?', Array.isArray(response));
+      const activitiesData = response.activities || [];
+      console.log('[Activities] Total activities fetched:', activitiesData.length);
       
-      // Normalize the response to ensure we have an array
-      let normalizedActivities: Activity[] = [];
-      
-      if (Array.isArray(response)) {
-        normalizedActivities = response;
-        console.log('[Activities] Response is already an array');
-      } else if (response && typeof response === 'object' && 'activities' in response) {
-        const activitiesData = (response as { activities: unknown }).activities;
-        normalizedActivities = normalizeToArray<Activity>(activitiesData);
-        console.log('[Activities] Using response.activities');
-      } else if (response && typeof response === 'object' && 'data' in response) {
-        const data = (response as { data: unknown }).data;
-        normalizedActivities = normalizeToArray<Activity>(data);
-        console.log('[Activities] Using response.data');
-      } else {
-        normalizedActivities = [];
-        console.warn('[Activities] Response format not recognized, using empty array');
+      if (activitiesData.length > 0) {
+        console.log('[Activities] First activity:', JSON.stringify(activitiesData[0], null, 2));
       }
       
-      console.log('[Activities] Normalized activities - Is array?', Array.isArray(normalizedActivities));
-      console.log('[Activities] Normalized activities - Length:', normalizedActivities.length);
-      
-      setActivities(normalizedActivities);
-      setFilteredActivities(normalizedActivities);
+      setActivities(activitiesData);
+      setFilteredActivities(activitiesData);
     } catch (err) {
       console.error('[Activities] Error loading activities:', err);
       setIsError(true);
-      setActivities([]);
-      setFilteredActivities([]);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -98,16 +83,6 @@ export default function ActivitiesScreen() {
   }, [loadActivities]);
 
   const filterActivities = useCallback(() => {
-    console.log('[Activities] Filtering activities. Total:', activities.length);
-    console.log('[Activities] activities is array?', Array.isArray(activities));
-    
-    // Defensive check
-    if (!Array.isArray(activities)) {
-      console.error('[Activities] activities is not an array!', typeof activities);
-      setFilteredActivities([]);
-      return;
-    }
-
     if (!searchQuery.trim()) {
       setFilteredActivities(activities);
       return;
@@ -121,7 +96,7 @@ export default function ActivitiesScreen() {
       return nameMatch || descMatch || locationMatch;
     });
 
-    console.log('[Activities] Filtered activities:', filtered.length);
+    console.log('Filtered activities:', filtered.length, 'from', activities.length);
     setFilteredActivities(filtered);
   }, [searchQuery, activities]);
 
@@ -130,7 +105,7 @@ export default function ActivitiesScreen() {
   }, [filterActivities]);
 
   const handleActivityPress = (activity: Activity) => {
-    console.log('[Activities] Activity pressed:', activity.name);
+    console.log('Activity pressed:', activity.name);
     router.push({
       pathname: '/activity-detail',
       params: {
@@ -234,6 +209,7 @@ export default function ActivitiesScreen() {
         }}
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
+        {/* Search Bar */}
         <View style={styles.searchContainer}>
           <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
             <IconSymbol

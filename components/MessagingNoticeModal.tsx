@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
+import { useRouter } from 'expo-router';
 
 interface MessagingNoticeModalProps {
   visible: boolean;
@@ -19,10 +20,19 @@ interface MessagingNoticeModalProps {
 
 export function MessagingNoticeModal({ visible, onClose }: MessagingNoticeModalProps) {
   const colorScheme = useColorScheme();
+  const router = useRouter();
 
   const titleText = 'In-App Messaging Notice';
   const bodyText1 = 'This app includes in-app messaging that allows conference attendees to communicate with one another.';
   const bodyText2 = 'If you prefer not to receive messages, you can disable messaging at any time by going to My Profile → Privacy Settings.';
+  const bodyText3 = 'Users may report inappropriate messages or block other attendees at any time within the messaging feature.';
+
+  const handlePrivacySettings = () => {
+    console.log('Privacy Settings button pressed');
+    onClose();
+    // Navigate to profile/privacy settings
+    router.push('/profile');
+  };
 
   return (
     <Modal
@@ -61,14 +71,28 @@ export function MessagingNoticeModal({ visible, onClose }: MessagingNoticeModalP
               {bodyText2}
             </Text>
 
-            {/* Button */}
-            <TouchableOpacity
-              style={styles.gotItButton}
-              onPress={onClose}
-              activeOpacity={0.8}
-            >
-              <Text style={styles.gotItButtonText}>Got It</Text>
-            </TouchableOpacity>
+            <Text style={styles.bodyText}>
+              {bodyText3}
+            </Text>
+
+            {/* Buttons */}
+            <View style={styles.buttonContainer}>
+              <TouchableOpacity
+                style={styles.continueButton}
+                onPress={onClose}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.continueButtonText}>Continue</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.privacyButton}
+                onPress={handlePrivacySettings}
+                activeOpacity={0.8}
+              >
+                <Text style={styles.privacyButtonText}>Privacy Settings</Text>
+              </TouchableOpacity>
+            </View>
           </ScrollView>
         </View>
       </View>
@@ -117,16 +141,33 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     textAlign: 'left',
   },
-  gotItButton: {
+  buttonContainer: {
+    marginTop: 8,
+    gap: 12,
+  },
+  continueButton: {
     backgroundColor: colors.accent,
     borderRadius: 12,
     paddingVertical: 14,
     paddingHorizontal: 24,
     alignItems: 'center',
-    marginTop: 8,
   },
-  gotItButtonText: {
+  continueButtonText: {
     color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  privacyButton: {
+    backgroundColor: 'transparent',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  privacyButtonText: {
+    color: colors.accent,
     fontSize: 16,
     fontWeight: '600',
   },
