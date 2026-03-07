@@ -60,11 +60,12 @@ export default function MyScheduleScreen() {
   const [groupedSessions, setGroupedSessions] = useState<GroupedSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [storageError, setStorageError] = useState<string | null>(null);
 
   // Reload bookmarks when screen comes into focus
   useFocusEffect(
     useCallback(() => {
-      console.log('[My Schedule] Screen focused, reloading bookmarks');
+      console.log('[My Schedule] 🔄 Screen focused, reloading bookmarks...');
       loadBookmarks();
     }, [])
   );
@@ -78,30 +79,73 @@ export default function MyScheduleScreen() {
   }, [allSessions, bookmarkedSessions]);
 
   const loadBookmarks = async () => {
+    console.log('[My Schedule] 🔍 Attempting to load bookmarks...');
+    console.log('[My Schedule] AsyncStorage import:', AsyncStorage);
+    console.log('[My Schedule] AsyncStorage defined:', !!AsyncStorage);
+    console.log('[My Schedule] Bookmark storage key:', BOOKMARKS_KEY);
+    
     try {
-      console.log('[My Schedule] Loading bookmarks from AsyncStorage...');
+      // Check if AsyncStorage is available
+      if (!AsyncStorage) {
+        const errorMsg = 'AsyncStorage is null or undefined';
+        console.error('[My Schedule] ❌', errorMsg);
+        setStorageError(errorMsg);
+        setBookmarkedSessions([]);
+        return;
+      }
+
+      console.log('[My Schedule] ✅ AsyncStorage is available, attempting getItem...');
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
       console.log('[My Schedule] Raw stored value:', stored);
       
-      if (stored) {
-        const bookmarks = JSON.parse(stored);
-        
-        // Ensure we have an array
-        if (Array.isArray(bookmarks)) {
-          setBookmarkedSessions(bookmarks);
-          console.log('[My Schedule] ✅ Loaded', bookmarks.length, 'bookmarked sessions:', bookmarks);
-        } else {
-          console.log('[My Schedule] ⚠️ Invalid bookmark format, resetting to empty');
-          setBookmarkedSessions([]);
-          await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
-        }
-      } else {
-        console.log('[My Schedule] No bookmarks found, initializing empty array');
+      if (!stored) {
+        console.log('[My Schedule] ✅ No stored bookmarks found. Returning empty array.');
         setBookmarkedSessions([]);
-        await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
+        setStorageError(null);
+        return;
       }
-    } catch (err: any) {
-      console.error('[My Schedule] ❌ AsyncStorage error loading bookmarks:', err?.message || err);
+
+      let parsedBookmarks: unknown;
+      try {
+        parsedBookmarks = JSON.parse(stored);
+        console.log('[My Schedule] Parsed bookmarks (type):', typeof parsedBookmarks);
+        console.log('[My Schedule] Parsed bookmarks (value):', parsedBookmarks);
+      } catch (parseError: any) {
+        console.error('[My Schedule] ❌ Failed to parse stored bookmarks JSON:', parseError?.message || parseError);
+        setBookmarkedSessions([]);
+        setStorageError('Failed to parse bookmark data');
+        return;
+      }
+
+      // Safe implementation rule: if parsed value is not an array, use []
+      if (!Array.isArray(parsedBookmarks)) {
+        console.error('[My Schedule] ❌ Stored bookmarks are not an array (type:', typeof parsedBookmarks, '). Falling back to empty array.');
+        setBookmarkedSessions([]);
+        setStorageError('Invalid bookmark data format');
+        // Fix the corrupted storage
+        try {
+          await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
+          console.log('[My Schedule] ✅ Reset corrupted storage to empty array');
+        } catch (resetError) {
+          console.error('[My Schedule] ❌ Failed to reset storage:', resetError);
+        }
+        return;
+      }
+
+      console.log('[My Schedule] Parsed bookmarks array:', parsedBookmarks);
+      console.log('[My Schedule] ✅ Loaded', parsedBookmarks.length, 'bookmarked session IDs.');
+      setBookmarkedSessions(parsedBookmarks as string[]);
+      setStorageError(null);
+    } catch (error: any) {
+      // Defensive error handling: log the storage error, fall back to empty array
+      const errorName = error?.name || 'UnknownError';
+      const errorMessage = error?.message || 'No message';
+      const fullError = `${errorName} - ${errorMessage}`;
+      
+      console.error('[My Schedule] ❌ AsyncStorage error loading bookmarks:', fullError);
+      console.error('[My Schedule] Full error object:', error);
+      
+      setStorageError(fullError);
       setBookmarkedSessions([]);
     }
   };
@@ -138,6 +182,13 @@ export default function MyScheduleScreen() {
     console.log('[My Schedule] Total sessions:', allSessions.length);
     console.log('[My Schedule] Bookmarked session IDs:', bookmarkedSessions);
     
+    // Safe implementation: ensure bookmarkedSessions is an array before filtering
+    if (!Array.isArray(bookmarkedSessions)) {
+      console.error('[My Schedule] ❌ bookmarkedSessions is not an array, cannot filter');
+      setGroupedSessions([]);
+      return;
+    }
+
     // Filter sessions that are bookmarked
     const bookmarked = allSessions.filter(session => {
       const isBookmarked = bookmarkedSessions.includes(session.id);
@@ -243,9 +294,32 @@ export default function MyScheduleScreen() {
 
   const removeBookmark = async (sessionId: string) => {
     console.log('[My Schedule] 🗑️ Removing bookmark:', sessionId);
+    
     try {
+      // Check if AsyncStorage is available
+      if (!AsyncStorage) {
+        console.error('[My Schedule] ❌ AsyncStorage is null. Cannot remove bookmark.');
+        return;
+      }
+
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      let bookmarks: string[] = stored ? JSON.parse(stored) : [];
+      let bookmarks: string[] = [];
+      
+      if (stored) {
+        try {
+          const parsed = JSON.parse(stored);
+          if (Array.isArray(parsed)) {
+            bookmarks = parsed;
+          } else {
+            console.error('[My Schedule] ❌ Stored bookmarks are not an array');
+            bookmarks = [];
+          }
+        } catch (parseError) {
+          console.error('[My Schedule] ❌ Failed to parse bookmarks:', parseError);
+          bookmarks = [];
+        }
+      }
+      
       console.log('[My Schedule] Current bookmarks before removal:', bookmarks);
       
       bookmarks = bookmarks.filter(id => id !== sessionId);
@@ -402,6 +476,19 @@ export default function MyScheduleScreen() {
     return (
       <View>
         <WiFiBanner />
+        {storageError && (
+          <View style={styles.errorBanner}>
+            <IconSymbol
+              ios_icon_name="exclamationmark.triangle.fill"
+              android_material_icon_name="warning"
+              size={20}
+              color={colors.error}
+            />
+            <Text style={styles.errorBannerText}>
+              Storage error: {storageError}
+            </Text>
+          </View>
+        )}
         {groupedSessions.length > 0 && <NowNextSection />}
       </View>
     );
@@ -441,6 +528,13 @@ export default function MyScheduleScreen() {
             <Text style={styles.emptyText}>
               Tap the bookmark icon on any session in the Agenda to add it to your schedule.
             </Text>
+            {storageError && (
+              <View style={styles.emptyErrorContainer}>
+                <Text style={styles.emptyErrorText}>
+                  Note: There was a storage error. Your bookmarks may not persist.
+                </Text>
+              </View>
+            )}
             <TouchableOpacity
               style={styles.browseButton}
               onPress={() => router.push('/agenda')}
@@ -506,6 +600,17 @@ const styles = StyleSheet.create({
     lineHeight: 22,
     marginBottom: 24,
   },
+  emptyErrorContainer: {
+    backgroundColor: colors.error + '20',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  emptyErrorText: {
+    fontSize: 13,
+    textAlign: 'center',
+    color: colors.error,
+  },
   browseButton: {
     backgroundColor: colors.accent,
     paddingHorizontal: 24,
@@ -519,6 +624,20 @@ const styles = StyleSheet.create({
   },
   listContent: {
     padding: 16,
+  },
+  errorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.error + '20',
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 12,
+  },
+  errorBannerText: {
+    fontSize: 13,
+    color: colors.error,
+    marginLeft: 8,
+    flex: 1,
   },
   dateSection: {
     marginBottom: 24,
