@@ -56,7 +56,7 @@ export default function MyScheduleScreen() {
   const router = useRouter();
 
   const [allSessions, setAllSessions] = useState<AgendaItem[]>([]);
-  const [bookmarkedSessions, setBookmarkedSessions] = useState<Set<string>>(new Set());
+  const [bookmarkedSessions, setBookmarkedSessions] = useState<string[]>([]);
   const [groupedSessions, setGroupedSessions] = useState<GroupedSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -84,14 +84,15 @@ export default function MyScheduleScreen() {
       
       if (stored) {
         const bookmarks = JSON.parse(stored);
-        setBookmarkedSessions(new Set(bookmarks));
-        console.log('[My Schedule] Loaded', bookmarks.length, 'bookmarked sessions');
+        setBookmarkedSessions(bookmarks);
+        console.log('[My Schedule] Loaded', bookmarks.length, 'bookmarked sessions:', bookmarks);
       } else {
-        console.log('[My Schedule] No bookmarks found, starting with empty set');
-        setBookmarkedSessions(new Set());
+        console.log('[My Schedule] No bookmarks found, starting with empty array');
+        setBookmarkedSessions([]);
       }
     } catch (err) {
-      console.log('[My Schedule] Failed to load bookmarks, starting with empty set');
+      console.log('[My Schedule] Failed to load bookmarks, starting with empty array:', err);
+      setBookmarkedSessions([]);
     }
   };
 
@@ -124,11 +125,11 @@ export default function MyScheduleScreen() {
   const groupByDate = () => {
     console.log('[My Schedule] Grouping sessions by date');
     console.log('[My Schedule] Total sessions:', allSessions.length);
-    console.log('[My Schedule] Bookmarked session IDs:', Array.from(bookmarkedSessions));
+    console.log('[My Schedule] Bookmarked session IDs:', bookmarkedSessions);
     
     // Filter sessions that are bookmarked
     const bookmarked = allSessions.filter(session => {
-      const isBookmarked = bookmarkedSessions.has(session.id);
+      const isBookmarked = bookmarkedSessions.includes(session.id);
       if (isBookmarked) {
         console.log('[My Schedule] Found bookmarked session:', session.Title, '(ID:', session.id, ')');
       }
@@ -241,10 +242,14 @@ export default function MyScheduleScreen() {
       
       await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify(bookmarks));
       
-      setBookmarkedSessions(new Set(bookmarks));
+      // Verify the save
+      const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      console.log('[My Schedule] Verification read:', verification);
+      
+      setBookmarkedSessions(bookmarks);
       console.log('[My Schedule] Bookmark removed successfully');
     } catch (err) {
-      console.log('[My Schedule] Failed to remove bookmark');
+      console.log('[My Schedule] Failed to remove bookmark:', err);
     }
   };
 
