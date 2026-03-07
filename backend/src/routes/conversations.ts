@@ -495,4 +495,86 @@ export function register(app: App, fastify: FastifyInstance) {
       });
     }
   );
+
+  fastify.delete(
+    '/api/conversations/:id',
+    {
+      schema: {
+        description: 'Delete a conversation and all associated messages',
+        tags: ['conversations'],
+        params: {
+          type: 'object',
+          required: ['id'],
+          properties: {
+            id: { type: 'string', format: 'uuid', description: 'Conversation ID' },
+          },
+        },
+        response: {
+          200: {
+            type: 'object',
+            properties: {
+              success: { type: 'boolean' },
+              message: { type: 'string' },
+            },
+          },
+          404: {
+            type: 'object',
+            properties: {
+              error: { type: 'string' },
+            },
+          },
+          500: {
+            type: 'object',
+            properties: {
+              error: { type: 'string' },
+            },
+          },
+        },
+      },
+    },
+    async (
+      request: FastifyRequest<{
+        Params: { id: string };
+      }>,
+      reply: FastifyReply
+    ) => {
+      const { id } = request.params;
+      app.logger.info({ conversationId: id }, 'Deleting conversation');
+
+      const conversation = await app.db.query.conversations.findFirst({
+        where: eq(schema.conversations.id, id),
+      });
+
+      if (!conversation) {
+        app.logger.warn({ conversationId: id }, 'Conversation not found');
+        return reply
+          .status(404)
+          .send({ error: 'Conversation not found' });
+      }
+
+      try {
+        await app.db
+          .delete(schema.conversations)
+          .where(eq(schema.conversations.id, id));
+
+        app.logger.info(
+          { conversationId: id },
+          'Conversation deleted successfully'
+        );
+
+        return reply.status(200).send({
+          success: true,
+          message: 'Conversation deleted successfully',
+        });
+      } catch (error) {
+        app.logger.error(
+          { err: error, conversationId: id },
+          'Failed to delete conversation'
+        );
+        return reply
+          .status(500)
+          .send({ error: 'Failed to delete conversation' });
+      }
+    }
+  );
 }
