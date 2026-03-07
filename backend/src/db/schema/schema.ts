@@ -61,3 +61,35 @@ export const messages = pgTable(
       .notNull(),
   }
 );
+
+export const userReports = pgTable(
+  'user_reports',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    reportingUserEmail: text('reporting_user_email').notNull(),
+    reportedUserEmail: text('reported_user_email').notNull(),
+    reason: text('reason').notNull(),
+    notes: text('notes'),
+    conversationId: uuid('conversation_id'),
+    messageId: uuid('message_id'),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+    status: text('status').default('pending').notNull(),
+  }
+);
+
+export const blockedUsers = pgTable(
+  'blocked_users',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    blockerEmail: text('blocker_email').notNull(),
+    blockedEmail: text('blocked_email').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true })
+      .defaultNow()
+      .notNull(),
+  },
+  (table) => [
+    unique('unique_blocker_blocked').on(table.blockerEmail, table.blockedEmail),
+  ]
+);
