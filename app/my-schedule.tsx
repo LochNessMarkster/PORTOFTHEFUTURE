@@ -81,6 +81,7 @@ export default function MyScheduleScreen() {
     try {
       console.log('[My Schedule] Loading bookmarks from AsyncStorage...');
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
+      console.log('[My Schedule] Raw stored value:', stored);
       
       if (stored) {
         const bookmarks = JSON.parse(stored);
@@ -88,22 +89,19 @@ export default function MyScheduleScreen() {
         // Ensure we have an array
         if (Array.isArray(bookmarks)) {
           setBookmarkedSessions(bookmarks);
-          console.log('[My Schedule] Loaded', bookmarks.length, 'bookmarked sessions:', bookmarks);
+          console.log('[My Schedule] ✅ Loaded', bookmarks.length, 'bookmarked sessions:', bookmarks);
         } else {
-          console.log('[My Schedule] Invalid bookmark format, resetting to empty');
+          console.log('[My Schedule] ⚠️ Invalid bookmark format, resetting to empty');
           setBookmarkedSessions([]);
-          // Fix the storage
           await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
         }
       } else {
-        console.log('[My Schedule] No bookmarks found, starting with empty array');
+        console.log('[My Schedule] No bookmarks found, initializing empty array');
         setBookmarkedSessions([]);
-        // Initialize storage
         await AsyncStorage.setItem(BOOKMARKS_KEY, JSON.stringify([]));
       }
     } catch (err: any) {
-      console.log('[My Schedule] AsyncStorage error:', err?.message || err);
-      console.log('[My Schedule] Starting with empty bookmarks array');
+      console.error('[My Schedule] ❌ AsyncStorage error loading bookmarks:', err?.message || err);
       setBookmarkedSessions([]);
     }
   };
@@ -243,30 +241,36 @@ export default function MyScheduleScreen() {
   };
 
   const removeBookmark = async (sessionId: string) => {
-    console.log('[My Schedule] Removing bookmark:', sessionId);
+    console.log('[My Schedule] 🗑️ Removing bookmark:', sessionId);
     try {
       const stored = await AsyncStorage.getItem(BOOKMARKS_KEY);
       let bookmarks: string[] = stored ? JSON.parse(stored) : [];
       console.log('[My Schedule] Current bookmarks before removal:', bookmarks);
       
       bookmarks = bookmarks.filter(id => id !== sessionId);
-      console.log('[My Schedule] Saving updated bookmarks:', bookmarks);
+      console.log('[My Schedule] New bookmarks array after removal:', bookmarks);
       
       const jsonString = JSON.stringify(bookmarks);
+      console.log('[My Schedule] JSON string to save:', jsonString);
+      
       await AsyncStorage.setItem(BOOKMARKS_KEY, jsonString);
+      console.log('[My Schedule] ✅ AsyncStorage.setItem completed');
       
-      // Verify the save
+      // Immediate verification
       const verification = await AsyncStorage.getItem(BOOKMARKS_KEY);
-      console.log('[My Schedule] Verification read:', verification);
+      console.log('[My Schedule] 🔍 Verification read:', verification);
       
-      if (verification !== jsonString) {
-        console.log('[My Schedule] WARNING: Verification failed! Saved data does not match.');
+      if (verification === jsonString) {
+        console.log('[My Schedule] ✅ VERIFICATION PASSED - Data saved correctly!');
+      } else {
+        console.error('[My Schedule] ❌ VERIFICATION FAILED - Saved data does not match!');
       }
       
       setBookmarkedSessions(bookmarks);
-      console.log('[My Schedule] Bookmark removed successfully');
+      console.log('[My Schedule] ✅ Bookmark removed successfully');
     } catch (err: any) {
-      console.log('[My Schedule] Failed to remove bookmark:', err?.message || err);
+      console.error('[My Schedule] ❌ Failed to remove bookmark:', err?.name, err?.message);
+      console.error('[My Schedule] Full error:', err);
     }
   };
 
