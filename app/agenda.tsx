@@ -68,6 +68,12 @@ const TRACK_OPTIONS = [
   'Pre-Conference',
 ];
 
+interface TimeGroup {
+  timeKey: string;
+  displayTime: string;
+  sessions: AgendaItem[];
+}
+
 export default function AgendaScreen() {
   const colorScheme = useColorScheme();
   const router = useRouter();
@@ -367,9 +373,16 @@ export default function AgendaScreen() {
     loadAgenda();
   }, []);
 
-  // Filter sessions by day, track, and search
-  // Note: allSessions is already sorted by Date → StartTime → Title from fetchAgenda()
-  const filteredSessions = useMemo(() => {
+  // Helper function to check if a session is past
+  const isPastSession = (sessionStartTime: string, sessionDate: string): boolean => {
+    const sessionDateTime = new Date(`${sessionDate}T${sessionStartTime}`);
+    const now = new Date();
+    // A session is considered "past" if current time > session start time + 60 minutes
+    return now.getTime() > sessionDateTime.getTime() + 60 * 60 * 1000;
+  };
+
+  // Filter and sort sessions by day, track, and search
+  const filteredAndSortedSessions = useMemo(() => {
     console.log('[Agenda] Filtering - Day:', selectedDay, 'Track:', selectedTrack, 'Search:', searchQuery);
     
     let filtered = allSessions;
@@ -400,10 +413,53 @@ export default function AgendaScreen() {
       });
     }
 
-    // Order is preserved from fetchAgenda() sort: Date → StartTime → Title
-    console.log('[Agenda] Filtered sessions for display:', filtered.length);
-    return filtered;
+    // Sort by date and start time, with upcoming sessions first
+    const sorted = filtered.sort((a, b) => {
+      const aIsPast = isPastSession(a.StartTime, a.Date);
+      const bIsPast = isPastSession(b.StartTime, b.Date);
+
+      // Upcoming sessions come before past sessions
+      if (aIsPast && !bIsPast) return 1;
+      if (!aIsPast && bIsPast) return -1;
+
+      // Then sort by date and time
+      const dateA = new Date(`${a.Date}T${a.StartTime}`);
+      const dateB = new Date(`${b.Date}T${b.StartTime}`);
+      return dateA.getTime() - dateB.getTime();
+    });
+
+    console.log('[Agenda] Filtered and sorted sessions:', sorted.length);
+    return sorted;
   }, [allSessions, selectedDay, selectedTrack, searchQuery]);
+
+  // Group sessions by start time
+  const groupedSessions = useMemo(() => {
+    const groups: TimeGroup[] = [];
+    const timeMap = new Map<string, AgendaItem[]>();
+
+    filteredAndSortedSessions.forEach(session => {
+      const timeKey = `${session.Date}_${session.StartTime}`;
+      if (!timeMap.has(timeKey)) {
+        timeMap.set(timeKey, []);
+      }
+      timeMap.get(timeKey)!.push(session);
+    });
+
+    // Convert map to array of groups
+    timeMap.forEach((sessions, timeKey) => {
+      const firstSession = sessions[0];
+      const displayTime = firstSession.StartTime;
+      
+      groups.push({
+        timeKey,
+        displayTime,
+        sessions,
+      });
+    });
+
+    console.log('[Agenda] Grouped into', groups.length, 'time blocks');
+    return groups;
+  }, [filteredAndSortedSessions]);
 
   const onRefresh = () => {
     console.log('[Agenda] User initiated refresh');
@@ -453,7 +509,7 @@ export default function AgendaScreen() {
     return `${monthName} ${day}, ${year}`;
   };
 
-  const renderSessionCard = ({ item }: { item: AgendaItem }) => {
+  const renderSessionCard = (item: AgendaItem) => {
     const speakerDisplay = Array.isArray(item.SpeakerNames)
       ? item.SpeakerNames.join(', ')
       : item.SpeakerNames || '';
@@ -471,15 +527,21 @@ export default function AgendaScreen() {
     // Get session status (now/next)
     const status = item.EndTime ? getSessionStatus(item.Date, item.StartTime, item.EndTime) : null;
 
+    // Check if session is past
+    const isPast = isPastSession(item.StartTime, item.Date);
+
     return (
       <TouchableOpacity
-        style={styles.sessionCard}
+        style={[
+          styles.sessionCard,
+          isPast && styles.sessionCardPast
+        ]}
         onPress={() => handleSessionPress(item)}
         activeOpacity={0.7}
       >
         <View style={styles.cardHeader}>
           <View style={styles.cardHeaderLeft}>
-            {status && (
+            {status && !isPast && (
               <View style={[
                 styles.statusBadge,
                 status === 'now' ? styles.nowBadge : styles.nextBadge
@@ -489,7 +551,20 @@ export default function AgendaScreen() {
                 </Text>
               </View>
             )}
-            <Text style={styles.sessionTitle} numberOfLines={2}>
+            {isPast && (
+              <View style={styles.pastBadge}>
+                <Text style={styles.pastBadgeText}>
+                  Completed
+                </Text>
+              </View>
+            )}
+            <Text 
+              style={[
+                styles.sessionTitle,
+                isPast && styles.sessionTitlePast
+              ]} 
+              numberOfLines={2}
+            >
               {item.Title}
             </Text>
           </View>
@@ -502,26 +577,35 @@ export default function AgendaScreen() {
               ios_icon_name={isBookmarked ? "bookmark.fill" : "bookmark"}
               android_material_icon_name={isBookmarked ? "bookmark" : "bookmark-border"}
               size={24}
-              color={isBookmarked ? colors.accent : colors.textSecondary}
+              color={isBookmarked ? colors.accent : (isPast ? colors.textMuted : colors.textSecondary)}
             />
           </TouchableOpacity>
         </View>
 
         <View style={styles.sessionInfo}>
-          <Text style={styles.sessionDate}>
+          <Text style={[
+            styles.sessionDate,
+            isPast && styles.sessionDatePast
+          ]}>
             {dateDisplay}
           </Text>
         </View>
 
         <View style={styles.sessionInfo}>
-          <Text style={styles.sessionTime}>
+          <Text style={[
+            styles.sessionTime,
+            isPast && styles.sessionTimePast
+          ]}>
             {timeDisplay}
           </Text>
         </View>
 
         {item.Room && (
           <View style={styles.sessionInfo}>
-            <Text style={styles.sessionRoom}>
+            <Text style={[
+              styles.sessionRoom,
+              isPast && styles.sessionRoomPast
+            ]}>
               {item.Room}
             </Text>
           </View>
@@ -529,7 +613,13 @@ export default function AgendaScreen() {
 
         {speakerDisplay && (
           <View style={styles.sessionInfo}>
-            <Text style={styles.sessionSpeakers} numberOfLines={1}>
+            <Text 
+              style={[
+                styles.sessionSpeakers,
+                isPast && styles.sessionSpeakersPast
+              ]} 
+              numberOfLines={1}
+            >
               {speakerDisplay}
             </Text>
           </View>
@@ -542,11 +632,13 @@ export default function AgendaScreen() {
               { 
                 backgroundColor: isSelectedTrack ? colors.accent : trackColor + '20',
                 borderColor: isSelectedTrack ? colors.accent : trackColor,
-              }
+              },
+              isPast && styles.trackBadgePast
             ]}>
               <Text style={[
                 styles.trackBadgeText,
-                { color: isSelectedTrack ? colors.text : trackColor }
+                { color: isSelectedTrack ? colors.text : trackColor },
+                isPast && styles.trackBadgeTextPast
               ]}>
                 {item.TypeTrack}
               </Text>
@@ -554,6 +646,22 @@ export default function AgendaScreen() {
           </View>
         )}
       </TouchableOpacity>
+    );
+  };
+
+  const renderTimeGroup = ({ item }: { item: TimeGroup }) => {
+    return (
+      <View style={styles.timeGroupContainer}>
+        <View style={styles.timeHeader}>
+          <Text style={styles.timeHeaderText}>{item.displayTime}</Text>
+          <View style={styles.timeHeaderDivider} />
+        </View>
+        {item.sessions.map((session, index) => (
+          <View key={session.id}>
+            {renderSessionCard(session)}
+          </View>
+        ))}
+      </View>
     );
   };
 
@@ -802,7 +910,7 @@ export default function AgendaScreen() {
               <Text style={styles.retryButtonText}>Retry</Text>
             </TouchableOpacity>
           </View>
-        ) : filteredSessions.length === 0 ? (
+        ) : groupedSessions.length === 0 ? (
           <View style={styles.emptyContainer}>
             <IconSymbol
               ios_icon_name="calendar"
@@ -821,9 +929,9 @@ export default function AgendaScreen() {
           </View>
         ) : (
           <FlatList
-            data={filteredSessions}
-            keyExtractor={(item) => item.id}
-            renderItem={renderSessionCard}
+            data={groupedSessions}
+            keyExtractor={(item) => item.timeKey}
+            renderItem={renderTimeGroup}
             contentContainerStyle={styles.listContent}
             refreshControl={
               <RefreshControl
@@ -1008,6 +1116,23 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
   },
+  timeGroupContainer: {
+    marginBottom: 24,
+  },
+  timeHeader: {
+    marginBottom: 16,
+  },
+  timeHeaderText: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: colors.text,
+    marginBottom: 8,
+  },
+  timeHeaderDivider: {
+    height: 2,
+    backgroundColor: colors.border,
+    borderRadius: 1,
+  },
   sessionCard: {
     backgroundColor: colors.card,
     borderRadius: 16,
@@ -1018,6 +1143,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 4,
     elevation: 3,
+  },
+  sessionCardPast: {
+    opacity: 0.6,
   },
   cardHeader: {
     flexDirection: 'row',
@@ -1047,11 +1175,27 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#FFFFFF',
   },
+  pastBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    marginBottom: 6,
+    backgroundColor: colors.textMuted,
+  },
+  pastBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
+  },
   sessionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: colors.text,
     lineHeight: 24,
+  },
+  sessionTitlePast: {
+    color: colors.textSecondary,
   },
   bookmarkButton: {
     padding: 4,
@@ -1064,18 +1208,30 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: colors.textSecondary,
   },
+  sessionDatePast: {
+    color: colors.textMuted,
+  },
   sessionTime: {
     fontSize: 16,
     fontWeight: '600',
     color: colors.accent,
   },
+  sessionTimePast: {
+    color: colors.textMuted,
+  },
   sessionRoom: {
     fontSize: 14,
     color: colors.textSecondary,
   },
+  sessionRoomPast: {
+    color: colors.textMuted,
+  },
   sessionSpeakers: {
     fontSize: 14,
     color: colors.textSecondary,
+  },
+  sessionSpeakersPast: {
+    color: colors.textMuted,
   },
   trackBadgeContainer: {
     marginTop: 8,
@@ -1087,9 +1243,15 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
   },
+  trackBadgePast: {
+    opacity: 0.5,
+  },
   trackBadgeText: {
     fontSize: 12,
     fontWeight: '700',
+  },
+  trackBadgeTextPast: {
+    opacity: 0.7,
   },
   modalOverlay: {
     flex: 1,
