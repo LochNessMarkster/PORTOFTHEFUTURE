@@ -565,6 +565,16 @@ export const BACKEND_URL: string =
 
 async function apiGet<T>(path: string): Promise<T> {
   console.log(`[API] GET ${BACKEND_URL}${path}`);
+
+  if (
+    path.includes('/api/preferences') ||
+    path.includes('/api/blocked-users') ||
+    path.includes('/api/conversations')
+  ) {
+    console.log('[API TRACE] Caller for backend route:', path);
+    console.trace();
+  }
+
   const response = await fetch(`${BACKEND_URL}${path}`, {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
@@ -580,6 +590,16 @@ async function apiGet<T>(path: string): Promise<T> {
 
 async function apiPost<T>(path: string, body: unknown): Promise<T> {
   console.log(`[API] POST ${BACKEND_URL}${path}`);
+
+  if (
+    path.includes('/api/conversations') ||
+    path.includes('/api/blocked-users') ||
+    path.includes('/api/reports')
+  ) {
+    console.log('[API TRACE] Caller for backend POST route:', path);
+    console.trace();
+  }
+
   const response = await fetch(`${BACKEND_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
@@ -589,6 +609,28 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(`POST ${path} failed (${response.status}): ${errorBody}`);
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function apiPut<T>(path: string, body: unknown): Promise<T> {
+  console.log(`[API] PUT ${BACKEND_URL}${path}`);
+
+  if (path.includes('/api/preferences')) {
+    console.log('[API TRACE] Caller for backend PUT route:', path);
+    console.trace();
+  }
+
+  const response = await fetch(`${BACKEND_URL}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`PUT ${path} failed (${response.status}): ${errorBody}`);
   }
 
   return response.json() as Promise<T>;
