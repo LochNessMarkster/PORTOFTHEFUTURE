@@ -468,6 +468,7 @@ export interface RawPresentationFields {
   'Presentation Title'?: string;
   'Description'?: string;
   'File URL'?: string;
+  'Presentation File'?: { url: string }[];
   'Published'?: boolean;
 }
 
@@ -482,27 +483,30 @@ export const mapAirtablePresentation = (
   record: AirtableRecord<RawPresentationFields>
 ): Presentation => {
   const fields = record.fields;
+  const attachment = fields['Presentation File']?.[0];
 
   return {
     id: record.id,
     title: fields['Presentation Title'] || '',
-    description: fields.Description,
-    file_url: fields['File URL'],
+    description: fields['Description'] || '',
+    file_url: fields['File URL'] || attachment?.url || '',
   };
 };
 
 export const fetchPresentations = async (): Promise<Presentation[]> => {
   console.log('[Presentations] Fetching presentations...');
-  const rawRecords = await fetchPaginatedAirtableData<RawPresentationFields>('tblm5YCpC7ZwRSYWy');
 
-  const publishedRecords = rawRecords.filter(
-    (record) => record.fields['Presentation Title'] && record.fields.Published === true
-  );
-  console.log('[Presentations] Published presentations:', publishedRecords.length);
+  const rawRecords =
+    await fetchPaginatedAirtableData<RawPresentationFields>('tblm5YCpC7ZwRSYWy');
 
-  const presentations = publishedRecords.map(mapAirtablePresentation);
-
-  presentations.sort((a, b) => a.title.localeCompare(b.title));
+  const presentations = rawRecords
+    .filter((record) => {
+      const hasTitle = !!record.fields['Presentation Title']?.trim();
+      const isPublished = record.fields['Published'] !== false;
+      return hasTitle && isPublished;
+    })
+    .map(mapAirtablePresentation)
+    .sort((a, b) => a.title.localeCompare(b.title));
 
   console.log('[Presentations] Presentations sorted:', presentations.length);
   return presentations;

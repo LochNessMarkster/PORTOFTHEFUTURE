@@ -1,15 +1,25 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import type { App } from '../index.js';
 
+interface AirtableAttachment {
+  url: string;
+}
+
 interface AirtableRecord {
   id: string;
   fields: {
     'Presentation Title'?: string;
     'Description'?: string;
     'File URL'?: string;
+    'Presentation File'?: AirtableAttachment[];
     'Published'?: boolean;
   };
   createdTime: string;
+}
+
+interface AirtableResponse {
+  records: AirtableRecord[];
+  offset?: string;
 }
 
 interface PresentationResponse {
@@ -19,51 +29,56 @@ interface PresentationResponse {
   file_url?: string;
 }
 
-const mockPresentations: PresentationResponse[] = [
-  {
-    id: 'rec_pres_001',
-    title: 'The Future of Ports',
-    description: 'Exploring emerging technologies in port operations',
-    file_url: 'https://example.com/presentations/future-of-ports.pdf',
-  },
-  {
-    id: 'rec_pres_002',
-    title: 'Digital Transformation in Logistics',
-    description: 'How digital tools are revolutionizing supply chain management',
-    file_url: 'https://example.com/presentations/digital-transformation.pdf',
-  },
-];
+const AIRTABLE_URL =
+  'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblm5YCpC7ZwRSYWy';
+
+async function fetchAllPresentationRecords(): Promise<AirtableRecord[]> {
+  let allRecords: AirtableRecord[] = [];
+  let offset: string | undefined;
+
+  do {
+    const url = offset ? `${AIRTABLE_URL}?offset=${encodeURIComponent(offset)}` : AIRTABLE_URL;
+
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+
+    try {
+      const response = await fetch(url, { signal: controller.signal });
+
+      if (!response.ok) {
+        throw new Error(`Airtable fetch failed: ${response.status} ${response.statusText}`);
+      }
+
+      const data = (await response.json()) as AirtableResponse;
+      allRecords = allRecords.concat(data.records || []);
+      offset = data.offset;
+    } finally {
+      clearTimeout(timeoutId);
+    }
+  } while (offset);
+
+  return allRecords;
+}
 
 async function fetchPresentations(): Promise<PresentationResponse[]> {
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2000);
+  const records = await fetchAllPresentationRecords();
 
-    const response = await fetch(
-      'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblm5YCpC7ZwRSYWy',
-      { signal: controller.signal }
-    );
-
-    clearTimeout(timeoutId);
-    const data = (await response.json()) as { records: AirtableRecord[] };
-
-    const presentations = data.records
-      .filter(
-        (record) =>
-          record.fields['Presentation Title'] && record.fields['Published']
-      )
-      .map((record) => ({
-        id: record.id,
-        title: record.fields['Presentation Title'] || '',
-        description: record.fields['Description'],
-        file_url: record.fields['File URL'],
-      }))
-      .sort((a, b) => a.title.localeCompare(b.title));
-
-    return presentations.length > 0 ? presentations : mockPresentations;
-  } catch (error) {
-    return mockPresentations;
-  }
+  return records
+    .filter((record) => {
+      const hasTitle = !!record.fields['Presentation Title']?.trim();
+      const isPublished = record.fields['Published'] !== false;
+      return hasTitle && isPublished;
+    })
+    .map((record) => ({
+      id: record.id,
+      title: record.fields['Presentation Title'] || '',
+      description: record.fields['Description'] || '',
+      file_url:
+        record.fields['File URL'] ||
+        record.fields['Presentation File']?.[0]?.url ||
+        '',
+    }))
+    .sort((a, b) => a.title.localeCompare(b.title));
 }
 
 export function register(app: App, fastify: FastifyInstance) {
@@ -76,7 +91,7 @@ export function register(app: App, fastify: FastifyInstance) {
         querystring: {
           type: 'object',
           properties: {
-            search: { type: 'string', description: 'Search by title' },
+            search: { type: 'string', description: 'Search by title or description' },
           },
         },
         response: {
@@ -100,21 +115,24 @@ export function register(app: App, fastify: FastifyInstance) {
         Querystring: { search?: string };
       }>
     ) => {
-      app.logger.info(
-        { search: request.query.search },
-        'Fetching presentations'
-      );
+      app.logger.info({ search: request.query.search }, 'Fetching presentations');
+
       const presentations = await fetchPresentations();
 
-      if (request.query.search) {
-        const search = request.query.search.toLowerCase();
-        const filtered = presentations.filter((p) =>
-          p.title.toLowerCase().includes(search)
+      if (request.query.search?.trim()) {
+        const search = request.query.search.toLowerCase().trim();
+
+        const filtered = presentations.filter(
+          (p) =>
+            p.title.toLowerCase().includes(search) ||
+            p.description?.toLowerCase().includes(search)
         );
+
         app.logger.info(
           { search: request.query.search, count: filtered.length },
           'Presentations search completed'
         );
+
         return filtered;
       }
 
@@ -122,6 +140,7 @@ export function register(app: App, fastify: FastifyInstance) {
         { count: presentations.length },
         'Presentations fetched successfully'
       );
+
       return presentations;
     }
   );
@@ -164,27 +183,21 @@ export function register(app: App, fastify: FastifyInstance) {
       }>,
       reply: FastifyReply
     ) => {
-      app.logger.info(
-        { id: request.params.id },
-        'Fetching presentation detail'
-      );
+      app.logger.info({ id: request.params.id }, 'Fetching presentation detail');
+
       const presentations = await fetchPresentations();
       const presentation = presentations.find((p) => p.id === request.params.id);
 
       if (!presentation) {
-        app.logger.warn(
-          { id: request.params.id },
-          'Presentation not found'
-        );
-        return reply
-          .status(404)
-          .send({ error: 'Presentation not found' });
+        app.logger.warn({ id: request.params.id }, 'Presentation not found');
+        return reply.status(404).send({ error: 'Presentation not found' });
       }
 
       app.logger.info(
         { id: request.params.id, title: presentation.title },
         'Presentation detail fetched successfully'
       );
+
       return presentation;
     }
   );

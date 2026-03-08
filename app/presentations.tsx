@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -10,12 +9,13 @@ import {
   ActivityIndicator,
   useColorScheme,
   Linking,
+  Alert,
 } from 'react-native';
 import { Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { fetchBackendPresentations, BackendPresentation as Presentation } from '@/utils/airtable';
+import { fetchPresentations, Presentation } from '@/utils/airtable';
 
 export default function PresentationsScreen() {
   const colorScheme = useColorScheme();
@@ -34,17 +34,20 @@ export default function PresentationsScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadPresentations = useCallback(async () => {
-    console.log('[API] Loading presentations from backend...');
+    console.log('[PresentationsScreen] Loading presentations from Airtable...');
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchBackendPresentations();
-      console.log('[API] Presentations loaded:', data.length);
+
+      const data = await fetchPresentations();
+
+      console.log('[PresentationsScreen] Presentations loaded:', data.length);
       setPresentations(data);
       setFilteredPresentations(data);
     } catch (err) {
-      console.error('[API] Error loading presentations:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load presentations';
+      console.error('[PresentationsScreen] Error loading presentations:', err);
+      const errorMessage =
+        err instanceof Error ? err.message : 'Failed to load presentations';
       setError(errorMessage);
     } finally {
       setLoading(false);
@@ -61,14 +64,21 @@ export default function PresentationsScreen() {
       return;
     }
 
-    const query = searchQuery.toLowerCase();
-    const filtered = presentations.filter(presentation => {
+    const query = searchQuery.toLowerCase().trim();
+
+    const filtered = presentations.filter((presentation) => {
       const titleMatch = presentation.title.toLowerCase().includes(query);
       const descriptionMatch = presentation.description?.toLowerCase().includes(query);
-      return titleMatch || descriptionMatch;
+      return titleMatch || !!descriptionMatch;
     });
 
-    console.log('Filtered presentations:', filtered.length, 'from', presentations.length);
+    console.log(
+      '[PresentationsScreen] Filtered presentations:',
+      filtered.length,
+      'from',
+      presentations.length
+    );
+
     setFilteredPresentations(filtered);
   }, [searchQuery, presentations]);
 
@@ -76,29 +86,52 @@ export default function PresentationsScreen() {
     filterPresentations();
   }, [filterPresentations]);
 
-  const handleDownloadPress = (presentation: Presentation) => {
-    if (presentation.file_url) {
-      console.log('Opening presentation file:', presentation.file_url);
-      Linking.openURL(presentation.file_url).catch(err => {
-        console.error('Failed to open file URL:', err);
-      });
+  const handleDownloadPress = async (presentation: Presentation) => {
+    if (!presentation.file_url) return;
+
+    try {
+      console.log('[PresentationsScreen] Opening presentation file:', presentation.file_url);
+      const supported = await Linking.canOpenURL(presentation.file_url);
+
+      if (!supported) {
+        Alert.alert('Unable to open link', 'This presentation link could not be opened.');
+        return;
+      }
+
+      await Linking.openURL(presentation.file_url);
+    } catch (err) {
+      console.error('[PresentationsScreen] Failed to open file URL:', err);
+      Alert.alert('Error', 'Failed to open presentation link.');
     }
   };
 
   const renderPresentationCard = ({ item }: { item: Presentation }) => {
     return (
-      <View style={[styles.presentationCard, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+      <View
+        style={[
+          styles.presentationCard,
+          { backgroundColor: cardBg, borderColor: borderColorValue },
+        ]}
+      >
         <View style={styles.presentationInfo}>
-          <Text style={[styles.presentationTitle, { color: textColor }]} numberOfLines={2}>
+          <Text
+            style={[styles.presentationTitle, { color: textColor }]}
+            numberOfLines={2}
+          >
             {item.title}
           </Text>
-          {item.description && (
-            <Text style={[styles.presentationDescription, { color: secondaryTextColor }]} numberOfLines={3}>
+
+          {item.description ? (
+            <Text
+              style={[styles.presentationDescription, { color: secondaryTextColor }]}
+              numberOfLines={3}
+            >
               {item.description}
             </Text>
-          )}
+          ) : null}
         </View>
-        {item.file_url && (
+
+        {item.file_url ? (
           <TouchableOpacity
             style={[styles.downloadButton, { backgroundColor: colors.primary }]}
             onPress={() => handleDownloadPress(item)}
@@ -112,6 +145,26 @@ export default function PresentationsScreen() {
             />
             <Text style={styles.downloadButtonText}>Download</Text>
           </TouchableOpacity>
+        ) : (
+          <View
+            style={[
+              styles.unavailableButton,
+              {
+                backgroundColor: isDark ? colors.cardDark : '#E5E7EB',
+                borderColor: borderColorValue,
+              },
+            ]}
+          >
+            <IconSymbol
+              ios_icon_name="doc.text"
+              android_material_icon_name="description"
+              size={20}
+              color={secondaryTextColor}
+            />
+            <Text style={[styles.unavailableButtonText, { color: secondaryTextColor }]}>
+              File not available
+            </Text>
+          </View>
         )}
       </View>
     );
@@ -129,10 +182,17 @@ export default function PresentationsScreen() {
           headerTintColor: textColor,
         }}
       />
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        {/* Search Bar */}
+      <SafeAreaView
+        style={[styles.container, { backgroundColor: bgColor }]}
+        edges={['bottom']}
+      >
         <View style={styles.searchContainer}>
-          <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+          <View
+            style={[
+              styles.searchBar,
+              { backgroundColor: cardBg, borderColor: borderColorValue },
+            ]}
+          >
             <IconSymbol
               ios_icon_name="magnifyingglass"
               android_material_icon_name="search"
@@ -146,7 +206,7 @@ export default function PresentationsScreen() {
               value={searchQuery}
               onChangeText={setSearchQuery}
             />
-            {searchQuery.length > 0 && (
+            {searchQuery.length > 0 ? (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
                 <IconSymbol
                   ios_icon_name="xmark.circle.fill"
@@ -155,14 +215,16 @@ export default function PresentationsScreen() {
                   color={secondaryTextColor}
                 />
               </TouchableOpacity>
-            )}
+            ) : null}
           </View>
         </View>
 
         {loading ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading presentations...</Text>
+            <Text style={[styles.loadingText, { color: secondaryTextColor }]}>
+              Loading presentations...
+            </Text>
           </View>
         ) : error ? (
           <View style={styles.centerContainer}>
@@ -293,6 +355,19 @@ const styles = StyleSheet.create({
   },
   downloadButtonText: {
     color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 8,
+  },
+  unavailableButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  unavailableButtonText: {
     fontSize: 15,
     fontWeight: '600',
     marginLeft: 8,
