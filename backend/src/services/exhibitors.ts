@@ -59,11 +59,12 @@ export interface Exhibitor {
 interface ExhibitorsCache {
   data: ExhibitorsResponse;
   timestamp: number;
+  fetchTimestamp: number;
 }
 
 export interface ExhibitorsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'error';
+  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
   exhibitors: Exhibitor[];
 }
 
@@ -106,7 +107,7 @@ function sortExhibitors(exhibitors: Exhibitor[]): Exhibitor[] {
 async function fetchFromUrl(
   url: string,
   headers?: Record<string, string>
-): Promise<AirtableResponse | null> {
+): Promise<{ data: AirtableResponse; status: number; statusText: string } | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -115,43 +116,63 @@ async function fetchFromUrl(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return null;
+      return { data: {} as AirtableResponse, status: response.status, statusText: response.statusText };
     }
-    return (await response.json()) as AirtableResponse;
+    const data = (await response.json()) as AirtableResponse;
+    return { data, status: response.status, statusText: response.statusText };
   } catch (error) {
     return null;
   }
 }
 
+interface FetchResult {
+  exhibitors: Exhibitor[] | null;
+  status?: number;
+  statusText?: string;
+  error?: string;
+}
+
 async function fetchAllExhibitors(
   baseUrl: string,
   authHeaders?: Record<string, string>
-): Promise<Exhibitor[] | null> {
+): Promise<FetchResult> {
   const exhibitors: Exhibitor[] = [];
   let offset: string | undefined;
 
   try {
     do {
       const url = offset ? `${baseUrl}?offset=${offset}` : baseUrl;
-      const data = await fetchFromUrl(url, authHeaders);
+      const response = await fetchFromUrl(url, authHeaders);
 
-      if (!data) {
-        return null;
+      if (!response) {
+        return { exhibitors: null, error: 'Network or timeout error' };
       }
 
-      if (!Array.isArray(data.records)) {
-        return null;
+      if (response.status && !response.data.records) {
+        return {
+          exhibitors: null,
+          status: response.status,
+          statusText: response.statusText,
+          error: `HTTP ${response.status}: ${response.statusText}`,
+        };
       }
 
-      const mapped = data.records.map(mapExhibitor);
+      if (!Array.isArray(response.data.records)) {
+        return { exhibitors: null, error: 'Invalid response format' };
+      }
+
+      const mapped = response.data.records.map(mapExhibitor);
       exhibitors.push(...mapped);
 
-      offset = data.offset;
+      offset = response.data.offset;
     } while (offset);
 
-    return exhibitors;
+    return { exhibitors };
   } catch (error) {
-    return null;
+    return {
+      exhibitors: null,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }
 
@@ -168,20 +189,33 @@ export async function getExhibitors(): Promise<ExhibitorsResponse> {
     'https://api.airtable.com/v0/appkKjciinTlnsbkd/tblzex4bjwEZh1021';
   const airtablePat = process.env.AIRTABLE_PAT;
 
-  let exhibitors: Exhibitor[] | null = null;
-  let sourceUsed: 'airtablecache' | 'airtable_api' | 'error' = 'airtablecache';
+  let fetchResult = await fetchAllExhibitors(cacheBaseUrl);
+  let sourceUsed: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error' = 'airtablecache';
 
-  exhibitors = await fetchAllExhibitors(cacheBaseUrl);
-
-  if (exhibitors === null) {
+  // If cache failed with 400 (branch merged), try API immediately
+  if (fetchResult.exhibitors === null && fetchResult.status === 400) {
+    fetchResult = await fetchAllExhibitors(apiBaseUrl, airtablePat ? { Authorization: `Bearer ${airtablePat}` } : {});
+    sourceUsed = 'airtable_api';
+  } else if (fetchResult.exhibitors === null) {
+    // Try API fallback
     sourceUsed = 'airtable_api';
     const authHeaders = airtablePat
       ? { Authorization: `Bearer ${airtablePat}` }
       : {};
-    exhibitors = await fetchAllExhibitors(apiBaseUrl, authHeaders);
+    fetchResult = await fetchAllExhibitors(apiBaseUrl, authHeaders);
   }
 
-  if (exhibitors === null) {
+  // If both fail but we have stale cache, use it
+  if (fetchResult.exhibitors === null) {
+    if (exhibitorsCache) {
+      const staleResponse: ExhibitorsResponse = {
+        ...exhibitorsCache.data,
+        source_used: 'cached_stale',
+        updated_at: new Date().toISOString(),
+      };
+      return staleResponse;
+    }
+
     const response: ExhibitorsResponse = {
       updated_at: new Date().toISOString(),
       source_used: 'error',
@@ -190,7 +224,7 @@ export async function getExhibitors(): Promise<ExhibitorsResponse> {
     return response;
   }
 
-  const sorted = sortExhibitors(exhibitors);
+  const sorted = sortExhibitors(fetchResult.exhibitors);
 
   const response: ExhibitorsResponse = {
     updated_at: new Date().toISOString(),
@@ -201,6 +235,7 @@ export async function getExhibitors(): Promise<ExhibitorsResponse> {
   exhibitorsCache = {
     data: response,
     timestamp: now,
+    fetchTimestamp: now,
   };
 
   return response;

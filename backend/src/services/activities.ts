@@ -45,11 +45,12 @@ export interface Activity {
 interface ActivitiesCache {
   data: ActivitiesResponse;
   timestamp: number;
+  fetchTimestamp: number;
 }
 
 export interface ActivitiesResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'error';
+  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
   activities: Activity[];
 }
 
@@ -85,7 +86,7 @@ function sortActivities(activities: Activity[]): Activity[] {
 async function fetchFromUrl(
   url: string,
   headers?: Record<string, string>
-): Promise<AirtableResponse | null> {
+): Promise<{ data: AirtableResponse; status: number; statusText: string } | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -94,43 +95,63 @@ async function fetchFromUrl(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return null;
+      return { data: {} as AirtableResponse, status: response.status, statusText: response.statusText };
     }
-    return (await response.json()) as AirtableResponse;
+    const data = (await response.json()) as AirtableResponse;
+    return { data, status: response.status, statusText: response.statusText };
   } catch (error) {
     return null;
   }
 }
 
+interface FetchResult {
+  activities: Activity[] | null;
+  status?: number;
+  statusText?: string;
+  error?: string;
+}
+
 async function fetchAllActivities(
   baseUrl: string,
   authHeaders?: Record<string, string>
-): Promise<Activity[] | null> {
+): Promise<FetchResult> {
   const activities: Activity[] = [];
   let offset: string | undefined;
 
   try {
     do {
       const url = offset ? `${baseUrl}?offset=${offset}` : baseUrl;
-      const data = await fetchFromUrl(url, authHeaders);
+      const response = await fetchFromUrl(url, authHeaders);
 
-      if (!data) {
-        return null;
+      if (!response) {
+        return { activities: null, error: 'Network or timeout error' };
       }
 
-      if (!Array.isArray(data.records)) {
-        return null;
+      if (response.status && !response.data.records) {
+        return {
+          activities: null,
+          status: response.status,
+          statusText: response.statusText,
+          error: `HTTP ${response.status}: ${response.statusText}`,
+        };
       }
 
-      const mapped = data.records.map(mapActivity);
+      if (!Array.isArray(response.data.records)) {
+        return { activities: null, error: 'Invalid response format' };
+      }
+
+      const mapped = response.data.records.map(mapActivity);
       activities.push(...mapped);
 
-      offset = data.offset;
+      offset = response.data.offset;
     } while (offset);
 
-    return activities;
+    return { activities };
   } catch (error) {
-    return null;
+    return {
+      activities: null,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }
 
@@ -147,20 +168,33 @@ export async function getActivities(): Promise<ActivitiesResponse> {
     'https://api.airtable.com/v0/appkKjciinTlnsbkd/tblLpuL7Xff2rpdbB';
   const airtablePat = process.env.AIRTABLE_PAT;
 
-  let activities: Activity[] | null = null;
-  let sourceUsed: 'airtablecache' | 'airtable_api' | 'error' = 'airtablecache';
+  let fetchResult = await fetchAllActivities(cacheBaseUrl);
+  let sourceUsed: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error' = 'airtablecache';
 
-  activities = await fetchAllActivities(cacheBaseUrl);
-
-  if (activities === null) {
+  // If cache failed with 400 (branch merged), try API immediately
+  if (fetchResult.activities === null && fetchResult.status === 400) {
+    fetchResult = await fetchAllActivities(apiBaseUrl, airtablePat ? { Authorization: `Bearer ${airtablePat}` } : {});
+    sourceUsed = 'airtable_api';
+  } else if (fetchResult.activities === null) {
+    // Try API fallback
     sourceUsed = 'airtable_api';
     const authHeaders = airtablePat
       ? { Authorization: `Bearer ${airtablePat}` }
       : {};
-    activities = await fetchAllActivities(apiBaseUrl, authHeaders);
+    fetchResult = await fetchAllActivities(apiBaseUrl, authHeaders);
   }
 
-  if (activities === null) {
+  // If both fail but we have stale cache, use it
+  if (fetchResult.activities === null) {
+    if (activitiesCache) {
+      const staleResponse: ActivitiesResponse = {
+        ...activitiesCache.data,
+        source_used: 'cached_stale',
+        updated_at: new Date().toISOString(),
+      };
+      return staleResponse;
+    }
+
     const response: ActivitiesResponse = {
       updated_at: new Date().toISOString(),
       source_used: 'error',
@@ -169,7 +203,7 @@ export async function getActivities(): Promise<ActivitiesResponse> {
     return response;
   }
 
-  const sorted = sortActivities(activities);
+  const sorted = sortActivities(fetchResult.activities);
 
   const response: ActivitiesResponse = {
     updated_at: new Date().toISOString(),
@@ -180,6 +214,7 @@ export async function getActivities(): Promise<ActivitiesResponse> {
   activitiesCache = {
     data: response,
     timestamp: now,
+    fetchTimestamp: now,
   };
 
   return response;

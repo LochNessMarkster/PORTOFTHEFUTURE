@@ -43,11 +43,12 @@ export interface Announcement {
 interface AnnouncementsCache {
   data: AnnouncementsResponse;
   timestamp: number;
+  fetchTimestamp: number;
 }
 
 export interface AnnouncementsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api';
+  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
   announcements: Announcement[];
 }
 
@@ -82,7 +83,7 @@ function sortAnnouncements(announcements: Announcement[]): Announcement[] {
 async function fetchFromUrl(
   url: string,
   headers?: Record<string, string>
-): Promise<AirtableResponse | null> {
+): Promise<{ data: AirtableResponse; status: number; statusText: string } | null> {
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
@@ -91,43 +92,63 @@ async function fetchFromUrl(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return null;
+      return { data: {} as AirtableResponse, status: response.status, statusText: response.statusText };
     }
-    return (await response.json()) as AirtableResponse;
+    const data = (await response.json()) as AirtableResponse;
+    return { data, status: response.status, statusText: response.statusText };
   } catch (error) {
     return null;
   }
 }
 
+interface FetchResult {
+  announcements: Announcement[] | null;
+  status?: number;
+  statusText?: string;
+  error?: string;
+}
+
 async function fetchAllAnnouncements(
   baseUrl: string,
   authHeaders?: Record<string, string>
-): Promise<Announcement[] | null> {
+): Promise<FetchResult> {
   const announcements: Announcement[] = [];
   let offset: string | undefined;
 
   try {
     do {
       const url = offset ? `${baseUrl}?offset=${offset}` : baseUrl;
-      const data = await fetchFromUrl(url, authHeaders);
+      const response = await fetchFromUrl(url, authHeaders);
 
-      if (!data) {
-        return null;
+      if (!response) {
+        return { announcements: null, error: 'Network or timeout error' };
       }
 
-      if (!Array.isArray(data.records)) {
-        return null;
+      if (response.status && !response.data.records) {
+        return {
+          announcements: null,
+          status: response.status,
+          statusText: response.statusText,
+          error: `HTTP ${response.status}: ${response.statusText}`,
+        };
       }
 
-      const mapped = data.records.map(mapAnnouncement);
+      if (!Array.isArray(response.data.records)) {
+        return { announcements: null, error: 'Invalid response format' };
+      }
+
+      const mapped = response.data.records.map(mapAnnouncement);
       announcements.push(...mapped);
 
-      offset = data.offset;
+      offset = response.data.offset;
     } while (offset);
 
-    return announcements;
+    return { announcements };
   } catch (error) {
-    return null;
+    return {
+      announcements: null,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }
 
@@ -144,24 +165,42 @@ export async function getAnnouncements(): Promise<AnnouncementsResponse> {
     'https://api.airtable.com/v0/appkKjciinTlnsbkd/tbl1eqc3UiYaO1pSq';
   const airtablePat = process.env.AIRTABLE_PAT;
 
-  let announcements: Announcement[] | null = null;
-  let sourceUsed: 'airtablecache' | 'airtable_api' = 'airtablecache';
+  let fetchResult = await fetchAllAnnouncements(cacheBaseUrl);
+  let sourceUsed: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error' = 'airtablecache';
 
-  announcements = await fetchAllAnnouncements(cacheBaseUrl);
-
-  if (announcements === null) {
+  // If cache failed with 400 (branch merged), try API immediately
+  if (fetchResult.announcements === null && fetchResult.status === 400) {
+    fetchResult = await fetchAllAnnouncements(apiBaseUrl, airtablePat ? { Authorization: `Bearer ${airtablePat}` } : {});
+    sourceUsed = 'airtable_api';
+  } else if (fetchResult.announcements === null) {
+    // Try API fallback
     sourceUsed = 'airtable_api';
     const authHeaders = airtablePat
       ? { Authorization: `Bearer ${airtablePat}` }
       : {};
-    announcements = await fetchAllAnnouncements(apiBaseUrl, authHeaders);
+    fetchResult = await fetchAllAnnouncements(apiBaseUrl, authHeaders);
   }
 
-  if (announcements === null) {
-    throw new Error('Failed to fetch announcements from Airtable');
+  // If both fail but we have stale cache, use it
+  if (fetchResult.announcements === null) {
+    if (announcementsCache) {
+      const staleResponse: AnnouncementsResponse = {
+        ...announcementsCache.data,
+        source_used: 'cached_stale',
+        updated_at: new Date().toISOString(),
+      };
+      return staleResponse;
+    }
+
+    const response: AnnouncementsResponse = {
+      updated_at: new Date().toISOString(),
+      source_used: 'error',
+      announcements: [],
+    };
+    return response;
   }
 
-  const sorted = sortAnnouncements(announcements);
+  const sorted = sortAnnouncements(fetchResult.announcements);
 
   const response: AnnouncementsResponse = {
     updated_at: new Date().toISOString(),
@@ -172,6 +211,7 @@ export async function getAnnouncements(): Promise<AnnouncementsResponse> {
   announcementsCache = {
     data: response,
     timestamp: now,
+    fetchTimestamp: now,
   };
 
   return response;

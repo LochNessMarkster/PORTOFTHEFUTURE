@@ -49,11 +49,12 @@ export interface Sponsor {
 interface SponsorsCache {
   data: SponsorsResponse;
   timestamp: number;
+  fetchTimestamp: number;
 }
 
 export interface SponsorsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'error';
+  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
   sponsors: Sponsor[];
 }
 
@@ -95,11 +96,18 @@ function sortSponsors(sponsors: Sponsor[]): Sponsor[] {
   });
 }
 
+interface FetchResponse {
+  data: AirtableResponse | null;
+  status?: number;
+  statusText?: string;
+  errorMessage?: string;
+}
+
 async function fetchFromUrl(
   url: string,
   headers?: Record<string, string>,
   logger?: { info: (msg: string, obj?: any) => void; error: (msg: string, obj?: any) => void }
-): Promise<AirtableResponse | null> {
+): Promise<FetchResponse> {
   try {
     if (logger) {
       logger.info(`Fetching sponsors from URL: ${url}`);
@@ -124,7 +132,12 @@ async function fetchFromUrl(
           bodyPreview: bodyText.substring(0, 500),
         });
       }
-      return null;
+      return {
+        data: null,
+        status: response.status,
+        statusText: response.statusText,
+        errorMessage: bodyText.substring(0, 500),
+      };
     }
 
     const data = (await response.json()) as AirtableResponse;
@@ -137,7 +150,7 @@ async function fetchFromUrl(
       });
     }
 
-    return data;
+    return { data };
   } catch (error) {
     if (logger) {
       logger.error('Fetch error', {
@@ -147,15 +160,22 @@ async function fetchFromUrl(
         url,
       });
     }
-    return null;
+    return { data: null };
   }
+}
+
+interface FetchAllResult {
+  sponsors: Sponsor[] | null;
+  status?: number;
+  statusText?: string;
+  errorMessage?: string;
 }
 
 async function fetchAllSponsors(
   baseUrl: string,
   authHeaders?: Record<string, string>,
   logger?: { info: (msg: string, obj?: any) => void; error: (msg: string, obj?: any) => void }
-): Promise<Sponsor[] | null> {
+): Promise<FetchAllResult> {
   const sponsors: Sponsor[] = [];
   let offset: string | undefined;
   let pageCount = 0;
@@ -170,50 +190,58 @@ async function fetchAllSponsors(
         logger.info(`Fetching sponsors page ${pageCount}${offset ? ` (offset: ${offset})` : ''}`);
       }
 
-      const data = await fetchFromUrl(url, authHeaders, logger);
+      const response = await fetchFromUrl(url, authHeaders, logger);
 
-      if (!data) {
+      if (!response.data) {
         if (logger) {
           logger.error(`Failed to fetch sponsors page ${pageCount}`, {
             offset,
             pagesLoaded: pageCount - 1,
             recordsLoaded: totalRecords,
+            status: response.status,
+            statusText: response.statusText,
+            errorMessage: response.errorMessage,
           });
         }
-        return null;
+        return {
+          sponsors: null,
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage: response.errorMessage,
+        };
       }
 
-      if (!Array.isArray(data.records)) {
+      if (!Array.isArray(response.data.records)) {
         if (logger) {
           logger.error(`Invalid response format on page ${pageCount}`, {
-            hasRecords: 'records' in data,
-            recordsType: typeof data.records,
+            hasRecords: 'records' in response.data,
+            recordsType: typeof response.data.records,
           });
         }
-        return null;
+        return { sponsors: null };
       }
 
-      const pageRecordCount = data.records.length;
+      const pageRecordCount = response.data.records.length;
       totalRecords += pageRecordCount;
 
       if (logger) {
         logger.info(`Page ${pageCount}: received ${pageRecordCount} records`);
         if (pageRecordCount > 0) {
           logger.info(`First record on page ${pageCount}:`, {
-            id: data.records[0].id,
-            fields: JSON.stringify(data.records[0].fields).substring(0, 300),
+            id: response.data.records[0].id,
+            fields: JSON.stringify(response.data.records[0].fields).substring(0, 300),
           });
         }
       }
 
-      const mapped = data.records.map(mapSponsor);
+      const mapped = response.data.records.map(mapSponsor);
       sponsors.push(...mapped);
 
       if (logger) {
         logger.info(`Mapped ${mapped.length} sponsors from page ${pageCount}, Total so far: ${sponsors.length}`);
       }
 
-      offset = data.offset;
+      offset = response.data.offset;
     } while (offset);
 
     if (logger) {
@@ -224,7 +252,7 @@ async function fetchAllSponsors(
       });
     }
 
-    return sponsors;
+    return { sponsors };
   } catch (error) {
     if (logger) {
       logger.error('Error fetching all sponsors', {
@@ -234,7 +262,7 @@ async function fetchAllSponsors(
         recordsLoaded: totalRecords,
       });
     }
-    return null;
+    return { sponsors: null };
   }
 }
 
@@ -267,12 +295,25 @@ export async function getSponsors(logger?: { info: (msg: string, obj?: any) => v
     });
   }
 
-  let sponsors: Sponsor[] | null = null;
-  let sourceUsed: 'airtablecache' | 'airtable_api' | 'error' = 'airtablecache';
+  let fetchResult = await fetchAllSponsors(cacheBaseUrl, undefined, logger);
+  let sourceUsed: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error' = 'airtablecache';
 
-  sponsors = await fetchAllSponsors(cacheBaseUrl, undefined, logger);
+  // If cache failed with 400 (branch merged), try API immediately
+  if (fetchResult.sponsors === null && fetchResult.status === 400) {
+    if (logger) {
+      logger.info('Cache endpoint returned 400, attempting Airtable API immediately', {
+        apiUrl: apiBaseUrl,
+        hasAuthToken: !!airtablePat,
+        errorMessage: fetchResult.errorMessage,
+      });
+    }
 
-  if (sponsors === null) {
+    sourceUsed = 'airtable_api';
+    const authHeaders = airtablePat
+      ? { Authorization: `Bearer ${airtablePat}` }
+      : {};
+    fetchResult = await fetchAllSponsors(apiBaseUrl, authHeaders, logger);
+  } else if (fetchResult.sponsors === null) {
     if (logger) {
       logger.info('Cache endpoint failed, attempting Airtable API', {
         apiUrl: apiBaseUrl,
@@ -284,12 +325,32 @@ export async function getSponsors(logger?: { info: (msg: string, obj?: any) => v
     const authHeaders = airtablePat
       ? { Authorization: `Bearer ${airtablePat}` }
       : {};
-    sponsors = await fetchAllSponsors(apiBaseUrl, authHeaders, logger);
+    fetchResult = await fetchAllSponsors(apiBaseUrl, authHeaders, logger);
   }
 
-  if (sponsors === null) {
+  if (fetchResult.sponsors === null) {
     if (logger) {
-      logger.error('Both cache and API endpoints failed');
+      logger.error('Both cache and API endpoints failed', {
+        status: fetchResult.status,
+        statusText: fetchResult.statusText,
+        errorMessage: fetchResult.errorMessage,
+      });
+    }
+
+    if (sponsorsCache) {
+      if (logger) {
+        logger.info('Returning stale cached sponsors as fallback', {
+          cacheAge: now - sponsorsCache.timestamp,
+          sponsorCount: sponsorsCache.data.sponsors.length,
+        });
+      }
+
+      const staleResponse: SponsorsResponse = {
+        ...sponsorsCache.data,
+        source_used: 'cached_stale',
+        updated_at: new Date().toISOString(),
+      };
+      return staleResponse;
     }
 
     const response: SponsorsResponse = {
@@ -301,10 +362,10 @@ export async function getSponsors(logger?: { info: (msg: string, obj?: any) => v
   }
 
   if (logger) {
-    logger.info(`Successfully fetched ${sponsors.length} sponsors`);
+    logger.info(`Successfully fetched ${fetchResult.sponsors.length} sponsors`);
   }
 
-  const sorted = sortSponsors(sponsors);
+  const sorted = sortSponsors(fetchResult.sponsors);
 
   if (logger) {
     logger.info(`Sponsors sorted by tier and name`, {
@@ -321,6 +382,7 @@ export async function getSponsors(logger?: { info: (msg: string, obj?: any) => v
   sponsorsCache = {
     data: response,
     timestamp: now,
+    fetchTimestamp: now,
   };
 
   if (logger) {
