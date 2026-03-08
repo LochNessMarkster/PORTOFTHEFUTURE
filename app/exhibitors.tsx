@@ -62,11 +62,36 @@ export default function ExhibitorsScreen() {
       const validExhibitors = (response.exhibitors || []).filter(e => e && e.name);
       console.log('[Exhibitors] Valid exhibitors (with name):', validExhibitors.length);
       
-      setExhibitors(validExhibitors);
-      setFilteredExhibitors(validExhibitors);
+      // If we got an error source but still have data, show it with a warning
+      if (response.source_used === 'error' && validExhibitors.length === 0) {
+        setError('Unable to load exhibitors at this time. The data source is temporarily unavailable. Please try again later.');
+        setExhibitors([]);
+        setFilteredExhibitors([]);
+      } else {
+        // Success or cached data
+        setExhibitors(validExhibitors);
+        setFilteredExhibitors(validExhibitors);
+        
+        // Show a subtle warning if using stale cached data
+        if (response.source_used === 'cached_stale') {
+          console.warn('[Exhibitors] Using stale cached data - data source is temporarily unavailable');
+        }
+      }
     } catch (err) {
       console.error('[Exhibitors] Error loading exhibitors:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Unable to load exhibitors. Pull to refresh.';
+      let errorMessage = 'Unable to load exhibitors. Pull to refresh to try again.';
+      
+      // Provide more specific error messages
+      if (err instanceof Error) {
+        if (err.message.includes('400')) {
+          errorMessage = 'The exhibitors data source is temporarily unavailable. Please try again later.';
+        } else if (err.message.includes('Network')) {
+          errorMessage = 'Network error. Please check your connection and try again.';
+        } else {
+          errorMessage = err.message;
+        }
+      }
+      
       setError(errorMessage);
       setExhibitors([]);
       setFilteredExhibitors([]);

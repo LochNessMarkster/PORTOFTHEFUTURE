@@ -73,7 +73,7 @@ export interface Speaker {
 
 export interface SpeakersResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable';
+  source_used: 'airtablecache' | 'airtable' | 'airtable_api' | 'cached_stale' | 'error';
   speakers: Speaker[];
 }
 
@@ -100,7 +100,7 @@ export interface Activity {
 
 export interface ActivitiesResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'airtable' | 'error';
+  source_used: 'airtablecache' | 'airtable_api' | 'airtable' | 'cached_stale' | 'error';
   activities: Activity[];
 }
 
@@ -132,7 +132,7 @@ export interface Exhibitor {
 
 export interface ExhibitorsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'error';
+  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
   exhibitors: Exhibitor[];
 }
 
@@ -159,7 +159,7 @@ export interface Sponsor {
 
 export interface SponsorsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'error';
+  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
   sponsors: Sponsor[];
 }
 
@@ -594,7 +594,7 @@ export interface AnnouncementItem {
 
 export interface AnnouncementsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api';
+  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
   announcements: AnnouncementItem[];
 }
 
