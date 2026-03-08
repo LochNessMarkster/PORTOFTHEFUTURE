@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -9,20 +8,27 @@ import {
   ActivityIndicator,
   useColorScheme,
 } from 'react-native';
-import { Stack, useRouter, useFocusEffect } from 'expo-router';
+import { Stack, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { SwipeListView } from 'react-native-swipe-list-view';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
 import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
 import {
-  fetchNetworkingAttendees,
-  NetworkingAttendee,
+  fetchAttendeesDirectory,
+  Attendee,
   fetchConversations,
   Conversation,
   deleteConversation,
 } from '@/utils/airtable';
 import { useAuth } from '@/contexts/AuthContext';
+
+interface NetworkingAttendee {
+  email: string;
+  name: string;
+  company?: string;
+  title?: string;
+}
 
 export default function NetworkingScreen() {
   const colorScheme = useColorScheme();
@@ -32,19 +38,16 @@ export default function NetworkingScreen() {
 
   const [activeTab, setActiveTab] = useState<'attendees' | 'messages'>('attendees');
 
-  // Attendees state
   const [attendees, setAttendees] = useState<NetworkingAttendee[]>([]);
   const [filteredAttendees, setFilteredAttendees] = useState<NetworkingAttendee[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Conversations state
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loadingConversations, setLoadingConversations] = useState(false);
   const [conversationsError, setConversationsError] = useState<string | null>(null);
 
-  // Delete modal state
   const [isDeleteModalVisible, setDeleteModalVisible] = useState(false);
   const [conversationToDelete, setConversationToDelete] = useState<Conversation | null>(null);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -57,18 +60,30 @@ export default function NetworkingScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadAttendees = useCallback(async () => {
-    console.log('[API] Loading attendees for networking from backend...');
+    console.log('[Networking] Loading attendees from Airtable cache...');
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchNetworkingAttendees();
-      console.log('[API] Attendees loaded:', data.length);
-      setAttendees(data);
-      setFilteredAttendees(data);
+
+      const data: Attendee[] = await fetchAttendeesDirectory();
+
+      const mappedAttendees: NetworkingAttendee[] = data.map((attendee) => ({
+        email: attendee.email,
+        name: attendee.displayName || `${attendee.firstName} ${attendee.lastName}`.trim(),
+        company: attendee.company || '',
+        title: attendee.title || '',
+      }));
+
+      console.log('[Networking] Attendees loaded:', mappedAttendees.length);
+
+      setAttendees(mappedAttendees);
+      setFilteredAttendees(mappedAttendees);
     } catch (err) {
-      console.error('[API] Error loading attendees:', err);
+      console.error('[Networking] Error loading attendees:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load attendees';
       setError(errorMessage);
+      setAttendees([]);
+      setFilteredAttendees([]);
     } finally {
       setLoading(false);
     }
@@ -85,14 +100,14 @@ export default function NetworkingScreen() {
     }
 
     const query = searchQuery.toLowerCase();
-    const filtered = attendees.filter(attendee => {
+    const filtered = attendees.filter((attendee) => {
       const nameMatch = attendee.name.toLowerCase().includes(query);
       const companyMatch = attendee.company?.toLowerCase().includes(query);
       const titleMatch = attendee.title?.toLowerCase().includes(query);
       return nameMatch || companyMatch || titleMatch;
     });
 
-    console.log('[API] Filtered attendees:', filtered.length, 'from', attendees.length);
+    console.log('[Networking] Filtered attendees:', filtered.length, 'from', attendees.length);
     setFilteredAttendees(filtered);
   }, [searchQuery, attendees]);
 
@@ -102,22 +117,22 @@ export default function NetworkingScreen() {
 
   const loadConversations = useCallback(async () => {
     if (!user?.email) return;
-    console.log('[API] Loading conversations for:', user.email);
+
+    console.log('[Messaging] Loading conversations for:', user.email);
     try {
       setLoadingConversations(true);
       setConversationsError(null);
       const data = await fetchConversations(user.email);
-      console.log('[API] Conversations loaded:', data.length);
+      console.log('[Messaging] Conversations loaded:', data.length);
       setConversations(data);
     } catch (err) {
-      console.error('[API] Error loading conversations:', err);
+      console.error('[Messaging] Error loading conversations:', err);
       setConversationsError(err instanceof Error ? err.message : 'Failed to load conversations');
     } finally {
       setLoadingConversations(false);
     }
   }, [user?.email]);
 
-  // Reload conversations when switching to messages tab
   useEffect(() => {
     if (activeTab === 'messages' && user?.email) {
       loadConversations();
@@ -125,7 +140,7 @@ export default function NetworkingScreen() {
   }, [activeTab, user?.email, loadConversations]);
 
   const confirmDelete = (conversation: Conversation) => {
-    console.log('[User Action] Long press or swipe to delete conversation:', conversation.id);
+    console.log('[Messaging] Confirm delete conversation:', conversation.id);
     setConversationToDelete(conversation);
     setDeleteModalVisible(true);
   };
@@ -134,25 +149,20 @@ export default function NetworkingScreen() {
     if (!conversationToDelete) return;
 
     const targetId = conversationToDelete.id;
-    console.log('[User Action] User confirmed delete for conversation:', targetId);
     setDeleteModalVisible(false);
     setConversationToDelete(null);
 
     try {
       await deleteConversation(targetId);
-      console.log('[API] Conversation deleted successfully:', targetId);
-      // Optimistic UI update: remove from list immediately
-      setConversations(prev => prev.filter(conv => conv.id !== targetId));
-      console.log('[UI] Conversation removed from list');
+      setConversations((prev) => prev.filter((conv) => conv.id !== targetId));
     } catch (err) {
-      console.error('[API] Error deleting conversation:', err);
+      console.error('[Messaging] Error deleting conversation:', err);
       setDeleteError('Failed to delete conversation. Please try again.');
       setErrorModalVisible(true);
     }
   };
 
   const handleDeleteCancelled = () => {
-    console.log('[User Action] User cancelled delete');
     setDeleteModalVisible(false);
     setConversationToDelete(null);
   };
@@ -167,13 +177,19 @@ export default function NetworkingScreen() {
 
   const formatConversationTime = (dateString?: string): string => {
     if (!dateString) return '';
+
     const date = new Date(dateString);
     const now = new Date();
     const diffMs = now.getTime() - date.getTime();
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-    if (diffDays === 0) return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    if (diffDays === 0) {
+      return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    }
     if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return date.toLocaleDateString([], { weekday: 'short' });
+    if (diffDays < 7) {
+      return date.toLocaleDateString([], { weekday: 'short' });
+    }
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' });
   };
 
@@ -182,8 +198,9 @@ export default function NetworkingScreen() {
       conversation.participant1_email === user?.email
         ? conversation.participant2_email
         : conversation.participant1_email;
+
     const otherName = conversation.other_participant_name || otherEmail;
-    console.log('[User Action] Opening conversation:', conversation.id);
+
     router.push({
       pathname: '/conversation/[id]',
       params: {
@@ -195,9 +212,14 @@ export default function NetworkingScreen() {
   };
 
   const renderConversation = ({ item }: { item: Conversation }) => {
-    const otherName = item.other_participant_name || item.participant2_email;
+    const otherName =
+      item.other_participant_name ||
+      (item.participant1_email === user?.email
+        ? item.participant2_email
+        : item.participant1_email);
+
     const timeStr = formatConversationTime(item.last_message_at || item.created_at);
-    
+
     return (
       <TouchableOpacity
         style={[styles.rowFront, { backgroundColor: cardBg, borderColor: borderColorValue }]}
@@ -210,25 +232,23 @@ export default function NetworkingScreen() {
             {getInitials(otherName)}
           </Text>
         </View>
+
         <View style={styles.attendeeInfo}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+          <View style={styles.conversationHeaderRow}>
             <Text style={[styles.attendeeName, { color: textColor }]} numberOfLines={1}>
               {otherName}
             </Text>
-            <Text style={[styles.timeText, { color: secondaryTextColor }]}>
-              {timeStr}
-            </Text>
+            <Text style={[styles.timeText, { color: secondaryTextColor }]}>{timeStr}</Text>
           </View>
-          {item.last_message ? (
-            <Text style={[styles.lastMessageText, { color: secondaryTextColor }]} numberOfLines={1}>
-              {item.last_message}
-            </Text>
-          ) : (
-            <Text style={[styles.lastMessageText, { color: secondaryTextColor }]} numberOfLines={1}>
-              No messages yet
-            </Text>
-          )}
+
+          <Text
+            style={[styles.lastMessageText, { color: secondaryTextColor }]}
+            numberOfLines={1}
+          >
+            {item.last_message || 'No messages yet'}
+          </Text>
         </View>
+
         <IconSymbol
           ios_icon_name="chevron.right"
           android_material_icon_name="chevron-right"
@@ -259,7 +279,6 @@ export default function NetworkingScreen() {
   };
 
   const handleAttendeePress = (attendee: NetworkingAttendee) => {
-    console.log('[User Action] Attendee pressed:', attendee.name);
     router.push({
       pathname: '/attendee-detail',
       params: {
@@ -283,21 +302,28 @@ export default function NetworkingScreen() {
             {getInitials(item.name)}
           </Text>
         </View>
+
         <View style={styles.attendeeInfo}>
           <Text style={[styles.attendeeName, { color: textColor }]} numberOfLines={1}>
             {item.name}
           </Text>
-          {item.title && (
+
+          {item.title ? (
             <Text style={[styles.attendeeTitle, { color: secondaryTextColor }]} numberOfLines={1}>
               {item.title}
             </Text>
-          )}
-          {item.company && (
-            <Text style={[styles.attendeeCompany, { color: secondaryTextColor }]} numberOfLines={1}>
+          ) : null}
+
+          {item.company ? (
+            <Text
+              style={[styles.attendeeCompany, { color: secondaryTextColor }]}
+              numberOfLines={1}
+            >
               {item.company}
             </Text>
-          )}
+          ) : null}
         </View>
+
         <IconSymbol
           ios_icon_name="chevron.right"
           android_material_icon_name="chevron-right"
@@ -310,7 +336,12 @@ export default function NetworkingScreen() {
 
   const renderMessagingGuideline = () => {
     return (
-      <View style={[styles.guidelineContainer, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+      <View
+        style={[
+          styles.guidelineContainer,
+          { backgroundColor: cardBg, borderColor: borderColorValue },
+        ]}
+      >
         <View style={styles.guidelineIconContainer}>
           <IconSymbol
             ios_icon_name="info.circle.fill"
@@ -321,7 +352,8 @@ export default function NetworkingScreen() {
         </View>
         <View style={styles.guidelineTextContainer}>
           <Text style={[styles.guidelineText, { color: textColor }]}>
-            Please be respectful when communicating with other attendees. Inappropriate behavior can be reported, and users may be blocked.
+            Please be respectful when communicating with other attendees. Inappropriate
+            behavior can be reported, and users may be blocked.
           </Text>
         </View>
       </View>
@@ -333,7 +365,9 @@ export default function NetworkingScreen() {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading attendees...</Text>
+          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>
+            Loading attendees...
+          </Text>
         </View>
       );
     }
@@ -381,7 +415,7 @@ export default function NetworkingScreen() {
         keyExtractor={(item) => item.email}
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
-        disableRightSwipe={true}
+        disableRightSwipe
         rightOpenValue={0}
       />
     );
@@ -392,7 +426,9 @@ export default function NetworkingScreen() {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading messages...</Text>
+          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>
+            Loading messages...
+          </Text>
         </View>
       );
     }
@@ -406,7 +442,9 @@ export default function NetworkingScreen() {
             size={48}
             color={colors.error}
           />
-          <Text style={[styles.errorText, { color: colors.error }]}>{conversationsError}</Text>
+          <Text style={[styles.errorText, { color: colors.error }]}>
+            {conversationsError}
+          </Text>
           <TouchableOpacity
             style={[styles.retryButton, { backgroundColor: colors.primary }]}
             onPress={loadConversations}
@@ -426,7 +464,17 @@ export default function NetworkingScreen() {
             size={64}
             color={secondaryTextColor}
           />
-          <Text style={[styles.emptyText, { color: secondaryTextColor, fontSize: 17, fontWeight: '600', marginBottom: 8 }]}>
+          <Text
+            style={[
+              styles.emptyText,
+              {
+                color: secondaryTextColor,
+                fontSize: 17,
+                fontWeight: '600',
+                marginBottom: 8,
+              },
+            ]}
+          >
             No Messages Yet
           </Text>
           <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
@@ -445,7 +493,7 @@ export default function NetworkingScreen() {
         contentContainerStyle={styles.listContent}
         showsVerticalScrollIndicator={false}
         rightOpenValue={-75}
-        disableRightSwipe={true}
+        disableRightSwipe
         stopRightSwipe={-75}
         previewRowKey={conversations[0]?.id}
         previewOpenValue={-40}
@@ -466,11 +514,22 @@ export default function NetworkingScreen() {
           headerTintColor: textColor,
         }}
       />
+
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        {/* Tab Switcher */}
-        <View style={[styles.tabBar, { backgroundColor: cardBg, borderBottomColor: borderColorValue }]}>
+        <View
+          style={[
+            styles.tabBar,
+            { backgroundColor: cardBg, borderBottomColor: borderColorValue },
+          ]}
+        >
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'attendees' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            style={[
+              styles.tab,
+              activeTab === 'attendees' && {
+                borderBottomColor: colors.primary,
+                borderBottomWidth: 2,
+              },
+            ]}
             onPress={() => setActiveTab('attendees')}
           >
             <IconSymbol
@@ -479,12 +538,24 @@ export default function NetworkingScreen() {
               size={18}
               color={activeTab === 'attendees' ? colors.primary : secondaryTextColor}
             />
-            <Text style={[styles.tabText, { color: activeTab === 'attendees' ? colors.primary : secondaryTextColor }]}>
+            <Text
+              style={[
+                styles.tabText,
+                { color: activeTab === 'attendees' ? colors.primary : secondaryTextColor },
+              ]}
+            >
               Attendees
             </Text>
           </TouchableOpacity>
+
           <TouchableOpacity
-            style={[styles.tab, activeTab === 'messages' && { borderBottomColor: colors.primary, borderBottomWidth: 2 }]}
+            style={[
+              styles.tab,
+              activeTab === 'messages' && {
+                borderBottomColor: colors.primary,
+                borderBottomWidth: 2,
+              },
+            ]}
             onPress={() => setActiveTab('messages')}
           >
             <IconSymbol
@@ -493,7 +564,12 @@ export default function NetworkingScreen() {
               size={18}
               color={activeTab === 'messages' ? colors.primary : secondaryTextColor}
             />
-            <Text style={[styles.tabText, { color: activeTab === 'messages' ? colors.primary : secondaryTextColor }]}>
+            <Text
+              style={[
+                styles.tabText,
+                { color: activeTab === 'messages' ? colors.primary : secondaryTextColor },
+              ]}
+            >
               Messages
             </Text>
           </TouchableOpacity>
@@ -501,9 +577,13 @@ export default function NetworkingScreen() {
 
         {activeTab === 'attendees' ? (
           <>
-            {/* Search Bar */}
             <View style={styles.searchContainer}>
-              <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+              <View
+                style={[
+                  styles.searchBar,
+                  { backgroundColor: cardBg, borderColor: borderColorValue },
+                ]}
+              >
                 <IconSymbol
                   ios_icon_name="magnifyingglass"
                   android_material_icon_name="search"
@@ -517,7 +597,7 @@ export default function NetworkingScreen() {
                   value={searchQuery}
                   onChangeText={setSearchQuery}
                 />
-                {searchQuery.length > 0 && (
+                {searchQuery.length > 0 ? (
                   <TouchableOpacity onPress={() => setSearchQuery('')}>
                     <IconSymbol
                       ios_icon_name="xmark.circle.fill"
@@ -526,7 +606,7 @@ export default function NetworkingScreen() {
                       color={secondaryTextColor}
                     />
                   </TouchableOpacity>
-                )}
+                ) : null}
               </View>
             </View>
 
@@ -534,31 +614,33 @@ export default function NetworkingScreen() {
           </>
         ) : (
           <>
-            {/* Messaging Guideline Notice */}
             {renderMessagingGuideline()}
-
             {renderMessagesTab()}
           </>
         )}
 
-        {/* Delete Confirmation Modal */}
         <ConfirmDeleteModal
           isVisible={isDeleteModalVisible}
           title="Delete Conversation"
-          message={`Are you sure you want to delete this conversation? This action cannot be undone.`}
+          message="Are you sure you want to delete this conversation? This action cannot be undone."
           onConfirm={handleDeleteConfirmed}
           onCancel={handleDeleteCancelled}
         />
 
-        {/* Error Modal */}
         <ConfirmDeleteModal
           isVisible={isErrorModalVisible}
           title="Error"
           message={deleteError || 'An unexpected error occurred.'}
-          onConfirm={() => { setErrorModalVisible(false); setDeleteError(null); }}
-          onCancel={() => { setErrorModalVisible(false); setDeleteError(null); }}
+          onConfirm={() => {
+            setErrorModalVisible(false);
+            setDeleteError(null);
+          }}
+          onCancel={() => {
+            setErrorModalVisible(false);
+            setDeleteError(null);
+          }}
           confirmLabel="OK"
-          hideCancel={true}
+          hideCancel
         />
       </SafeAreaView>
     </>
@@ -737,6 +819,11 @@ const styles = StyleSheet.create({
   },
   attendeeCompany: {
     fontSize: 14,
+  },
+  conversationHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   timeText: {
     fontSize: 12,

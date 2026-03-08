@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -17,9 +16,11 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { fetchBackendPorts, BackendPort as Port } from '@/utils/airtable';
+import { fetchPorts, Port } from '@/utils/airtable';
 
-function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
+function resolveImageSource(
+  source: string | number | ImageSourcePropType | undefined
+): ImageSourcePropType {
   if (!source) return { uri: '' };
   if (typeof source === 'string') return { uri: source };
   return source as ImageSourcePropType;
@@ -44,18 +45,22 @@ export default function PortsScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const loadPorts = useCallback(async () => {
-    console.log('[Ports] Loading ports from backend...');
+    console.log('[Ports] Loading ports from Airtable cache...');
     try {
       setLoading(true);
       setError(null);
-      const data = await fetchBackendPorts();
+
+      const data = await fetchPorts();
       console.log('[Ports] Ports loaded:', data.length);
+
       setPorts(data);
       setFilteredPorts(data);
     } catch (err) {
       console.error('[Ports] Error loading ports:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load ports';
       setError(errorMessage);
+      setPorts([]);
+      setFilteredPorts([]);
     } finally {
       setLoading(false);
     }
@@ -71,36 +76,30 @@ export default function PortsScreen() {
     setRefreshing(false);
   }, [loadPorts]);
 
-  // Extract location from port name or intro
   const extractLocation = (port: Port): string => {
-    // Try to extract location from name (e.g., "Port of Miami" -> "Miami")
-    // or from intro field
     const intro = port.intro || '';
     const name = port.name || '';
-    
-    // Common patterns: "Port of [City]", "[City] Port", etc.
+
     const cityMatch = name.match(/Port of ([^,]+)/i) || name.match(/([^,]+) Port/i);
     if (cityMatch && cityMatch[1]) {
       return cityMatch[1].trim();
     }
-    
-    // Try to extract from intro (first sentence or first line)
+
     const firstSentence = intro.split(/[.!?]/)[0];
     if (firstSentence && firstSentence.length < 50) {
       return firstSentence.trim();
     }
-    
+
     return '';
   };
 
   const filterPorts = useCallback(() => {
     let filtered = ports;
 
-    // Apply search filter (name or location)
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
-      filtered = filtered.filter(port => {
-        const nameMatch = port.name.toLowerCase().includes(query);
+      filtered = filtered.filter((port) => {
+        const nameMatch = (port.name || '').toLowerCase().includes(query);
         const locationMatch = extractLocation(port).toLowerCase().includes(query);
         const introMatch = (port.intro || '').toLowerCase().includes(query);
         return nameMatch || locationMatch || introMatch;
@@ -118,12 +117,13 @@ export default function PortsScreen() {
   const handlePortPress = (port: Port) => {
     console.log('[Ports] Port pressed:', port.name);
     const location = extractLocation(port);
+
     router.push({
       pathname: '/port-detail',
       params: {
         id: port.id,
         name: port.name,
-        location: location,
+        location,
         intro: port.intro || '',
         bio: port.bio || '',
         url: port.url || '',
@@ -135,7 +135,6 @@ export default function PortsScreen() {
 
   const getPreview = (text: string | undefined): string => {
     if (!text) return '';
-    // Limit to 80 characters for preview
     if (text.length <= 80) return text;
     return text.substring(0, 77) + '...';
   };
@@ -150,7 +149,6 @@ export default function PortsScreen() {
         onPress={() => handlePortPress(item)}
         activeOpacity={0.7}
       >
-        {/* Port Logo */}
         <View style={styles.logoContainer}>
           {item.logo_url ? (
             <Image
@@ -170,13 +168,12 @@ export default function PortsScreen() {
           )}
         </View>
 
-        {/* Port Info */}
         <View style={styles.portInfo}>
           <Text style={[styles.portName, { color: textColor }]} numberOfLines={2}>
             {item.name}
           </Text>
-          
-          {location && (
+
+          {location ? (
             <View style={styles.locationRow}>
               <IconSymbol
                 ios_icon_name="location.fill"
@@ -184,17 +181,23 @@ export default function PortsScreen() {
                 size={14}
                 color={secondaryTextColor}
               />
-              <Text style={[styles.locationText, { color: secondaryTextColor }]} numberOfLines={1}>
+              <Text
+                style={[styles.locationText, { color: secondaryTextColor }]}
+                numberOfLines={1}
+              >
                 {location}
               </Text>
             </View>
-          )}
+          ) : null}
 
-          {preview && (
-            <Text style={[styles.portPreview, { color: secondaryTextColor }]} numberOfLines={2}>
+          {preview ? (
+            <Text
+              style={[styles.portPreview, { color: secondaryTextColor }]}
+              numberOfLines={2}
+            >
               {preview}
             </Text>
-          )}
+          ) : null}
         </View>
       </TouchableOpacity>
     );
@@ -202,7 +205,6 @@ export default function PortsScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-      {/* Search Bar */}
       <View style={styles.searchContainer}>
         <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
           <IconSymbol
@@ -218,7 +220,7 @@ export default function PortsScreen() {
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
-          {searchQuery.length > 0 && (
+          {searchQuery.length > 0 ? (
             <TouchableOpacity onPress={() => setSearchQuery('')}>
               <IconSymbol
                 ios_icon_name="xmark.circle.fill"
@@ -227,14 +229,16 @@ export default function PortsScreen() {
                 color={secondaryTextColor}
               />
             </TouchableOpacity>
-          )}
+          ) : null}
         </View>
       </View>
 
       {loading ? (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading ports...</Text>
+          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>
+            Loading ports...
+          </Text>
         </View>
       ) : error ? (
         <View style={styles.centerContainer}>

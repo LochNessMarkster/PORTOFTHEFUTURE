@@ -6,7 +6,8 @@
 // AIRTABLE CACHE BASE
 // ─────────────────────────────────────────────────────────────────────────────
 
-const AIRTABLE_BASE_URL = 'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd';
+const AIRTABLE_BASE_URL =
+  'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd';
 
 interface AirtableRecord<T> {
   id: string;
@@ -25,7 +26,8 @@ interface AirtableResponse<T> {
 export async function fetchPaginatedAirtableData<T>(
   tableId: string
 ): Promise<AirtableRecord<T>[]> {
-  console.log('Fetching paginated data from table:', tableId);
+  console.log('[Airtable] Fetching paginated data from table:', tableId);
+
   let allRecords: AirtableRecord<T>[] = [];
   let offset: string | undefined = undefined;
 
@@ -34,21 +36,23 @@ export async function fetchPaginatedAirtableData<T>(
       ? `${AIRTABLE_BASE_URL}/${tableId}?offset=${offset}`
       : `${AIRTABLE_BASE_URL}/${tableId}`;
 
-    console.log('Fetching page:', url);
+    console.log('[Airtable] Fetching page:', url);
     const response = await fetch(url);
 
     if (!response.ok) {
-      throw new Error(`Failed to fetch data from Airtable: ${response.status} ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch data from Airtable: ${response.status} ${response.statusText}`
+      );
     }
 
     const data: AirtableResponse<T> = await response.json();
-    console.log('Received page with', data.records?.length || 0, 'records');
+    console.log('[Airtable] Received page with', data.records?.length || 0, 'records');
 
     allRecords = allRecords.concat(data.records || []);
     offset = data.offset;
   } while (offset);
 
-  console.log('Total records fetched:', allRecords.length);
+  console.log('[Airtable] Total records fetched:', allRecords.length);
   return allRecords;
 }
 
@@ -73,15 +77,19 @@ interface RawSpeakerFields {
 
 interface RawActivityFields {
   'Activity Name'?: string;
+  'Name'?: string;
+  'Title'?: string;
   'Description'?: string;
   'Date'?: string;
   'Time'?: string;
   'Location'?: string;
   'URL'?: string;
   'Image'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+  'image'?: { url: string; thumbnails?: { large?: { url: string } } }[];
 }
 
 interface RawExhibitorFields {
+  'Name'?: string;
   'Company Name'?: string;
   'Description'?: string;
   'Booth Number'?: string;
@@ -94,19 +102,30 @@ interface RawExhibitorFields {
   'Primary Contact Title'?: string;
   'Primary Contact Email'?: string;
   'Primary Direct Phone'?: string;
+  'Admin Phone (Booth)'?: string;
   'Admin Phone Booth'?: string;
+  'Logo Url'?: { url: string; thumbnails?: { large?: { url: string } } }[];
   'Logo'?: { url: string; thumbnails?: { large?: { url: string } } }[];
 }
 
 interface RawSponsorFields {
+  'Sponsor Name'?: string;
   'Company Name'?: string;
+  'Name'?: string;
+  'Sponsor Level'?: string;
   'Level'?: string;
+  'Tier'?: string;
+  'Sponsor Bio'?: string;
   'Bio'?: string;
+  'Description'?: string;
   'Company URL'?: string;
+  'URL'?: string;
   'Email'?: string;
   'LinkedIn'?: string;
   'Facebook'?: string;
   'X'?: string;
+  'LogoGraphic'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+  'Logo Url'?: { url: string; thumbnails?: { large?: { url: string } } }[];
   'Logo'?: { url: string; thumbnails?: { large?: { url: string } } }[];
 }
 
@@ -135,9 +154,25 @@ interface RawAttendeeFields {
   'Last Name'?: string;
   'Email'?: string;
   'Company Name'?: string;
+  'Company'?: string;
   'Job Title'?: string;
+  'Title'?: string;
   'Phone'?: string;
   'Registration Type'?: string;
+}
+
+interface RawPortFields {
+  'Port Name'?: string;
+  'Name'?: string;
+  'Intro'?: string;
+  'Port Bio'?: string;
+  'Bio'?: string;
+  'Port URL'?: string;
+  'URL'?: string;
+  'Logo graphic'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+  'Logo Graphic'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+  'Featured Port Graphic'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+  'Featured Port Graphic '?: { url: string; thumbnails?: { large?: { url: string } } }[];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -174,6 +209,7 @@ export const fetchSpeakers = async (): Promise<SpeakersResponse> => {
     .map((record) => {
       const f = record.fields;
       const photo = f['Photo']?.[0];
+
       return {
         id: record.id,
         firstName: f['First Name'] || '',
@@ -225,25 +261,31 @@ export interface ActivitiesResponse {
 }
 
 export const fetchActivities = async (): Promise<ActivitiesResponse> => {
+  console.log('[Activities] Loading activities from Airtable cache...');
   const rawRecords = await fetchPaginatedAirtableData<RawActivityFields>('tblLpuL7Xff2rpdbB');
 
   const activities: Activity[] = rawRecords
     .map((record) => {
-      const f = record.fields;
-      const image = f['Image']?.[0];
+      const f = record.fields as RawActivityFields & Record<string, any>;
+      const image = f['Image']?.[0] || f['image']?.[0];
+
       return {
         id: record.id,
-        name: f['Activity Name'] || '',
+        name: f['Activity Name'] || f['Name'] || f['Title'] || '',
         description: f['Description'],
         date: f['Date'],
         time: f['Time'],
         location: f['Location'],
         url: f['URL'],
-        image_url: image?.thumbnails?.large?.url || image?.url,
+        image_url: image?.thumbnails?.large?.url || image?.url || '',
       };
     })
     .filter((a) => a.name)
-    .sort((a, b) => `${a.date || ''} ${a.time || ''}`.localeCompare(`${b.date || ''} ${b.time || ''}`));
+    .sort((a, b) =>
+      `${a.date || ''} ${a.time || ''}`.localeCompare(`${b.date || ''} ${b.time || ''}`)
+    );
+
+  console.log('[Activities] Final mapped activities:', activities.length);
 
   return {
     updated_at: new Date().toISOString(),
@@ -281,15 +323,17 @@ export interface ExhibitorsResponse {
 }
 
 export const fetchExhibitors = async (): Promise<ExhibitorsResponse> => {
+  console.log('[Exhibitors] Loading exhibitors from Airtable cache...');
   const rawRecords = await fetchPaginatedAirtableData<RawExhibitorFields>('tblzex4bjwEZh1021');
 
   const exhibitors: Exhibitor[] = rawRecords
     .map((record) => {
-      const f = record.fields;
-      const logo = f['Logo']?.[0];
+      const f = record.fields as RawExhibitorFields & Record<string, any>;
+      const logo = f['Logo Url']?.[0] || f['Logo']?.[0];
+
       return {
         id: record.id,
-        name: f['Company Name'] || '',
+        name: f['Name'] || f['Company Name'] || '',
         description: f['Description'],
         boothNumber: f['Booth Number'],
         address: f['Address'],
@@ -301,12 +345,14 @@ export const fetchExhibitors = async (): Promise<ExhibitorsResponse> => {
         primaryContactTitle: f['Primary Contact Title'],
         primaryContactEmail: f['Primary Contact Email'],
         primaryDirectPhone: f['Primary Direct Phone'],
-        adminPhoneBooth: f['Admin Phone Booth'],
+        adminPhoneBooth: f['Admin Phone (Booth)'] || f['Admin Phone Booth'],
         logoUrl: logo?.thumbnails?.large?.url || logo?.url || '',
       };
     })
     .filter((e) => e.name)
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  console.log('[Exhibitors] Final mapped exhibitors:', exhibitors.length);
 
   return {
     updated_at: new Date().toISOString(),
@@ -339,27 +385,31 @@ export interface SponsorsResponse {
 }
 
 export const fetchSponsors = async (): Promise<SponsorsResponse> => {
+  console.log('[Sponsors] Loading sponsors from Airtable cache...');
   const rawRecords = await fetchPaginatedAirtableData<RawSponsorFields>('tblgWrwRvpdcVG8sB');
 
   const sponsors: Sponsor[] = rawRecords
     .map((record) => {
-      const f = record.fields;
-      const logo = f['Logo']?.[0];
+      const f = record.fields as RawSponsorFields & Record<string, any>;
+      const logo = f['LogoGraphic']?.[0] || f['Logo Url']?.[0] || f['Logo']?.[0];
+
       return {
         id: record.id,
-        name: f['Company Name'] || '',
-        level: f['Level'],
-        bio: f['Bio'],
-        companyUrl: f['Company URL'],
+        name: f['Sponsor Name'] || f['Company Name'] || f['Name'] || '',
+        level: f['Sponsor Level'] || f['Level'] || f['Tier'] || '',
+        bio: f['Sponsor Bio'] || f['Bio'] || f['Description'] || '',
+        companyUrl: f['Company URL'] || f['URL'] || '',
         email: f['Email'],
         linkedIn: f['LinkedIn'],
         facebook: f['Facebook'],
         x: f['X'],
-        logoUrl: logo?.thumbnails?.large?.url || logo?.url,
+        logoUrl: logo?.thumbnails?.large?.url || logo?.url || '',
       };
     })
     .filter((s) => s.name)
     .sort((a, b) => `${a.level || ''} ${a.name}`.localeCompare(`${b.level || ''} ${b.name}`));
+
+  console.log('[Sponsors] Final mapped sponsors:', sponsors.length);
 
   return {
     updated_at: new Date().toISOString(),
@@ -372,15 +422,6 @@ export const fetchSponsors = async (): Promise<SponsorsResponse> => {
 // PORTS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface RawPortFields {
-  'Port Name': string;
-  'Intro'?: string;
-  'Port Bio'?: string;
-  'Port URL'?: string;
-  'Logo graphic'?: { url: string; thumbnails?: { large: { url: string } } }[];
-  'Featured Port Graphic'?: { url: string; thumbnails?: { large: { url: string } } }[];
-}
-
 export interface Port {
   id: string;
   name: string;
@@ -392,29 +433,30 @@ export interface Port {
 }
 
 export const mapAirtablePort = (record: AirtableRecord<RawPortFields>): Port => {
-  const fields = record.fields;
-  const logo = fields['Logo graphic']?.[0];
-  const featuredImage = fields['Featured Port Graphic']?.[0];
+  const fields = record.fields as RawPortFields & Record<string, any>;
+  const logo = fields['Logo graphic']?.[0] || fields['Logo Graphic']?.[0];
+  const featuredImage =
+    fields['Featured Port Graphic']?.[0] || fields['Featured Port Graphic ']?.[0];
 
   return {
     id: record.id,
-    name: fields['Port Name'] || '',
-    intro: fields.Intro,
-    bio: fields['Port Bio'],
-    url: fields['Port URL'],
+    name: fields['Port Name'] || fields['Name'] || '',
+    intro: fields['Intro'],
+    bio: fields['Port Bio'] || fields['Bio'],
+    url: fields['Port URL'] || fields['URL'],
     logo_url: logo?.thumbnails?.large?.url || logo?.url,
     featured_image_url: featuredImage?.thumbnails?.large?.url || featuredImage?.url,
   };
 };
 
 export const fetchPorts = async (): Promise<Port[]> => {
-  console.log('Fetching ports...');
+  console.log('[Ports] Fetching ports...');
   const rawRecords = await fetchPaginatedAirtableData<RawPortFields>('tblrXosiVXKhJHYLu');
-  const ports = rawRecords.map(mapAirtablePort);
+  const ports = rawRecords.map(mapAirtablePort).filter((p) => p.name);
 
   ports.sort((a, b) => a.name.localeCompare(b.name));
 
-  console.log('Ports sorted:', ports.length);
+  console.log('[Ports] Ports sorted:', ports.length);
   return ports;
 };
 
@@ -436,7 +478,9 @@ export interface Presentation {
   file_url?: string;
 }
 
-export const mapAirtablePresentation = (record: AirtableRecord<RawPresentationFields>): Presentation => {
+export const mapAirtablePresentation = (
+  record: AirtableRecord<RawPresentationFields>
+): Presentation => {
   const fields = record.fields;
 
   return {
@@ -448,19 +492,19 @@ export const mapAirtablePresentation = (record: AirtableRecord<RawPresentationFi
 };
 
 export const fetchPresentations = async (): Promise<Presentation[]> => {
-  console.log('Fetching presentations...');
+  console.log('[Presentations] Fetching presentations...');
   const rawRecords = await fetchPaginatedAirtableData<RawPresentationFields>('tblm5YCpC7ZwRSYWy');
 
   const publishedRecords = rawRecords.filter(
-    record => record.fields['Presentation Title'] && record.fields.Published === true
+    (record) => record.fields['Presentation Title'] && record.fields.Published === true
   );
-  console.log('Published presentations:', publishedRecords.length);
+  console.log('[Presentations] Published presentations:', publishedRecords.length);
 
   const presentations = publishedRecords.map(mapAirtablePresentation);
 
   presentations.sort((a, b) => a.title.localeCompare(b.title));
 
-  console.log('Presentations sorted:', presentations.length);
+  console.log('[Presentations] Presentations sorted:', presentations.length);
   return presentations;
 };
 
@@ -485,7 +529,7 @@ export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
 
   return rawRecords
     .map((record) => {
-      const f = record.fields;
+      const f = record.fields as RawAttendeeFields & Record<string, any>;
       const firstName = f['First Name'] || '';
       const lastName = f['Last Name'] || '';
       const email = f['Email'] || '';
@@ -494,8 +538,8 @@ export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
         firstName,
         lastName,
         email,
-        company: f['Company Name'] || '',
-        title: f['Job Title'] || '',
+        company: f['Company Name'] || f['Company'] || '',
+        title: f['Job Title'] || f['Title'] || '',
         phone: f['Phone'] || '',
         registrationType: f['Registration Type'] || '',
         emailLower: email.toLowerCase(),
@@ -521,10 +565,12 @@ async function apiGet<T>(path: string): Promise<T> {
     method: 'GET',
     headers: { 'Content-Type': 'application/json' },
   });
+
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(`GET ${path} failed (${response.status}): ${errorBody}`);
   }
+
   return response.json() as Promise<T>;
 }
 
@@ -535,10 +581,12 @@ async function apiPost<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(`POST ${path} failed (${response.status}): ${errorBody}`);
   }
+
   return response.json() as Promise<T>;
 }
 
@@ -549,10 +597,12 @@ async function apiPut<T>(path: string, body: unknown): Promise<T> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+
   if (!response.ok) {
     const errorBody = await response.text();
     throw new Error(`PUT ${path} failed (${response.status}): ${errorBody}`);
   }
+
   return response.json() as Promise<T>;
 }
 
@@ -583,6 +633,7 @@ export const fetchAnnouncements = async (): Promise<AnnouncementsResponse> => {
     .map((record) => {
       const f = record.fields;
       const image = f['Image']?.[0];
+
       return {
         id: record.id,
         Title: f['Title'] || '',
@@ -594,7 +645,9 @@ export const fetchAnnouncements = async (): Promise<AnnouncementsResponse> => {
       };
     })
     .filter((a) => a.Title)
-    .sort((a, b) => `${b.Date || ''} ${b.Time || ''}`.localeCompare(`${a.Date || ''} ${a.Time || ''}`));
+    .sort((a, b) =>
+      `${b.Date || ''} ${b.Time || ''}`.localeCompare(`${a.Date || ''} ${a.Time || ''}`)
+    );
 
   return {
     updated_at: new Date().toISOString(),
@@ -627,6 +680,7 @@ export interface AgendaResponse {
 
 function convertTimeToMinutes(timeStr: string): number {
   if (!timeStr) return 0;
+
   const trimmed = timeStr.trim();
   const match = trimmed.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   if (!match) return 0;
@@ -652,6 +706,7 @@ export const fetchAgenda = async (): Promise<AgendaResponse> => {
   const agenda: AgendaItem[] = rawRecords
     .map((record) => {
       const f = record.fields;
+
       return {
         id: record.id,
         Title: f['Title'] || '',
@@ -777,8 +832,7 @@ export const fetchBackendPresentations = (search?: string): Promise<BackendPrese
     search ? `/api/presentations?search=${encodeURIComponent(search)}` : '/api/presentations'
   );
 
-export const fetchFloorPlan = (): Promise<FloorPlan> =>
-  apiGet<FloorPlan>('/api/floor-plan');
+export const fetchFloorPlan = (): Promise<FloorPlan> => apiGet<FloorPlan>('/api/floor-plan');
 
 export const fetchPreferences = (email: string): Promise<UserPreferences> =>
   apiGet<UserPreferences>(`/api/preferences/${encodeURIComponent(email)}`);
@@ -802,7 +856,9 @@ export const fetchAttendeeDetail = (
 ): Promise<AttendeeDetail> =>
   apiGet<AttendeeDetail>(
     viewerEmail
-      ? `/api/networking/attendees/${encodeURIComponent(email)}?viewer_email=${encodeURIComponent(viewerEmail)}`
+      ? `/api/networking/attendees/${encodeURIComponent(
+          email
+        )}?viewer_email=${encodeURIComponent(viewerEmail)}`
       : `/api/networking/attendees/${encodeURIComponent(email)}`
   );
 
@@ -812,8 +868,12 @@ export const fetchConversations = (email: string): Promise<Conversation[]> =>
 export const createOrGetConversation = (
   participant1_email: string,
   participant2_email: string
-): Promise<{ id: string; participant1_email: string; participant2_email: string; created_at: string }> =>
-  apiPost('/api/conversations', { participant1_email, participant2_email });
+): Promise<{
+  id: string;
+  participant1_email: string;
+  participant2_email: string;
+  created_at: string;
+}> => apiPost('/api/conversations', { participant1_email, participant2_email });
 
 export const fetchMessages = (conversationId: string): Promise<ConversationMessage[]> =>
   apiGet<ConversationMessage[]>(
@@ -834,14 +894,19 @@ export const deleteConversation = async (
   conversationId: string
 ): Promise<{ success: boolean; message: string }> => {
   console.log(`[API] DELETE /api/conversations/${conversationId}`);
+
   const response = await fetch(
     `${BACKEND_URL}/api/conversations/${encodeURIComponent(conversationId)}`,
     { method: 'DELETE', headers: { 'Content-Type': 'application/json' } }
   );
+
   if (!response.ok) {
     const errorBody = await response.text();
-    throw new Error(`DELETE /api/conversations/${conversationId} failed (${response.status}): ${errorBody}`);
+    throw new Error(
+      `DELETE /api/conversations/${conversationId} failed (${response.status}): ${errorBody}`
+    );
   }
+
   return response.json() as Promise<{ success: boolean; message: string }>;
 };
 
@@ -895,15 +960,22 @@ export const unblockUser = (
   blocked_email: string
 ): Promise<{ success: boolean; message: string }> => {
   console.log(
-    `[API] DELETE /api/blocked-users/${encodeURIComponent(blocked_email)}?blocker_email=${encodeURIComponent(blocker_email)}`
+    `[API] DELETE /api/blocked-users/${encodeURIComponent(
+      blocked_email
+    )}?blocker_email=${encodeURIComponent(blocker_email)}`
   );
+
   return fetch(
-    `${BACKEND_URL}/api/blocked-users/${encodeURIComponent(blocked_email)}?blocker_email=${encodeURIComponent(blocker_email)}`,
+    `${BACKEND_URL}/api/blocked-users/${encodeURIComponent(
+      blocked_email
+    )}?blocker_email=${encodeURIComponent(blocker_email)}`,
     { method: 'DELETE' }
   ).then(async (response) => {
     if (!response.ok) {
       const errorBody = await response.text();
-      throw new Error(`DELETE /api/blocked-users/${blocked_email} failed (${response.status}): ${errorBody}`);
+      throw new Error(
+        `DELETE /api/blocked-users/${blocked_email} failed (${response.status}): ${errorBody}`
+      );
     }
     return response.json();
   });
@@ -917,5 +989,7 @@ export const checkIfBlocked = (
   blocked_email: string
 ): Promise<{ is_blocked: boolean }> =>
   apiGet<{ is_blocked: boolean }>(
-    `/api/blocked-users/check?blocker_email=${encodeURIComponent(blocker_email)}&blocked_email=${encodeURIComponent(blocked_email)}`
+    `/api/blocked-users/check?blocker_email=${encodeURIComponent(
+      blocker_email
+    )}&blocked_email=${encodeURIComponent(blocked_email)}`
   );
