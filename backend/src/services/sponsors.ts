@@ -373,6 +373,12 @@ export async function getSponsors(logger?: { info: (msg: string, obj?: any) => v
     });
   }
 
+  if (logger) {
+    logger.info(`Sponsors sorted by tier and name`, {
+      finalCount: sorted.length,
+    });
+  }
+
   const response: SponsorsResponse = {
     updated_at: new Date().toISOString(),
     source_used: sourceUsed,
