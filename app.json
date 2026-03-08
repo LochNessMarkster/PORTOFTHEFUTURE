@@ -1,48 +1,21 @@
-{
-  "expo": {
-    "name": "Port of the Future",
-    "slug": "port-of-the-future",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "automatic",
-    "newArchEnabled": true,
-    "splash": {
-      "image": "./assets/images/poflogoappicon.png",
-      "resizeMode": "contain",
-      "backgroundColor": "#000000"
-    },
-    "ios": {
-      "supportsTablet": true,
-      "bundleIdentifier": "com.portofthefutureconference.theportofthefuturecon",
-      "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
-      }
-    },
-    "android": {
-      "adaptiveIcon": {
-        "foregroundImage": "./assets/images/poflogoappicon.png",
-        "backgroundColor": "#000000"
-      },
-      "edgeToEdgeEnabled": true,
-      "package": "com.placeholder.app"
-    },
-    "web": {
-      "favicon": "./assets/images/final_quest_240x240.png",
-      "bundler": "metro"
-    },
-    "plugins": [
-      "expo-font",
-      "expo-router",
-      "expo-web-browser"
-    ],
-    "scheme": "portofthefuture",
-    "experiments": {
-      "typedRoutes": true
-    },
-    "extra": {
-      "router": {},
-      "backendUrl": "https://bx6j3d44584xqpqwnmp8vpuneqcrrymr.app.specular.dev"
-    }
+"ios": {
+  "supportsTablet": true,
+  "bundleIdentifier": "com.portofthefutureconference.theportofthefuturecon",
+  "buildNumber": "2",
+  "infoPlist": {
+    "ITSAppUsesNonExemptEncryption": false,
+    "NSCameraUsageDescription": "This app allows users to upload a profile photo for networking at the Port of the Future Conference.",
+    "NSPhotoLibraryUsageDescription": "This app allows users to select a profile photo for their attendee profile.",
+    "NSLocationWhenInUseUsageDescription": "Location may be used to help attendees navigate conference venues and nearby events."
   }
+},
+
+"android": {
+  "adaptiveIcon": {
+    "foregroundImage": "./assets/images/poflogoappicon.png",
+    "backgroundColor": "#000000"
+  },
+  "edgeToEdgeEnabled": true,
+  "package": "com.portofthefutureconference.app",
+  "versionCode": 1
 }
