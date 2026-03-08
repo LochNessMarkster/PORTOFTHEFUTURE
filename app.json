@@ -7,13 +7,11 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
-
     "splash": {
       "image": "./assets/images/poflogoappicon.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
-
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.portofthefutureconference.theportofthefuturecon",
@@ -22,7 +20,6 @@
         "ITSAppUsesNonExemptEncryption": false
       }
     },
-
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/poflogoappicon.png",
@@ -32,27 +29,22 @@
       "package": "com.portofthefutureconference.app",
       "versionCode": 1
     },
-
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",
       "bundler": "metro"
     },
-
     "plugins": [
       "expo-font",
       "expo-router",
       "expo-web-browser"
     ],
-
     "scheme": "portofthefuture",
-
     "experiments": {
       "typedRoutes": true
     },
-
     "extra": {
       "router": {},
-      "backendUrl": "https://bx6j3d44584xqpqwnmp8vpuneqcrrymr.app.specular.dev"
+      "backendUrl": "https://hczqwgev7j8meh2hb8d2ab6cnr6fyyk4.app.specular.dev"
     }
   }
 }
