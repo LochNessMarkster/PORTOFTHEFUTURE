@@ -1,11 +1,9 @@
-
 // Airtable data fetching utilities for Port of the Future Conference
-// NOTE: Ports, Presentations, Floor Plan, Networking, Preferences, Messaging, and Attendees
-// are now served by the Specular backend (see SPECULAR BACKEND API section at the bottom).
-// This file retains Speakers, Activities, Exhibitors, Sponsors, and Announcements from Airtable.
+// NOTE: Public conference data now uses Airtable cache directly for stability.
+// Messaging, conversations, reports, blocked users, and preferences still use backend API.
 
 // ─────────────────────────────────────────────────────────────────────────────
-// AIRTABLE CACHE (Speakers, Activities, Announcements)
+// AIRTABLE CACHE BASE
 // ─────────────────────────────────────────────────────────────────────────────
 
 const AIRTABLE_BASE_URL = 'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd';
@@ -32,20 +30,20 @@ export async function fetchPaginatedAirtableData<T>(
   let offset: string | undefined = undefined;
 
   do {
-    const url = offset 
+    const url = offset
       ? `${AIRTABLE_BASE_URL}/${tableId}?offset=${offset}`
       : `${AIRTABLE_BASE_URL}/${tableId}`;
-    
+
     console.log('Fetching page:', url);
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch data from Airtable: ${response.status} ${response.statusText}`);
     }
 
     const data: AirtableResponse<T> = await response.json();
     console.log('Received page with', data.records?.length || 0, 'records');
-    
+
     allRecords = allRecords.concat(data.records || []);
     offset = data.offset;
   } while (offset);
@@ -54,7 +52,98 @@ export async function fetchPaginatedAirtableData<T>(
   return allRecords;
 }
 
-// Speaker Types
+// ─────────────────────────────────────────────────────────────────────────────
+// RAW FIELD TYPES
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface RawSpeakerFields {
+  'First Name'?: string;
+  'Last Name'?: string;
+  'Title'?: string;
+  'Speaking Topic'?: string;
+  'Synopsis'?: string;
+  'Bio'?: string;
+  'Published'?: boolean;
+  'Public Personal Data'?: boolean;
+  'Photo'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+  'Email'?: string;
+  'Phone'?: string;
+  'Company'?: string;
+}
+
+interface RawActivityFields {
+  'Activity Name'?: string;
+  'Description'?: string;
+  'Date'?: string;
+  'Time'?: string;
+  'Location'?: string;
+  'URL'?: string;
+  'Image'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+}
+
+interface RawExhibitorFields {
+  'Company Name'?: string;
+  'Description'?: string;
+  'Booth Number'?: string;
+  'Address'?: string;
+  'URL'?: string;
+  'LinkedIn'?: string;
+  'Facebook'?: string;
+  'X'?: string;
+  'Primary Contact Name'?: string;
+  'Primary Contact Title'?: string;
+  'Primary Contact Email'?: string;
+  'Primary Direct Phone'?: string;
+  'Admin Phone Booth'?: string;
+  'Logo'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+}
+
+interface RawSponsorFields {
+  'Company Name'?: string;
+  'Level'?: string;
+  'Bio'?: string;
+  'Company URL'?: string;
+  'Email'?: string;
+  'LinkedIn'?: string;
+  'Facebook'?: string;
+  'X'?: string;
+  'Logo'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+}
+
+interface RawAnnouncementFields {
+  'Title'?: string;
+  'Content'?: string;
+  'Alert'?: string;
+  'Date'?: string;
+  'Time'?: string;
+  'Image'?: { url: string; thumbnails?: { large?: { url: string } } }[];
+}
+
+interface RawAgendaFields {
+  'Title'?: string;
+  'Date'?: string;
+  'Start Time'?: string;
+  'End Time'?: string;
+  'Room'?: string;
+  'Type/Track'?: string;
+  'Session Description'?: string;
+  'Speaker Names'?: string | string[];
+}
+
+interface RawAttendeeFields {
+  'First Name'?: string;
+  'Last Name'?: string;
+  'Email'?: string;
+  'Company Name'?: string;
+  'Job Title'?: string;
+  'Phone'?: string;
+  'Registration Type'?: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPEAKERS
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface Speaker {
   id: string;
   firstName: string;
@@ -77,16 +166,47 @@ export interface SpeakersResponse {
   speakers: Speaker[];
 }
 
-/**
- * Fetch speakers from the backend proxy endpoint.
- * The backend handles caching (24h TTL), Airtable pagination, filtering (Published==true),
- * sorting (Last Name then First Name), and fallback logic.
- * Returns speakers sorted by last name, then first name.
- */
-export const fetchSpeakers = (): Promise<SpeakersResponse> =>
-  apiGet<SpeakersResponse>('/api/speakers');
+export const fetchSpeakers = async (): Promise<SpeakersResponse> => {
+  const rawRecords = await fetchPaginatedAirtableData<RawSpeakerFields>('tblNp1JZk4ARZZZlT');
 
-// Activity Types (now from backend proxy)
+  const speakers: Speaker[] = rawRecords
+    .filter((record) => record.fields['Published'] === true)
+    .map((record) => {
+      const f = record.fields;
+      const photo = f['Photo']?.[0];
+      return {
+        id: record.id,
+        firstName: f['First Name'] || '',
+        lastName: f['Last Name'] || '',
+        title: f['Title'],
+        speakingTopic: f['Speaking Topic'],
+        synopsis: f['Synopsis'],
+        bio: f['Bio'],
+        published: !!f['Published'],
+        publicPersonalData: !!f['Public Personal Data'],
+        photoUrl: photo?.thumbnails?.large?.url || photo?.url,
+        email: f['Email'],
+        phone: f['Phone'],
+        company: f['Company'],
+      };
+    })
+    .sort((a, b) => {
+      const last = (a.lastName || '').localeCompare(b.lastName || '');
+      if (last !== 0) return last;
+      return (a.firstName || '').localeCompare(b.firstName || '');
+    });
+
+  return {
+    updated_at: new Date().toISOString(),
+    source_used: 'airtablecache',
+    speakers,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACTIVITIES
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface Activity {
   id: string;
   name: string;
@@ -104,14 +224,38 @@ export interface ActivitiesResponse {
   activities: Activity[];
 }
 
-/**
- * Fetch activities from the backend proxy endpoint.
- * The backend handles caching (24h TTL), Airtable pagination, sorting (Date ascending), and fallback logic.
- */
-export const fetchActivities = (): Promise<ActivitiesResponse> =>
-  apiGet<ActivitiesResponse>('/api/activities');
+export const fetchActivities = async (): Promise<ActivitiesResponse> => {
+  const rawRecords = await fetchPaginatedAirtableData<RawActivityFields>('tblLpuL7Xff2rpdbB');
 
-// Exhibitor Types (now from backend proxy)
+  const activities: Activity[] = rawRecords
+    .map((record) => {
+      const f = record.fields;
+      const image = f['Image']?.[0];
+      return {
+        id: record.id,
+        name: f['Activity Name'] || '',
+        description: f['Description'],
+        date: f['Date'],
+        time: f['Time'],
+        location: f['Location'],
+        url: f['URL'],
+        image_url: image?.thumbnails?.large?.url || image?.url,
+      };
+    })
+    .filter((a) => a.name)
+    .sort((a, b) => `${a.date || ''} ${a.time || ''}`.localeCompare(`${b.date || ''} ${b.time || ''}`));
+
+  return {
+    updated_at: new Date().toISOString(),
+    source_used: 'airtablecache',
+    activities,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// EXHIBITORS
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface Exhibitor {
   id: string;
   name: string;
@@ -136,14 +280,45 @@ export interface ExhibitorsResponse {
   exhibitors: Exhibitor[];
 }
 
-/**
- * Fetch exhibitors from the backend proxy endpoint.
- * The backend handles caching (24h TTL), Airtable pagination, sorting (Name A-Z), and fallback logic.
- */
-export const fetchExhibitors = (): Promise<ExhibitorsResponse> =>
-  apiGet<ExhibitorsResponse>('/api/exhibitors');
+export const fetchExhibitors = async (): Promise<ExhibitorsResponse> => {
+  const rawRecords = await fetchPaginatedAirtableData<RawExhibitorFields>('tblzex4bjwEZh1021');
 
-// Sponsor Types (now from backend proxy)
+  const exhibitors: Exhibitor[] = rawRecords
+    .map((record) => {
+      const f = record.fields;
+      const logo = f['Logo']?.[0];
+      return {
+        id: record.id,
+        name: f['Company Name'] || '',
+        description: f['Description'],
+        boothNumber: f['Booth Number'],
+        address: f['Address'],
+        url: f['URL'],
+        linkedIn: f['LinkedIn'],
+        facebook: f['Facebook'],
+        x: f['X'],
+        primaryContactName: f['Primary Contact Name'],
+        primaryContactTitle: f['Primary Contact Title'],
+        primaryContactEmail: f['Primary Contact Email'],
+        primaryDirectPhone: f['Primary Direct Phone'],
+        adminPhoneBooth: f['Admin Phone Booth'],
+        logoUrl: logo?.thumbnails?.large?.url || logo?.url || '',
+      };
+    })
+    .filter((e) => e.name)
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  return {
+    updated_at: new Date().toISOString(),
+    source_used: 'airtablecache',
+    exhibitors,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SPONSORS
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface Sponsor {
   id: string;
   name: string;
@@ -163,32 +338,40 @@ export interface SponsorsResponse {
   sponsors: Sponsor[];
 }
 
-/**
- * Fetch sponsors from the backend proxy endpoint.
- * The backend handles caching (24h TTL), Airtable pagination, sorting (Level then Name), and fallback logic.
- * Table ID: tblgWrwRvpdcVG8sB
- */
 export const fetchSponsors = async (): Promise<SponsorsResponse> => {
-  console.log('[Sponsors] Fetching sponsors from backend proxy...');
-  console.log('[Sponsors] Endpoint:', `${BACKEND_URL}/api/sponsors`);
-  const result = await apiGet<SponsorsResponse>('/api/sponsors');
-  console.log('[Sponsors] Raw response - source_used:', result.source_used);
-  console.log('[Sponsors] Raw response - sponsors count:', result.sponsors?.length ?? 0);
-  if (result.sponsors && result.sponsors.length > 0) {
-    console.log('[Sponsors] First sponsor raw:', JSON.stringify(result.sponsors[0]));
-  } else {
-    console.warn('[Sponsors] WARNING: No sponsors returned from backend. source_used:', result.source_used);
-  }
-  // Filter out any records without a name to prevent crashes
-  const validSponsors = (result.sponsors || []).filter(s => s && s.name);
-  console.log('[Sponsors] Valid sponsors (with name):', validSponsors.length);
+  const rawRecords = await fetchPaginatedAirtableData<RawSponsorFields>('tblgWrwRvpdcVG8sB');
+
+  const sponsors: Sponsor[] = rawRecords
+    .map((record) => {
+      const f = record.fields;
+      const logo = f['Logo']?.[0];
+      return {
+        id: record.id,
+        name: f['Company Name'] || '',
+        level: f['Level'],
+        bio: f['Bio'],
+        companyUrl: f['Company URL'],
+        email: f['Email'],
+        linkedIn: f['LinkedIn'],
+        facebook: f['Facebook'],
+        x: f['X'],
+        logoUrl: logo?.thumbnails?.large?.url || logo?.url,
+      };
+    })
+    .filter((s) => s.name)
+    .sort((a, b) => `${a.level || ''} ${a.name}`.localeCompare(`${b.level || ''} ${b.name}`));
+
   return {
-    ...result,
-    sponsors: validSponsors,
+    updated_at: new Date().toISOString(),
+    source_used: 'airtablecache',
+    sponsors,
   };
 };
 
-// Port Types
+// ─────────────────────────────────────────────────────────────────────────────
+// PORTS
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface RawPortFields {
   'Port Name': string;
   'Intro'?: string;
@@ -229,14 +412,16 @@ export const fetchPorts = async (): Promise<Port[]> => {
   const rawRecords = await fetchPaginatedAirtableData<RawPortFields>('tblrXosiVXKhJHYLu');
   const ports = rawRecords.map(mapAirtablePort);
 
-  // Sort A-Z by name
   ports.sort((a, b) => a.name.localeCompare(b.name));
 
   console.log('Ports sorted:', ports.length);
   return ports;
 };
 
-// Presentation Types
+// ─────────────────────────────────────────────────────────────────────────────
+// PRESENTATIONS
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface RawPresentationFields {
   'Presentation Title'?: string;
   'Description'?: string;
@@ -265,23 +450,24 @@ export const mapAirtablePresentation = (record: AirtableRecord<RawPresentationFi
 export const fetchPresentations = async (): Promise<Presentation[]> => {
   console.log('Fetching presentations...');
   const rawRecords = await fetchPaginatedAirtableData<RawPresentationFields>('tblm5YCpC7ZwRSYWy');
-  
-  // Filter: only show records where Presentation Title exists AND Published == true
+
   const publishedRecords = rawRecords.filter(
     record => record.fields['Presentation Title'] && record.fields.Published === true
   );
   console.log('Published presentations:', publishedRecords.length);
-  
+
   const presentations = publishedRecords.map(mapAirtablePresentation);
 
-  // Sort A-Z by title
   presentations.sort((a, b) => a.title.localeCompare(b.title));
 
   console.log('Presentations sorted:', presentations.length);
   return presentations;
 };
 
-// Attendee Types (for Login and Networking)
+// ─────────────────────────────────────────────────────────────────────────────
+// ATTENDEES DIRECTORY
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface Attendee {
   firstName: string;
   lastName: string;
@@ -294,9 +480,33 @@ export interface Attendee {
   displayName: string;
 }
 
+export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
+  const rawRecords = await fetchPaginatedAirtableData<RawAttendeeFields>('tblIwt4FWHtNm01Z4');
+
+  return rawRecords
+    .map((record) => {
+      const f = record.fields;
+      const firstName = f['First Name'] || '';
+      const lastName = f['Last Name'] || '';
+      const email = f['Email'] || '';
+
+      return {
+        firstName,
+        lastName,
+        email,
+        company: f['Company Name'] || '',
+        title: f['Job Title'] || '',
+        phone: f['Phone'] || '',
+        registrationType: f['Registration Type'] || '',
+        emailLower: email.toLowerCase(),
+        displayName: `${firstName} ${lastName}`.trim(),
+      };
+    })
+    .filter((a) => a.email);
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
-// SPECULAR BACKEND API
-// All endpoints below use the deployed backend at the URL in app.json extra.backendUrl
+// BACKEND API (kept for messaging / preferences / moderation features)
 // ─────────────────────────────────────────────────────────────────────────────
 
 import Constants from 'expo-constants';
@@ -346,7 +556,145 @@ async function apiPut<T>(path: string, body: unknown): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-// ─── Backend Types ────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// ANNOUNCEMENTS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AnnouncementItem {
+  id: string;
+  Title: string;
+  Content: string;
+  Alert?: string;
+  Date: string;
+  Time?: string;
+  ImageUrl?: string;
+}
+
+export interface AnnouncementsResponse {
+  updated_at: string;
+  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
+  announcements: AnnouncementItem[];
+}
+
+export const fetchAnnouncements = async (): Promise<AnnouncementsResponse> => {
+  const rawRecords = await fetchPaginatedAirtableData<RawAnnouncementFields>('tbl1eqc3UiYaO1pSq');
+
+  const announcements: AnnouncementItem[] = rawRecords
+    .map((record) => {
+      const f = record.fields;
+      const image = f['Image']?.[0];
+      return {
+        id: record.id,
+        Title: f['Title'] || '',
+        Content: f['Content'] || '',
+        Alert: f['Alert'],
+        Date: f['Date'] || '',
+        Time: f['Time'],
+        ImageUrl: image?.thumbnails?.large?.url || image?.url,
+      };
+    })
+    .filter((a) => a.Title)
+    .sort((a, b) => `${b.Date || ''} ${b.Time || ''}`.localeCompare(`${a.Date || ''} ${a.Time || ''}`));
+
+  return {
+    updated_at: new Date().toISOString(),
+    source_used: 'airtablecache',
+    announcements,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AGENDA
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface AgendaItem {
+  id: string;
+  Title: string;
+  Date: string;
+  StartTime: string;
+  EndTime?: string;
+  Room?: string;
+  TypeTrack?: string;
+  SessionDescription?: string;
+  SpeakerNames?: string | string[];
+}
+
+export interface AgendaResponse {
+  updated_at: string;
+  source_used: 'airtablecache' | 'airtable_api';
+  agenda: AgendaItem[];
+}
+
+function convertTimeToMinutes(timeStr: string): number {
+  if (!timeStr) return 0;
+  const trimmed = timeStr.trim();
+  const match = trimmed.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
+  if (!match) return 0;
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+
+  if (period === 'PM' && hours !== 12) {
+    hours += 12;
+  } else if (period === 'AM' && hours === 12) {
+    hours = 0;
+  }
+
+  return hours * 60 + minutes;
+}
+
+export const fetchAgenda = async (): Promise<AgendaResponse> => {
+  console.log('[Agenda] Fetching all agenda sessions from Airtable cache...');
+
+  const rawRecords = await fetchPaginatedAirtableData<RawAgendaFields>('tblhUTXC3XHVGssO4');
+
+  const agenda: AgendaItem[] = rawRecords
+    .map((record) => {
+      const f = record.fields;
+      return {
+        id: record.id,
+        Title: f['Title'] || '',
+        Date: f['Date'] || '',
+        StartTime: f['Start Time'] || '',
+        EndTime: f['End Time'],
+        Room: f['Room'],
+        TypeTrack: f['Type/Track'],
+        SessionDescription: f['Session Description'],
+        SpeakerNames: f['Speaker Names'],
+      };
+    })
+    .filter(
+      (session) =>
+        session.Title &&
+        (session.Date === '2026-03-23' ||
+          session.Date === '2026-03-24' ||
+          session.Date === '2026-03-25')
+    )
+    .sort((a, b) => {
+      const dateA = a.Date || '';
+      const dateB = b.Date || '';
+      if (dateA !== dateB) return dateA.localeCompare(dateB);
+
+      const timeA = convertTimeToMinutes(a.StartTime || '');
+      const timeB = convertTimeToMinutes(b.StartTime || '');
+      if (timeA !== timeB) return timeA - timeB;
+
+      return (a.Title || '').localeCompare(b.Title || '');
+    });
+
+  console.log('[Agenda] Final sorted agenda:', agenda.length, 'sessions');
+
+  return {
+    updated_at: new Date().toISOString(),
+    source_used: 'airtablecache',
+    agenda,
+  };
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// BACKEND TYPES
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface BackendPort {
   id: string;
@@ -412,21 +760,9 @@ export interface ConversationMessage {
   created_at: string;
 }
 
-// ─── Backend API Functions ────────────────────────────────────────────────────
-
-/**
- * Fetch attendees directory from backend proxy (replaces direct Airtable calls)
- * This endpoint handles Airtable pagination, caching, and CORS issues.
- * The backend returns { attendees: [...], error?: string }
- */
-export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
-  console.log('[API] Fetching attendees directory from backend proxy');
-  const result = await apiGet<{ attendees: Attendee[]; error?: string }>('/api/attendees-directory');
-  if (result.error) {
-    console.warn('[API] Attendees directory returned error:', result.error);
-  }
-  return result.attendees || [];
-};
+// ─────────────────────────────────────────────────────────────────────────────
+// BACKEND FUNCTIONS STILL USING SPECULAR / BACKEND API
+// ─────────────────────────────────────────────────────────────────────────────
 
 export const fetchBackendPorts = (search?: string): Promise<BackendPort[]> =>
   apiGet<BackendPort[]>(
@@ -509,7 +845,9 @@ export const deleteConversation = async (
   return response.json() as Promise<{ success: boolean; message: string }>;
 };
 
-// ─── Reports & Moderation ─────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────────────────
+// REPORTS & MODERATION
+// ─────────────────────────────────────────────────────────────────────────────
 
 export interface UserReport {
   id: string;
@@ -556,7 +894,9 @@ export const unblockUser = (
   blocker_email: string,
   blocked_email: string
 ): Promise<{ success: boolean; message: string }> => {
-  console.log(`[API] DELETE /api/blocked-users/${encodeURIComponent(blocked_email)}?blocker_email=${encodeURIComponent(blocker_email)}`);
+  console.log(
+    `[API] DELETE /api/blocked-users/${encodeURIComponent(blocked_email)}?blocker_email=${encodeURIComponent(blocker_email)}`
+  );
   return fetch(
     `${BACKEND_URL}/api/blocked-users/${encodeURIComponent(blocked_email)}?blocker_email=${encodeURIComponent(blocker_email)}`,
     { method: 'DELETE' }
@@ -579,131 +919,3 @@ export const checkIfBlocked = (
   apiGet<{ is_blocked: boolean }>(
     `/api/blocked-users/check?blocker_email=${encodeURIComponent(blocker_email)}&blocked_email=${encodeURIComponent(blocked_email)}`
   );
-
-// ─── Announcements ────────────────────────────────────────────────────────────
-
-export interface AnnouncementItem {
-  id: string;
-  Title: string;
-  Content: string;
-  Alert?: string;
-  Date: string;
-  Time?: string;
-  ImageUrl?: string;
-}
-
-export interface AnnouncementsResponse {
-  updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
-  announcements: AnnouncementItem[];
-}
-
-/**
- * Fetch announcements from the backend proxy endpoint.
- * The backend handles caching (1h TTL), Airtable pagination, and fallback logic.
- * Returns announcements sorted newest-first.
- */
-export const fetchAnnouncements = (): Promise<AnnouncementsResponse> =>
-  apiGet<AnnouncementsResponse>('/api/announcements');
-
-// ─── Agenda ───────────────────────────────────────────────────────────────────
-
-export interface AgendaItem {
-  id: string;
-  Title: string;
-  Date: string;
-  StartTime: string;
-  EndTime?: string;
-  Room?: string;
-  TypeTrack?: string;
-  SessionDescription?: string;
-  SpeakerNames?: string | string[];
-}
-
-export interface AgendaResponse {
-  updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api';
-  agenda: AgendaItem[];
-}
-
-function convertTimeToMinutes(timeStr: string): number {
-  if (!timeStr) return 0;
-  const trimmed = timeStr.trim();
-  const match = trimmed.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
-  if (!match) return 0;
-
-  let hours = parseInt(match[1], 10);
-  const minutes = parseInt(match[2], 10);
-  const period = match[3].toUpperCase();
-
-  if (period === 'PM' && hours !== 12) {
-    hours += 12;
-  } else if (period === 'AM' && hours === 12) {
-    hours = 0;
-  }
-
-  return hours * 60 + minutes;
-}
-
-/**
- * Fetch agenda from the backend proxy endpoint.
- * The backend handles caching (6h TTL), Airtable pagination (all records, 100+), and fallback logic.
- * Returns agenda sorted by Date ascending, then Start Time ascending, then Title ascending.
- * Filters to March 23-25, 2026 sessions only.
- */
-export const fetchAgenda = async (): Promise<AgendaResponse> => {
-  console.log('[Agenda] Fetching all agenda sessions from backend...');
-
-  const raw = await apiGet<AgendaResponse>('/api/agenda');
-
-  console.log('[Agenda] Total records fetched from backend:', raw.agenda?.length ?? 0);
-  console.log('[Agenda] Source used:', raw.source_used);
-
-  // Validate speaker names — warn if any look like Airtable record IDs (recXXXXXXXXXXXXXX)
-  const airtableIdPattern = /^rec[A-Za-z0-9]{14}$/;
-  (raw.agenda || []).forEach((session) => {
-    const names = session.SpeakerNames;
-    if (Array.isArray(names)) {
-      names.forEach((n) => {
-        if (airtableIdPattern.test(n)) {
-          console.warn(
-            `[Agenda] WARNING: Session "${session.Title}" has unresolved speaker ID: ${n}`
-          );
-        }
-      });
-    } else if (typeof names === 'string' && airtableIdPattern.test(names)) {
-      console.warn(
-        `[Agenda] WARNING: Session "${session.Title}" has unresolved speaker ID: ${names}`
-      );
-    }
-  });
-
-  // Filter to March 23-25, 2026
-  const filtered = (raw.agenda || []).filter((session) => {
-    const d = session.Date;
-    return d === '2026-03-23' || d === '2026-03-24' || d === '2026-03-25';
-  });
-
-  console.log('[Agenda] Filtered to March 23-25:', filtered.length, 'sessions');
-
-  // Sort by Date → StartTime → Title
-  const sorted = filtered.sort((a, b) => {
-    const dateA = a.Date || '';
-    const dateB = b.Date || '';
-    if (dateA !== dateB) return dateA.localeCompare(dateB);
-
-    const timeA = convertTimeToMinutes(a.StartTime || '');
-    const timeB = convertTimeToMinutes(b.StartTime || '');
-    if (timeA !== timeB) return timeA - timeB;
-
-    return (a.Title || '').localeCompare(b.Title || '');
-  });
-
-  console.log('[Agenda] Final sorted agenda:', sorted.length, 'sessions');
-
-  return {
-    updated_at: raw.updated_at,
-    source_used: raw.source_used,
-    agenda: sorted,
-  };
-};
