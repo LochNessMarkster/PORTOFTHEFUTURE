@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.portofthefutureconference.theportofthefuturecon",
-      "buildNumber": "3",
+      "buildNumber": "5",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
@@ -45,7 +45,7 @@
     },
     "extra": {
       "router": {},
-      "backendUrl": "https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev"
+      "backendUrl": "https://airtablecache.portofthefutureconference.com"
     }
   }
 }
