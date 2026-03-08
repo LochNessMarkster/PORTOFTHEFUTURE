@@ -17,7 +17,6 @@ import {
   fetchAttendeesDirectory,
   Attendee,
 } from '@/utils/airtable';
-import { useAuth } from '@/contexts/AuthContext';
 
 interface NetworkingAttendee {
   email: string;
@@ -26,15 +25,10 @@ interface NetworkingAttendee {
   title?: string;
 }
 
-const ENABLE_MESSAGING = false;
-
 export default function NetworkingScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
-  const { user } = useAuth();
-
-  const [activeTab, setActiveTab] = useState<'attendees' | 'messages'>('attendees');
 
   const [attendees, setAttendees] = useState<NetworkingAttendee[]>([]);
   const [filteredAttendees, setFilteredAttendees] = useState<NetworkingAttendee[]>([]);
@@ -172,33 +166,7 @@ export default function NetworkingScreen() {
     );
   };
 
-  const renderMessagingGuideline = () => {
-    return (
-      <View
-        style={[
-          styles.guidelineContainer,
-          { backgroundColor: cardBg, borderColor: borderColorValue },
-        ]}
-      >
-        <View style={styles.guidelineIconContainer}>
-          <IconSymbol
-            ios_icon_name="info.circle.fill"
-            android_material_icon_name="info"
-            size={20}
-            color={colors.accent}
-          />
-        </View>
-        <View style={styles.guidelineTextContainer}>
-          <Text style={[styles.guidelineText, { color: textColor }]}>
-            Please be respectful when communicating with other attendees. Inappropriate
-            behavior can be reported, and users may be blocked.
-          </Text>
-        </View>
-      </View>
-    );
-  };
-
-  const renderAttendeesTab = () => {
+  const renderAttendees = () => {
     if (loading) {
       return (
         <View style={styles.centerContainer}>
@@ -259,47 +227,6 @@ export default function NetworkingScreen() {
     );
   };
 
-  const renderMessagesTab = () => {
-    if (!ENABLE_MESSAGING) {
-      return (
-        <View style={styles.centerContainer}>
-          <IconSymbol
-            ios_icon_name="message.fill"
-            android_material_icon_name="message"
-            size={64}
-            color={secondaryTextColor}
-          />
-          <Text
-            style={[
-              styles.emptyText,
-              {
-                color: secondaryTextColor,
-                fontSize: 17,
-                fontWeight: '600',
-                marginBottom: 8,
-              },
-            ]}
-          >
-            Messaging Temporarily Unavailable
-          </Text>
-          <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-            Attendee browsing is active, but direct messages are disabled until the backend
-            messaging service is restored.
-          </Text>
-        </View>
-      );
-    }
-
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={colors.primary} />
-        <Text style={[styles.loadingText, { color: secondaryTextColor }]}>
-          Loading messages...
-        </Text>
-      </View>
-    );
-  };
-
   return (
     <>
       <Stack.Screen
@@ -316,106 +243,74 @@ export default function NetworkingScreen() {
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
         <View
           style={[
-            styles.tabBar,
+            styles.headerBar,
             { backgroundColor: cardBg, borderBottomColor: borderColorValue },
           ]}
         >
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'attendees' && {
-                borderBottomColor: colors.primary,
-                borderBottomWidth: 2,
-              },
-            ]}
-            onPress={() => setActiveTab('attendees')}
-          >
+          <View style={styles.headerBarContent}>
             <IconSymbol
               ios_icon_name="person.3.fill"
               android_material_icon_name="people"
               size={18}
-              color={activeTab === 'attendees' ? colors.primary : secondaryTextColor}
+              color={colors.primary}
             />
-            <Text
-              style={[
-                styles.tabText,
-                { color: activeTab === 'attendees' ? colors.primary : secondaryTextColor },
-              ]}
-            >
+            <Text style={[styles.headerBarText, { color: colors.primary }]}>
               Attendees
             </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={[
-              styles.tab,
-              activeTab === 'messages' && {
-                borderBottomColor: colors.primary,
-                borderBottomWidth: 2,
-              },
-            ]}
-            onPress={() => setActiveTab('messages')}
-          >
-            <IconSymbol
-              ios_icon_name="message.fill"
-              android_material_icon_name="message"
-              size={18}
-              color={activeTab === 'messages' ? colors.primary : secondaryTextColor}
-            />
-            <Text
-              style={[
-                styles.tabText,
-                { color: activeTab === 'messages' ? colors.primary : secondaryTextColor },
-              ]}
-            >
-              Messages
-            </Text>
-          </TouchableOpacity>
+          </View>
         </View>
 
-        {activeTab === 'attendees' ? (
-          <>
-            <View style={styles.searchContainer}>
-              <View
-                style={[
-                  styles.searchBar,
-                  { backgroundColor: cardBg, borderColor: borderColorValue },
-                ]}
-              >
+        <View
+          style={[
+            styles.messagingBanner,
+            { backgroundColor: cardBg, borderColor: borderColorValue },
+          ]}
+        >
+          <IconSymbol
+            ios_icon_name="message.fill"
+            android_material_icon_name="message"
+            size={20}
+            color={secondaryTextColor}
+          />
+          <Text style={[styles.messagingBannerText, { color: secondaryTextColor }]}>
+            Attendee messaging will be enabled during the conference.
+          </Text>
+        </View>
+
+        <View style={styles.searchContainer}>
+          <View
+            style={[
+              styles.searchBar,
+              { backgroundColor: cardBg, borderColor: borderColorValue },
+            ]}
+          >
+            <IconSymbol
+              ios_icon_name="magnifyingglass"
+              android_material_icon_name="search"
+              size={20}
+              color={secondaryTextColor}
+            />
+            <TextInput
+              style={[styles.searchInput, { color: textColor }]}
+              placeholder="Search name, company, or title..."
+              placeholderTextColor={secondaryTextColor}
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+            />
+            {searchQuery.length > 0 ? (
+              <TouchableOpacity onPress={() => setSearchQuery('')}>
                 <IconSymbol
-                  ios_icon_name="magnifyingglass"
-                  android_material_icon_name="search"
+                  ios_icon_name="xmark.circle.fill"
+                  android_material_icon_name="cancel"
                   size={20}
                   color={secondaryTextColor}
                 />
-                <TextInput
-                  style={[styles.searchInput, { color: textColor }]}
-                  placeholder="Search name, company, or title..."
-                  placeholderTextColor={secondaryTextColor}
-                  value={searchQuery}
-                  onChangeText={setSearchQuery}
-                />
-                {searchQuery.length > 0 ? (
-                  <TouchableOpacity onPress={() => setSearchQuery('')}>
-                    <IconSymbol
-                      ios_icon_name="xmark.circle.fill"
-                      android_material_icon_name="cancel"
-                      size={20}
-                      color={secondaryTextColor}
-                    />
-                  </TouchableOpacity>
-                ) : null}
-              </View>
-            </View>
+              </TouchableOpacity>
+            ) : null}
+          </View>
+        </View>
 
-            {renderAttendeesTab()}
-          </>
-        ) : (
-          <>
-            {renderMessagingGuideline()}
-            {renderMessagesTab()}
-          </>
-        )}
+        {renderAttendees()}
       </SafeAreaView>
     </>
   );
@@ -425,42 +320,35 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  tabBar: {
-    flexDirection: 'row',
+  headerBar: {
     borderBottomWidth: 1,
   },
-  tab: {
-    flex: 1,
+  headerBarContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: 12,
     gap: 6,
   },
-  tabText: {
+  headerBarText: {
     fontSize: 15,
     fontWeight: '600',
   },
-  guidelineContainer: {
+  messagingBanner: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     marginHorizontal: 16,
     marginTop: 12,
-    marginBottom: 8,
+    marginBottom: 4,
     padding: 12,
     borderRadius: 12,
     borderWidth: 1,
+    gap: 8,
   },
-  guidelineIconContainer: {
-    marginRight: 10,
-    marginTop: 2,
-  },
-  guidelineTextContainer: {
-    flex: 1,
-  },
-  guidelineText: {
+  messagingBannerText: {
     fontSize: 13,
     lineHeight: 18,
+    flex: 1,
   },
   searchContainer: {
     paddingHorizontal: 16,
