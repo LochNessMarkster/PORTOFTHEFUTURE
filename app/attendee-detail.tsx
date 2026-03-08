@@ -126,27 +126,22 @@ export default function AttendeeDetailScreen() {
             ) : null}
           </View>
 
-          <View style={styles.actionsSection}>
-            <TouchableOpacity
-              style={[
-                styles.actionButton,
-                {
-                  backgroundColor: cardBg,
-                  opacity: ENABLE_MESSAGING ? 1 : 0.65,
-                },
-              ]}
-              disabled={!ENABLE_MESSAGING}
-              activeOpacity={0.7}
-            >
-              <IconSymbol
-                ios_icon_name="message.fill"
-                android_material_icon_name="message"
-                size={24}
-                color={colors.primary}
-              />
-              <Text style={[styles.actionButtonText, { color: textColor }]}>Message</Text>
-            </TouchableOpacity>
-          </View>
+          {ENABLE_MESSAGING ? (
+            <View style={styles.actionsSection}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: cardBg }]}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="message.fill"
+                  android_material_icon_name="message"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.actionButtonText, { color: textColor }]}>Message</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
 
           {!ENABLE_MESSAGING ? (
             <View
@@ -165,8 +160,7 @@ export default function AttendeeDetailScreen() {
                 color={secondaryTextColor}
               />
               <Text style={[styles.messageDisabledText, { color: secondaryTextColor }]}>
-                Messaging, blocking, and reporting are temporarily unavailable until the
-                backend messaging service is restored.
+                Attendee messaging will be enabled during the conference.
               </Text>
             </View>
           ) : null}
