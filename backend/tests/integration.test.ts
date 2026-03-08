@@ -1,0 +1,546 @@
+import { describe, test, expect } from "bun:test";
+import { api, expectStatus } from "./helpers";
+
+describe("API Integration Tests", () => {
+  // Ports
+  let portId: string;
+
+  test("GET /api/ports - should return array of ports", async () => {
+    const res = await api("/api/ports");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      portId = data[0].id;
+    }
+  });
+
+  test("GET /api/ports with search parameter", async () => {
+    const res = await api("/api/ports?search=test");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  test("GET /api/ports/{id} - should return port details when exists", async () => {
+    if (!portId) {
+      return; // Skip if no ports exist
+    }
+    const res = await api(`/api/ports/${portId}`);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.id).toBe(portId);
+    expect(data.name).toBeDefined();
+  });
+
+  test("GET /api/ports/{id} - should return 404 for nonexistent port", async () => {
+    const res = await api("/api/ports/00000000-0000-0000-0000-000000000000");
+    await expectStatus(res, 404);
+  });
+
+  // Presentations
+  let presentationId: string;
+
+  test("GET /api/presentations - should return array of presentations", async () => {
+    const res = await api("/api/presentations");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      presentationId = data[0].id;
+    }
+  });
+
+  test("GET /api/presentations with search parameter", async () => {
+    const res = await api("/api/presentations?search=test");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  test("GET /api/presentations/{id} - should return presentation details when exists", async () => {
+    if (!presentationId) {
+      return; // Skip if no presentations exist
+    }
+    const res = await api(`/api/presentations/${presentationId}`);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.id).toBe(presentationId);
+    expect(data.title).toBeDefined();
+  });
+
+  test("GET /api/presentations/{id} - should return 404 for nonexistent presentation", async () => {
+    const res = await api("/api/presentations/00000000-0000-0000-0000-000000000000");
+    await expectStatus(res, 404);
+  });
+
+  // Floor Plan
+  test("GET /api/floor-plan - should return floor plan data", async () => {
+    const res = await api("/api/floor-plan");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.image_url).toBeDefined();
+    expect(data.venue_notes).toBeDefined();
+  });
+
+  // Preferences
+  const testEmail = "test-preference-user@example.com";
+
+  test("GET /api/preferences/{email} - should return user preferences", async () => {
+    const res = await api(`/api/preferences/${testEmail}`);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.email).toBe(testEmail);
+    expect(typeof data.accept_messages).toBe("boolean");
+  });
+
+  test("PUT /api/preferences/{email} - should update user preferences", async () => {
+    const res = await api(`/api/preferences/${testEmail}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        accept_messages: true,
+        show_email: false,
+        show_phone: true,
+        show_company: false,
+        show_title: true,
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.email).toBe(testEmail);
+    expect(data.accept_messages).toBe(true);
+    expect(data.show_email).toBe(false);
+  });
+
+  // Conversations
+  let conversationId: string;
+  const participant1Email = "participant1@example.com";
+  const participant2Email = "participant2@example.com";
+
+  test("POST /api/conversations - should create conversation", async () => {
+    const res = await api("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant1_email: participant1Email,
+        participant2_email: participant2Email,
+      }),
+    });
+    await expectStatus(res, 201);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
+    conversationId = data.id;
+  });
+
+  test("POST /api/conversations - should return 400 for missing required fields", async () => {
+    const res = await api("/api/conversations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        participant1_email: participant1Email,
+        // Missing participant2_email
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("GET /api/conversations - should return conversations for user", async () => {
+    const res = await api(`/api/conversations?email=${participant1Email}`);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  test("GET /api/conversations/{id}/messages - should return messages array", async () => {
+    if (!conversationId) {
+      return; // Skip if conversation not created
+    }
+    const res = await api(`/api/conversations/${conversationId}/messages`);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  test("POST /api/conversations/{id}/messages - should send message", async () => {
+    if (!conversationId) {
+      return; // Skip if conversation not created
+    }
+    const res = await api(`/api/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender_email: participant1Email,
+        content: "Hello, this is a test message",
+      }),
+    });
+    await expectStatus(res, 201);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
+    expect(data.conversation_id).toBe(conversationId);
+  });
+
+  test("GET /api/conversations/{id}/messages - should return 404 for nonexistent conversation", async () => {
+    const res = await api(
+      "/api/conversations/00000000-0000-0000-0000-000000000000/messages"
+    );
+    await expectStatus(res, 404);
+  });
+
+  test("GET /api/conversations/{id}/messages - should return 400 for invalid UUID format", async () => {
+    const res = await api("/api/conversations/invalid-uuid/messages");
+    await expectStatus(res, 400);
+  });
+
+  test("POST /api/conversations/{id}/messages - should return 404 for nonexistent conversation", async () => {
+    const res = await api(
+      "/api/conversations/00000000-0000-0000-0000-000000000000/messages",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sender_email: participant1Email,
+          content: "Test message",
+        }),
+      }
+    );
+    await expectStatus(res, 404);
+  });
+
+  test("POST /api/conversations/{id}/messages - should return 400 for invalid UUID format", async () => {
+    const res = await api("/api/conversations/invalid-uuid/messages", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender_email: participant1Email,
+        content: "Test message",
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("POST /api/conversations/{id}/messages - should return 400 for missing required fields", async () => {
+    if (!conversationId) {
+      return; // Skip if conversation not created
+    }
+    const res = await api(`/api/conversations/${conversationId}/messages`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        sender_email: participant1Email,
+        // Missing content
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("DELETE /api/conversations/{id} - should delete conversation", async () => {
+    if (!conversationId) {
+      return; // Skip if conversation not created
+    }
+    const res = await api(`/api/conversations/${conversationId}`, {
+      method: "DELETE",
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.message).toBeDefined();
+  });
+
+  test("GET /api/conversations/{id}/messages - should return 404 for deleted conversation", async () => {
+    if (!conversationId) {
+      return; // Skip if conversation was not created
+    }
+    const res = await api(`/api/conversations/${conversationId}/messages`);
+    await expectStatus(res, 404);
+  });
+
+  test("DELETE /api/conversations/{id} - should return 404 for nonexistent conversation", async () => {
+    const res = await api(
+      "/api/conversations/00000000-0000-0000-0000-000000000000",
+      {
+        method: "DELETE",
+      }
+    );
+    await expectStatus(res, 404);
+  });
+
+  test("DELETE /api/conversations/{id} - should return 400 for invalid UUID format", async () => {
+    const res = await api("/api/conversations/invalid-uuid", {
+      method: "DELETE",
+    });
+    await expectStatus(res, 400);
+  });
+
+  // Networking
+  test("GET /api/networking/attendees - should return array of attendees", async () => {
+    const res = await api("/api/networking/attendees");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  test("GET /api/networking/attendees with search parameter", async () => {
+    const res = await api("/api/networking/attendees?search=test");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  test("GET /api/networking/attendees/{email} - should return attendee details when exists", async () => {
+    const res = await api(`/api/networking/attendees/${participant1Email}`);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.email).toBe(participant1Email);
+    expect(data.name).toBeDefined();
+  });
+
+  test("GET /api/networking/attendees/{email} with viewer_email parameter", async () => {
+    const res = await api(
+      `/api/networking/attendees/${participant1Email}?viewer_email=${participant2Email}`
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.email).toBe(participant1Email);
+  });
+
+  test("GET /api/networking/attendees/{email} - should return 404 for nonexistent attendee", async () => {
+    const res = await api(
+      "/api/networking/attendees/nonexistent-user@example.com"
+    );
+    await expectStatus(res, 404);
+  });
+
+  // Attendees Directory
+  test("GET /api/attendees-directory - should return attendees directory", async () => {
+    const res = await api("/api/attendees-directory");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.attendees !== undefined || data.error !== undefined).toBe(true);
+    if (data.attendees !== undefined) {
+      expect(Array.isArray(data.attendees)).toBe(true);
+    }
+  });
+
+  // Login
+  test("POST /api/login - should login with valid credentials", async () => {
+    const res = await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: participant1Email,
+        password: "POTF2026",
+      }),
+    });
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.attendee).toBeDefined();
+    expect(data.attendee.email).toBe(participant1Email);
+  });
+
+  test("POST /api/login - should return 401 for invalid credentials", async () => {
+    const res = await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: participant1Email,
+        password: "wrongpassword",
+      }),
+    });
+    await expectStatus(res, 401);
+  });
+
+  test("POST /api/login - should return 400 for missing required fields", async () => {
+    const res = await api("/api/login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email: participant1Email,
+        // Missing password
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  // Announcements
+  test("GET /api/announcements - should return announcements", async () => {
+    const res = await api("/api/announcements");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(Array.isArray(data.announcements)).toBe(true);
+  });
+
+  // Agenda
+  test("GET /api/agenda - should return agenda", async () => {
+    const res = await api("/api/agenda");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(Array.isArray(data.agenda)).toBe(true);
+  });
+
+  // Speakers
+  test("GET /api/speakers - should return speakers", async () => {
+    const res = await api("/api/speakers");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(Array.isArray(data.speakers)).toBe(true);
+  });
+
+  // Exhibitors
+  test("GET /api/exhibitors - should return exhibitors", async () => {
+    const res = await api("/api/exhibitors");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api", "error"]).toContain(
+      data.source_used
+    );
+    expect(Array.isArray(data.exhibitors)).toBe(true);
+  });
+
+  // Sponsors
+  test("GET /api/sponsors - should return sponsors", async () => {
+    const res = await api("/api/sponsors");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api", "error"]).toContain(
+      data.source_used
+    );
+    expect(Array.isArray(data.sponsors)).toBe(true);
+  });
+
+  // Activities
+  test("GET /api/activities - should return activities", async () => {
+    const res = await api("/api/activities");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data).toBe("object");
+    expect(data.updated_at).toBeDefined();
+    expect(["airtablecache", "airtable_api", "error"]).toContain(
+      data.source_used
+    );
+    expect(Array.isArray(data.activities)).toBe(true);
+  });
+
+  // Reports
+  test("POST /api/reports - should submit a report", async () => {
+    const res = await api("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reporting_user_email: participant1Email,
+        reported_user_email: participant2Email,
+        reason: "Harassment",
+        notes: "Test report for integration",
+      }),
+    });
+    await expectStatus(res, 201);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
+    expect(data.created_at).toBeDefined();
+    expect(data.message).toBeDefined();
+  });
+
+  test("POST /api/reports - should return 400 for missing required fields", async () => {
+    const res = await api("/api/reports", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        reporting_user_email: participant1Email,
+        // Missing reported_user_email and reason
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("GET /api/reports - should return list of reports", async () => {
+    const res = await api("/api/reports");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      expect(data[0].id).toBeDefined();
+      expect(data[0].reporting_user_email).toBeDefined();
+      expect(data[0].reported_user_email).toBeDefined();
+    }
+  });
+
+  // Blocked Users
+  test("POST /api/blocked-users - should block a user", async () => {
+    const res = await api("/api/blocked-users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blocker_email: participant1Email,
+        blocked_email: participant2Email,
+      }),
+    });
+    await expectStatus(res, 201);
+    const data = await res.json();
+    expect(data.id).toBeDefined();
+    expect(data.created_at).toBeDefined();
+    expect(data.message).toBeDefined();
+  });
+
+  test("POST /api/blocked-users - should return 400 for missing required fields", async () => {
+    const res = await api("/api/blocked-users", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        blocker_email: participant1Email,
+        // Missing blocked_email
+      }),
+    });
+    await expectStatus(res, 400);
+  });
+
+  test("GET /api/blocked-users - should return list of blocked users", async () => {
+    const res = await api(
+      `/api/blocked-users?blocker_email=${participant1Email}`
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+    if (data.length > 0) {
+      expect(data[0].id).toBeDefined();
+      expect(data[0].blocked_email).toBeDefined();
+      expect(data[0].created_at).toBeDefined();
+    }
+  });
+
+  test("GET /api/blocked-users/check - should check if a user is blocked", async () => {
+    const res = await api(
+      `/api/blocked-users/check?blocker_email=${participant1Email}&blocked_email=${participant2Email}`
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(typeof data.is_blocked).toBe("boolean");
+  });
+
+  test("DELETE /api/blocked-users/{blocked_email} - should unblock a user", async () => {
+    const res = await api(
+      `/api/blocked-users/${participant2Email}?blocker_email=${participant1Email}`,
+      {
+        method: "DELETE",
+      }
+    );
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(data.success).toBe(true);
+    expect(data.message).toBeDefined();
+  });
+});
