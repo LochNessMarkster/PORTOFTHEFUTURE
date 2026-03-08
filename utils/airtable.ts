@@ -2,6 +2,8 @@
 // NOTE: Public conference data now uses Airtable cache directly for stability.
 // Messaging, conversations, reports, blocked users, and preferences still use backend API.
 
+import Constants from 'expo-constants';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // AIRTABLE CACHE BASE
 // ─────────────────────────────────────────────────────────────────────────────
@@ -173,6 +175,14 @@ interface RawPortFields {
   'Logo Graphic'?: { url: string; thumbnails?: { large?: { url: string } } }[];
   'Featured Port Graphic'?: { url: string; thumbnails?: { large?: { url: string } } }[];
   'Featured Port Graphic '?: { url: string; thumbnails?: { large?: { url: string } } }[];
+}
+
+export interface RawPresentationFields {
+  'Presentation Title'?: string;
+  'Description'?: string;
+  'File URL'?: string;
+  'Presentation File'?: { url: string }[];
+  'Published'?: boolean;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -464,14 +474,6 @@ export const fetchPorts = async (): Promise<Port[]> => {
 // PRESENTATIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export interface RawPresentationFields {
-  'Presentation Title'?: string;
-  'Description'?: string;
-  'File URL'?: string;
-  'Presentation File'?: { url: string }[];
-  'Published'?: boolean;
-}
-
 export interface Presentation {
   id: string;
   title: string;
@@ -557,8 +559,6 @@ export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
 // BACKEND API (kept for messaging / preferences / moderation features)
 // ─────────────────────────────────────────────────────────────────────────────
 
-import Constants from 'expo-constants';
-
 export const BACKEND_URL: string =
   (Constants.expoConfig?.extra?.backendUrl as string) ||
   'https://bx6j3d44584xqpqwnmp8vpuneqcrrymr.app.specular.dev';
@@ -622,22 +622,6 @@ async function apiPut<T>(path: string, body: unknown): Promise<T> {
     console.trace();
   }
 
-  const response = await fetch(`${BACKEND_URL}${path}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`PUT ${path} failed (${response.status}): ${errorBody}`);
-  }
-
-  return response.json() as Promise<T>;
-}
-
-async function apiPut<T>(path: string, body: unknown): Promise<T> {
-  console.log(`[API] PUT ${BACKEND_URL}${path}`);
   const response = await fetch(`${BACKEND_URL}${path}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
