@@ -1,33 +1,31 @@
 {
   "expo": {
-    "name": "Port of the Future",
-    "slug": "port-of-the-future",
-    "version": "1.0.2",
+    "name": "Natively",
+    "slug": "Natively",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/poflogoappicon.png",
+      "image": "./assets/images/natively-dark.png",
       "resizeMode": "contain",
       "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.portofthefutureconference.theportofthefuturecon",
-      "buildNumber": "7",
+      "bundleIdentifier": "com.placeholder.app",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/poflogoappicon.png",
+        "foregroundImage": "./assets/images/natively-dark.png",
         "backgroundColor": "#000000"
       },
       "edgeToEdgeEnabled": true,
-      "package": "com.portofthefutureconference.app",
-      "versionCode": "3"
+      "package": "com.placeholder.app"
     },
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",
@@ -38,13 +36,12 @@
       "expo-router",
       "expo-web-browser"
     ],
-    "scheme": "portofthefuture",
+    "scheme": "natively",
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "backendUrl": "https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev"
+      "router": {}
     }
   }
 }
