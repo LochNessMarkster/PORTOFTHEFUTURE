@@ -1,8 +1,8 @@
 {
   "expo": {
     "name": "Port of the Future",
-    "slug": "portofthefuturecon",
-    "version": "1.0.0",
+    "slug": "port-of-the-future",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
@@ -27,7 +27,7 @@
       },
       "edgeToEdgeEnabled": true,
       "package": "com.portofthefutureconference.app",
-      "versionCode": 2
+      "versionCode": 3
     },
     "web": {
       "favicon": "./assets/images/final_quest_240x240.png",
