@@ -63,7 +63,7 @@ export default function ConversationScreen() {
     } catch (err) {
       console.error('[Conversation] Error loading messages:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load messages';
-      setError(errorMessage);
+      setError('Messaging will be enabled during the conference (March 23-25, 2026).');
       setMessages([]);
     } finally {
       setLoading(false);
@@ -104,7 +104,11 @@ export default function ConversationScreen() {
     } catch (err) {
       console.error('[Conversation] Error sending message:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
-      Alert.alert('Error', errorMessage);
+      
+      Alert.alert(
+        'Messaging Not Available',
+        'Attendee messaging will be enabled during the conference (March 23-25, 2026).'
+      );
     } finally {
       setSending(false);
     }
@@ -180,18 +184,15 @@ export default function ConversationScreen() {
       return (
         <View style={styles.centerContainer}>
           <IconSymbol
-            ios_icon_name="exclamationmark.triangle.fill"
-            android_material_icon_name="warning"
+            ios_icon_name="message.fill"
+            android_material_icon_name="message"
             size={48}
-            color={colors.error}
+            color={secondaryTextColor}
           />
-          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-          <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: colors.primary }]}
-            onPress={loadMessages}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          <Text style={[styles.errorText, { color: secondaryTextColor }]}>{error}</Text>
+          <Text style={[styles.errorSubtext, { color: secondaryTextColor }]}>
+            Check back during the conference to connect with other attendees.
+          </Text>
         </View>
       );
     }
@@ -209,7 +210,7 @@ export default function ConversationScreen() {
             No messages yet
           </Text>
           <Text style={[styles.emptySubtext, { color: secondaryTextColor }]}>
-            Start the conversation by sending a message
+            Start the conversation by sending a message during the conference.
           </Text>
         </View>
       );
@@ -323,17 +324,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
     fontWeight: '600',
+  },
+  errorSubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   emptyText: {
     fontSize: 17,

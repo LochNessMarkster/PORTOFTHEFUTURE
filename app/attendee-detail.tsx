@@ -54,7 +54,7 @@ export default function AttendeeDetailScreen() {
   const handleMessagePress = async () => {
     if (!user?.email || !email) {
       console.log('[AttendeeDetail] Cannot start conversation - missing user or attendee email');
-      Alert.alert('Error', 'Unable to start conversation. Please try again.');
+      Alert.alert('Messaging Not Available', 'Attendee messaging will be enabled during the conference (March 23-25, 2026).');
       return;
     }
 
@@ -80,8 +80,12 @@ export default function AttendeeDetailScreen() {
       });
     } catch (err) {
       console.error('[AttendeeDetail] Error starting conversation:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to start conversation';
-      Alert.alert('Error', errorMessage);
+      const errorMessage = err instanceof Error ? err.message : 'Unable to start conversation';
+      
+      Alert.alert(
+        'Messaging Not Available',
+        'Attendee messaging will be enabled during the conference (March 23-25, 2026).'
+      );
     } finally {
       setStartingConversation(false);
     }
@@ -154,6 +158,23 @@ export default function AttendeeDetailScreen() {
                 </View>
               </View>
             ) : null}
+          </View>
+
+          <View
+            style={[
+              styles.messagingNotice,
+              { backgroundColor: cardBg, borderColor: borderColorValue },
+            ]}
+          >
+            <IconSymbol
+              ios_icon_name="info.circle.fill"
+              android_material_icon_name="info"
+              size={20}
+              color={colors.primary}
+            />
+            <Text style={[styles.messagingNoticeText, { color: secondaryTextColor }]}>
+              Attendee messaging will be enabled during the conference (March 23-25, 2026).
+            </Text>
           </View>
 
           <View style={styles.actionsSection}>
@@ -254,6 +275,21 @@ const styles = StyleSheet.create({
   detailValue: {
     fontSize: 16,
     fontWeight: '500',
+  },
+  messagingNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    gap: 8,
+  },
+  messagingNoticeText: {
+    fontSize: 13,
+    lineHeight: 18,
+    flex: 1,
   },
   actionsSection: {
     flexDirection: 'row',

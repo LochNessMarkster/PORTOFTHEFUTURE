@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "Port of the Future",
@@ -41,7 +42,8 @@
       "typedRoutes": true
     },
     "extra": {
-      "router": {}
+      "router": {},
+      "backendUrl": "https://bx6j3d44584xqpqwnmp8vpuneqcrrymr.app.specular.dev"
     }
   }
 }

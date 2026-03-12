@@ -58,7 +58,8 @@ export default function ConversationsScreen() {
     } catch (err) {
       console.error('[Conversations] Error loading conversations:', err);
       const errorMessage = err instanceof Error ? err.message : 'Failed to load conversations';
-      setError(errorMessage);
+      
+      setError('Messaging will be enabled during the conference (March 23-25, 2026).');
       setConversations([]);
     } finally {
       setLoading(false);
@@ -237,18 +238,15 @@ export default function ConversationsScreen() {
       return (
         <View style={styles.centerContainer}>
           <IconSymbol
-            ios_icon_name="exclamationmark.triangle.fill"
-            android_material_icon_name="warning"
+            ios_icon_name="message.fill"
+            android_material_icon_name="message"
             size={48}
-            color={colors.error}
+            color={secondaryTextColor}
           />
-          <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-          <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: colors.primary }]}
-            onPress={loadConversations}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          <Text style={[styles.errorText, { color: secondaryTextColor }]}>{error}</Text>
+          <Text style={[styles.errorSubtext, { color: secondaryTextColor }]}>
+            Check back during the conference to connect with other attendees.
+          </Text>
         </View>
       );
     }
@@ -266,7 +264,7 @@ export default function ConversationsScreen() {
             No conversations yet
           </Text>
           <Text style={[styles.emptySubtext, { color: secondaryTextColor }]}>
-            Start a conversation from the Networking screen
+            Start a conversation from the Networking screen during the conference.
           </Text>
         </View>
       );
@@ -341,17 +339,13 @@ const styles = StyleSheet.create({
     fontSize: 15,
     marginTop: 12,
     textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
     fontWeight: '600',
+  },
+  errorSubtext: {
+    fontSize: 14,
+    marginTop: 8,
+    textAlign: 'center',
+    lineHeight: 20,
   },
   emptyText: {
     fontSize: 17,
