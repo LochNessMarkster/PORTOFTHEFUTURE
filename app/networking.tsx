@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -111,6 +112,7 @@ export default function NetworkingScreen() {
   };
 
   const handleAttendeePress = (attendee: NetworkingAttendee) => {
+    console.log('[Networking] Attendee pressed:', attendee.name);
     router.push({
       pathname: '/attendee-detail',
       params: {
@@ -120,6 +122,11 @@ export default function NetworkingScreen() {
         title: attendee.title || '',
       },
     });
+  };
+
+  const handleConversationsPress = () => {
+    console.log('[Networking] Navigating to conversations');
+    router.push('/conversations');
   };
 
   const renderAttendeeCard = ({ item }: { item: NetworkingAttendee }) => {
@@ -260,21 +267,20 @@ export default function NetworkingScreen() {
           </View>
         </View>
 
-        <View
-          style={[
-            styles.messagingBanner,
-            { backgroundColor: cardBg, borderColor: borderColorValue },
-          ]}
-        >
-          <IconSymbol
-            ios_icon_name="message.fill"
-            android_material_icon_name="message"
-            size={20}
-            color={secondaryTextColor}
-          />
-          <Text style={[styles.messagingBannerText, { color: secondaryTextColor }]}>
-            Attendee messaging will be enabled during the conference.
-          </Text>
+        <View style={styles.conversationsButtonContainer}>
+          <TouchableOpacity
+            style={[styles.conversationsButton, { backgroundColor: colors.primary }]}
+            onPress={handleConversationsPress}
+            activeOpacity={0.7}
+          >
+            <IconSymbol
+              ios_icon_name="message.fill"
+              android_material_icon_name="message"
+              size={20}
+              color="#FFFFFF"
+            />
+            <Text style={styles.conversationsButtonText}>Conversations</Text>
+          </TouchableOpacity>
         </View>
 
         <View style={styles.searchContainer}>
@@ -334,21 +340,29 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
   },
-  messagingBanner: {
+  conversationsButtonContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+  },
+  conversationsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    padding: 12,
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 20,
     borderRadius: 12,
-    borderWidth: 1,
     gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  messagingBannerText: {
-    fontSize: 13,
-    lineHeight: 18,
-    flex: 1,
+  conversationsButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   searchContainer: {
     paddingHorizontal: 16,
