@@ -24,10 +24,14 @@ import {
 import { ConfirmDeleteModal } from '@/components/ConfirmDeleteModal';
 
 export default function ConversationsScreen() {
+  console.log('[Conversations] Screen component mounted');
+  
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const router = useRouter();
   const { user } = useAuth();
+  
+  console.log('[Conversations] User:', user?.email);
 
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,9 +61,24 @@ export default function ConversationsScreen() {
       setConversations(data);
     } catch (err) {
       console.error('[Conversations] Error loading conversations:', err);
+      
+      // Log the full error details for debugging
+      if (err instanceof Error) {
+        console.error('[Conversations] Error message:', err.message);
+        console.error('[Conversations] Error stack:', err.stack);
+      }
+      
       const errorMessage = err instanceof Error ? err.message : 'Failed to load conversations';
       
-      setError('Messaging will be enabled during the conference (March 23-25, 2026).');
+      // Check if it's a network error or backend unavailable
+      if (errorMessage.includes('Failed to fetch') || errorMessage.includes('Network request failed')) {
+        setError('Unable to connect to messaging service. Please check your internet connection and try again.');
+      } else if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+        setError('Messaging service is currently unavailable. Please try again later.');
+      } else {
+        setError('Messaging will be enabled during the conference (March 23-25, 2026).');
+      }
+      
       setConversations([]);
     } finally {
       setLoading(false);
@@ -68,6 +87,7 @@ export default function ConversationsScreen() {
   }, [user?.email]);
 
   useEffect(() => {
+    console.log('[Conversations] useEffect triggered, user:', user?.email);
     loadConversations();
   }, [loadConversations]);
 
@@ -247,6 +267,12 @@ export default function ConversationsScreen() {
           <Text style={[styles.errorSubtext, { color: secondaryTextColor }]}>
             Check back during the conference to connect with other attendees.
           </Text>
+          <TouchableOpacity
+            style={[styles.retryButton, { backgroundColor: colors.primary }]}
+            onPress={onRefresh}
+          >
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
       );
     }
@@ -429,5 +455,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     marginTop: 4,
+  },
+  retryButton: {
+    marginTop: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });

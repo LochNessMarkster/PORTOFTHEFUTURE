@@ -66,8 +66,14 @@ export default function MoreScreen() {
   const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const handleMenuPress = (route: string) => {
-    console.log('[More] Navigating to:', route);
-    router.push(route as any);
+    console.log('[More] Menu item pressed:', route);
+    console.log('[More] Router object:', router);
+    try {
+      router.push(route as any);
+      console.log('[More] Navigation initiated successfully');
+    } catch (error) {
+      console.error('[More] Navigation error:', error);
+    }
   };
 
   const handleLogout = async () => {
