@@ -4,7 +4,7 @@ import { Modal, View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 
 import { colors } from '@/styles/commonStyles';
 
 interface ConfirmDeleteModalProps {
-  isVisible: boolean;
+  visible: boolean;
   title: string;
   message: string;
   onConfirm: () => void;
@@ -15,7 +15,7 @@ interface ConfirmDeleteModalProps {
 }
 
 export function ConfirmDeleteModal({
-  isVisible,
+  visible,
   title,
   message,
   onConfirm,
@@ -35,7 +35,7 @@ export function ConfirmDeleteModal({
     <Modal
       animationType="fade"
       transparent={true}
-      visible={isVisible}
+      visible={visible}
       onRequestClose={onCancel}
     >
       <View style={styles.centeredView}>
