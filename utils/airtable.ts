@@ -892,12 +892,8 @@ export const fetchAttendeeDetail = (
       : `/api/networking/attendees/${encodeURIComponent(email)}`
   );
 
-export const fetchConversations = (email: string): Promise<Conversation[]> => {
-  console.log('[fetchConversations] Called with email:', email);
-  console.log('[fetchConversations] Backend URL:', BACKEND_URL);
-  console.log('[fetchConversations] Full URL:', `${BACKEND_URL}/api/conversations?email=${encodeURIComponent(email)}`);
-  return apiGet<Conversation[]>(`/api/conversations?email=${encodeURIComponent(email)}`);
-};
+export const fetchConversations = (email: string): Promise<Conversation[]> =>
+  apiGet<Conversation[]>(`/api/conversations?email=${encodeURIComponent(email)}`);
 
 export const createOrGetConversation = (
   participant1_email: string,

@@ -1,233 +1,30 @@
-
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import React from 'react';
 import {
   View,
   Text,
   StyleSheet,
   useColorScheme,
   TouchableOpacity,
-  TextInput,
-  FlatList,
-  KeyboardAvoidingView,
-  Platform,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
-import { Stack, useLocalSearchParams, useFocusEffect } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { useAuth } from '@/contexts/AuthContext';
-import {
-  fetchMessages,
-  sendMessage,
-  ConversationMessage,
-} from '@/utils/airtable';
+
+const ENABLE_MESSAGING = false;
 
 export default function ConversationScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const params = useLocalSearchParams();
-  const { user } = useAuth();
 
-  const conversationId = params.id as string;
   const otherParticipantName = (params.otherParticipantName as string) || 'Conversation';
-
-  const [messages, setMessages] = useState<ConversationMessage[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [sending, setSending] = useState(false);
-  const [messageText, setMessageText] = useState('');
-  const [error, setError] = useState<string | null>(null);
-
-  const flatListRef = useRef<FlatList>(null);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
   const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
   const cardBg = isDark ? colors.cardDark : colors.card;
   const borderColorValue = isDark ? colors.borderDark : colors.border;
-
-  const loadMessages = useCallback(async () => {
-    if (!conversationId) {
-      console.log('[Conversation] No conversation ID');
-      setLoading(false);
-      return;
-    }
-
-    console.log('[Conversation] Loading messages for:', conversationId);
-    try {
-      setError(null);
-      const data = await fetchMessages(conversationId);
-      console.log('[Conversation] Loaded messages:', data.length);
-      setMessages(data);
-    } catch (err) {
-      console.error('[Conversation] Error loading messages:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load messages';
-      setError('Messaging will be enabled during the conference (March 23-25, 2026).');
-      setMessages([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [conversationId]);
-
-  useEffect(() => {
-    loadMessages();
-  }, [loadMessages]);
-
-  useFocusEffect(
-    useCallback(() => {
-      console.log('[Conversation] Screen focused, reloading messages');
-      loadMessages();
-    }, [loadMessages])
-  );
-
-  const handleSendMessage = async () => {
-    const trimmedMessage = messageText.trim();
-    if (!trimmedMessage || !user?.email || sending) {
-      console.log('[Conversation] Cannot send message - empty or already sending');
-      return;
-    }
-
-    console.log('[Conversation] Sending message:', trimmedMessage);
-    setSending(true);
-
-    try {
-      const newMessage = await sendMessage(conversationId, user.email, trimmedMessage);
-      console.log('[Conversation] Message sent successfully:', newMessage.id);
-
-      setMessages((prev) => [...prev, newMessage]);
-      setMessageText('');
-
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    } catch (err) {
-      console.error('[Conversation] Error sending message:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to send message';
-      
-      Alert.alert(
-        'Messaging Not Available',
-        'Attendee messaging will be enabled during the conference (March 23-25, 2026).'
-      );
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const formatTimestamp = (timestamp: string): string => {
-    try {
-      const date = new Date(timestamp);
-      return date.toLocaleTimeString('en-US', {
-        hour: 'numeric',
-        minute: '2-digit',
-        hour12: true,
-      });
-    } catch {
-      return '';
-    }
-  };
-
-  const renderMessage = ({ item }: { item: ConversationMessage }) => {
-    const isMyMessage = item.sender_email === user?.email;
-    const timestamp = formatTimestamp(item.created_at);
-
-    return (
-      <View
-        style={[
-          styles.messageContainer,
-          isMyMessage ? styles.myMessageContainer : styles.theirMessageContainer,
-        ]}
-      >
-        <View
-          style={[
-            styles.messageBubble,
-            isMyMessage
-              ? [styles.myMessageBubble, { backgroundColor: colors.primary }]
-              : [styles.theirMessageBubble, { backgroundColor: cardBg, borderColor: borderColorValue }],
-          ]}
-        >
-          <Text
-            style={[
-              styles.messageText,
-              { color: isMyMessage ? '#FFFFFF' : textColor },
-            ]}
-          >
-            {item.content}
-          </Text>
-        </View>
-        <Text
-          style={[
-            styles.messageTimestamp,
-            { color: secondaryTextColor },
-            isMyMessage ? styles.myMessageTimestamp : styles.theirMessageTimestamp,
-          ]}
-        >
-          {timestamp}
-        </Text>
-      </View>
-    );
-  };
-
-  const renderContent = () => {
-    if (loading) {
-      return (
-        <View style={styles.centerContainer}>
-          <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>
-            Loading messages...
-          </Text>
-        </View>
-      );
-    }
-
-    if (error) {
-      return (
-        <View style={styles.centerContainer}>
-          <IconSymbol
-            ios_icon_name="message.fill"
-            android_material_icon_name="message"
-            size={48}
-            color={secondaryTextColor}
-          />
-          <Text style={[styles.errorText, { color: secondaryTextColor }]}>{error}</Text>
-          <Text style={[styles.errorSubtext, { color: secondaryTextColor }]}>
-            Check back during the conference to connect with other attendees.
-          </Text>
-        </View>
-      );
-    }
-
-    if (messages.length === 0) {
-      return (
-        <View style={styles.centerContainer}>
-          <IconSymbol
-            ios_icon_name="message.fill"
-            android_material_icon_name="message"
-            size={48}
-            color={secondaryTextColor}
-          />
-          <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-            No messages yet
-          </Text>
-          <Text style={[styles.emptySubtext, { color: secondaryTextColor }]}>
-            Start the conversation by sending a message during the conference.
-          </Text>
-        </View>
-      );
-    }
-
-    return (
-      <FlatList
-        ref={flatListRef}
-        data={messages}
-        renderItem={renderMessage}
-        keyExtractor={(item) => item.id}
-        contentContainerStyle={styles.messagesList}
-        showsVerticalScrollIndicator={false}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: false })}
-      />
-    );
-  };
 
   return (
     <>
@@ -239,64 +36,67 @@ export default function ConversationScreen() {
             backgroundColor: isDark ? colors.backgroundDark : colors.background,
           },
           headerTintColor: textColor,
+          headerRight: undefined,
         }}
       />
 
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        <KeyboardAvoidingView
-          style={styles.keyboardAvoidingView}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
-        >
-          {renderContent()}
-
+        <View style={styles.centerContainer}>
           <View
             style={[
-              styles.inputContainer,
-              { backgroundColor: cardBg, borderTopColor: borderColorValue },
+              styles.noticeCard,
+              {
+                backgroundColor: cardBg,
+                borderColor: borderColorValue,
+              },
             ]}
           >
-            <TextInput
-              style={[
-                styles.input,
-                {
-                  backgroundColor: isDark ? colors.backgroundDark : '#F3F4F6',
-                  color: textColor,
-                  borderColor: borderColorValue,
-                },
-              ]}
-              placeholder="Type a message..."
-              placeholderTextColor={secondaryTextColor}
-              value={messageText}
-              onChangeText={setMessageText}
-              multiline
-              maxLength={1000}
-              editable={!sending}
+            <IconSymbol
+              ios_icon_name="message.fill"
+              android_material_icon_name="message"
+              size={52}
+              color={secondaryTextColor}
             />
+            <Text style={[styles.title, { color: textColor }]}>
+              Messaging Temporarily Unavailable
+            </Text>
+            <Text style={[styles.description, { color: secondaryTextColor }]}>
+              This conversation feature depends on backend services that are not currently
+              available. Attendee browsing is still working, but conversations, message
+              sending, blocking, and reporting are disabled for now.
+            </Text>
 
             <TouchableOpacity
               style={[
-                styles.sendButton,
+                styles.disabledComposer,
                 {
-                  backgroundColor: messageText.trim() && !sending ? colors.primary : secondaryTextColor,
+                  backgroundColor: isDark ? colors.backgroundDark : '#F3F4F6',
+                  borderColor: borderColorValue,
+                  opacity: ENABLE_MESSAGING ? 1 : 0.7,
                 },
               ]}
-              onPress={handleSendMessage}
-              disabled={!messageText.trim() || sending}
+              disabled
+              activeOpacity={1}
             >
-              {sending ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
+              <Text style={[styles.disabledComposerText, { color: secondaryTextColor }]}>
+                Message input disabled
+              </Text>
+              <View
+                style={[
+                  styles.sendButton,
+                  { backgroundColor: secondaryTextColor },
+                ]}
+              >
                 <IconSymbol
                   ios_icon_name="arrow.up"
                   android_material_icon_name="send"
                   size={20}
                   color="#FFFFFF"
                 />
-              )}
+              </View>
             </TouchableOpacity>
           </View>
-        </KeyboardAvoidingView>
+        </View>
       </SafeAreaView>
     </>
   );
@@ -306,102 +106,49 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  keyboardAvoidingView: {
-    flex: 1,
-  },
   centerContainer: {
     flex: 1,
     justifyContent: 'center',
-    alignItems: 'center',
     padding: 24,
   },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 15,
-    marginTop: 12,
-    textAlign: 'center',
-    fontWeight: '600',
-  },
-  errorSubtext: {
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  emptyText: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    marginTop: 8,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  messagesList: {
-    padding: 16,
-  },
-  messageContainer: {
-    marginBottom: 16,
-    maxWidth: '75%',
-  },
-  myMessageContainer: {
-    alignSelf: 'flex-end',
-    alignItems: 'flex-end',
-  },
-  theirMessageContainer: {
-    alignSelf: 'flex-start',
-    alignItems: 'flex-start',
-  },
-  messageBubble: {
-    borderRadius: 18,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-  },
-  myMessageBubble: {
-    borderBottomRightRadius: 4,
-  },
-  theirMessageBubble: {
-    borderBottomLeftRadius: 4,
+  noticeCard: {
+    borderRadius: 16,
     borderWidth: 1,
+    padding: 24,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  messageText: {
-    fontSize: 16,
-    lineHeight: 20,
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 14,
   },
-  messageTimestamp: {
-    fontSize: 11,
-    marginTop: 4,
+  description: {
+    fontSize: 15,
+    lineHeight: 22,
+    textAlign: 'center',
+    marginTop: 10,
   },
-  myMessageTimestamp: {
-    textAlign: 'right',
-  },
-  theirMessageTimestamp: {
-    textAlign: 'left',
-  },
-  inputContainer: {
+  disabledComposer: {
+    marginTop: 22,
+    width: '100%',
+    minHeight: 56,
+    borderRadius: 28,
+    borderWidth: 1,
+    paddingLeft: 18,
+    paddingRight: 8,
+    paddingVertical: 8,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderTopWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
-  input: {
-    flex: 1,
-    minHeight: 40,
-    maxHeight: 100,
-    borderRadius: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 16,
-    borderWidth: 1,
-    marginRight: 8,
+  disabledComposerText: {
+    fontSize: 15,
   },
   sendButton: {
     width: 40,

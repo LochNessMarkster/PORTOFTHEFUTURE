@@ -1,8 +1,7 @@
-
 {
   "expo": {
-    "name": "Port of the Future",
-    "slug": "port-of-the-future",
+    "name": "Natively",
+    "slug": "Natively",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -37,13 +36,12 @@
       "expo-router",
       "expo-web-browser"
     ],
-    "scheme": "portofthefuture",
+    "scheme": "natively",
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "backendUrl": "https://bx6j3d44584xqpqwnmp8vpuneqcrrymr.app.specular.dev"
+      "router": {}
     }
   }
 }

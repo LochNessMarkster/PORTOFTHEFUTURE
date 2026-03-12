@@ -1,5 +1,4 @@
-
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -7,24 +6,19 @@ import {
   ScrollView,
   useColorScheme,
   TouchableOpacity,
-  ActivityIndicator,
-  Alert,
 } from 'react-native';
-import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
+import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { useAuth } from '@/contexts/AuthContext';
-import { createOrGetConversation } from '@/utils/airtable';
+
+const ENABLE_MESSAGING = false;
+const ENABLE_MODERATION_ACTIONS = false;
 
 export default function AttendeeDetailScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const params = useLocalSearchParams();
-  const router = useRouter();
-  const { user } = useAuth();
-
-  const [startingConversation, setStartingConversation] = useState(false);
 
   const email = (params.email as string) || '';
   const displayName = (params.displayName as string) || '';
@@ -35,6 +29,7 @@ export default function AttendeeDetailScreen() {
   const textColor = isDark ? colors.textDark : colors.text;
   const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
   const cardBg = isDark ? colors.cardDark : colors.card;
+  const borderColorValue = isDark ? colors.borderDark : colors.border;
 
   const name = displayName || 'Attendee';
 
@@ -50,43 +45,6 @@ export default function AttendeeDetailScreen() {
     return trimmed.charAt(0).toUpperCase();
   }, [name]);
 
-  const handleMessagePress = async () => {
-    if (!user?.email || !email) {
-      console.log('[AttendeeDetail] Cannot start conversation - missing user or attendee email');
-      Alert.alert('Error', 'Unable to start conversation. Please try again.');
-      return;
-    }
-
-    if (user.email === email) {
-      console.log('[AttendeeDetail] Cannot message yourself');
-      Alert.alert('Error', 'You cannot message yourself.');
-      return;
-    }
-
-    console.log('[AttendeeDetail] Starting conversation with:', email);
-    setStartingConversation(true);
-
-    try {
-      const conversation = await createOrGetConversation(user.email, email);
-      console.log('[AttendeeDetail] Conversation created/retrieved:', conversation.id);
-
-      router.push({
-        pathname: '/conversation/[id]',
-        params: {
-          id: conversation.id,
-          otherParticipantName: name,
-        },
-      });
-    } catch (err) {
-      console.error('[AttendeeDetail] Error starting conversation:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Unable to start conversation';
-      
-      Alert.alert('Error', errorMessage);
-    } finally {
-      setStartingConversation(false);
-    }
-  };
-
   return (
     <>
       <Stack.Screen
@@ -97,6 +55,18 @@ export default function AttendeeDetailScreen() {
             backgroundColor: isDark ? colors.backgroundDark : colors.background,
           },
           headerTintColor: textColor,
+          headerRight: ENABLE_MODERATION_ACTIONS
+            ? () => (
+                <TouchableOpacity style={{ marginRight: 8, padding: 8 }}>
+                  <IconSymbol
+                    ios_icon_name="ellipsis.circle"
+                    android_material_icon_name="more-vert"
+                    size={24}
+                    color={textColor}
+                  />
+                </TouchableOpacity>
+              )
+            : undefined,
         }}
       />
 
@@ -156,32 +126,44 @@ export default function AttendeeDetailScreen() {
             ) : null}
           </View>
 
-          <View style={styles.actionsSection}>
-            <TouchableOpacity
+          {ENABLE_MESSAGING ? (
+            <View style={styles.actionsSection}>
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: cardBg }]}
+                activeOpacity={0.7}
+              >
+                <IconSymbol
+                  ios_icon_name="message.fill"
+                  android_material_icon_name="message"
+                  size={24}
+                  color={colors.primary}
+                />
+                <Text style={[styles.actionButtonText, { color: textColor }]}>Message</Text>
+              </TouchableOpacity>
+            </View>
+          ) : null}
+
+          {!ENABLE_MESSAGING ? (
+            <View
               style={[
-                styles.actionButton,
-                { backgroundColor: colors.primary },
-                startingConversation && styles.actionButtonDisabled,
+                styles.messageDisabledNote,
+                {
+                  backgroundColor: cardBg,
+                  borderColor: borderColorValue,
+                },
               ]}
-              onPress={handleMessagePress}
-              disabled={startingConversation}
-              activeOpacity={0.7}
             >
-              {startingConversation ? (
-                <ActivityIndicator size="small" color="#FFFFFF" />
-              ) : (
-                <>
-                  <IconSymbol
-                    ios_icon_name="message.fill"
-                    android_material_icon_name="message"
-                    size={24}
-                    color="#FFFFFF"
-                  />
-                  <Text style={styles.actionButtonText}>Message</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
+              <IconSymbol
+                ios_icon_name="info.circle.fill"
+                android_material_icon_name="info"
+                size={20}
+                color={secondaryTextColor}
+              />
+              <Text style={[styles.messageDisabledText, { color: secondaryTextColor }]}>
+                Attendee messaging will be enabled during the conference.
+              </Text>
+            </View>
+          ) : null}
         </ScrollView>
       </SafeAreaView>
     </>
@@ -272,13 +254,29 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 3,
   },
-  actionButtonDisabled: {
-    opacity: 0.6,
-  },
   actionButtonText: {
-    color: '#FFFFFF',
     fontSize: 14,
     fontWeight: '600',
     marginTop: 8,
+  },
+  messageDisabledNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 16,
+    padding: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  messageDisabledText: {
+    fontSize: 13,
+    marginLeft: 8,
+    flex: 1,
+    lineHeight: 18,
   },
 });

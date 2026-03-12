@@ -1,156 +1,242 @@
 
-import React from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
-  useColorScheme,
-} from 'react-native';
-import { Stack, useRouter } from 'expo-router';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { IconSymbol } from '@/components/IconSymbol';
-import { colors } from '@/styles/commonStyles';
-import { useAuth } from '@/contexts/AuthContext';
-
-interface MenuItem {
-  id: string;
-  title: string;
-  ios_icon: string;
-  android_icon: string;
-  route: string;
-}
-
-const MENU_ITEMS: MenuItem[] = [
-  {
-    id: 'messages',
-    title: 'Messages',
-    ios_icon: 'message.fill',
-    android_icon: 'message',
-    route: '/conversations',
-  },
-  {
-    id: 'blocked-users',
-    title: 'Blocked Users',
-    ios_icon: 'hand.raised.fill',
-    android_icon: 'block',
-    route: '/blocked-users',
-  },
-  {
-    id: 'venue',
-    title: 'Venue Information',
-    ios_icon: 'building.2.fill',
-    android_icon: 'business',
-    route: '/venue',
-  },
-  {
-    id: 'about',
-    title: 'About',
-    ios_icon: 'info.circle.fill',
-    android_icon: 'info',
-    route: '/about',
-  },
-];
+import React, { useState } from "react";
+import { StyleSheet, View, Text, ScrollView, useColorScheme, TouchableOpacity, Modal } from "react-native";
+import { Stack, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { useAuth } from "@/contexts/AuthContext";
+import { colors } from "@/styles/commonStyles";
+import { IconSymbol } from "@/components/IconSymbol";
 
 export default function MoreScreen() {
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
+  const { user, logout } = useAuth();
   const router = useRouter();
-  const { logout } = useAuth();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
   const textColor = isDark ? colors.textDark : colors.text;
   const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
   const cardBg = isDark ? colors.cardDark : colors.card;
-  const borderColorValue = isDark ? colors.borderDark : colors.border;
-
-  const handleMenuPress = (route: string) => {
-    console.log('[More] Menu item pressed:', route);
-    console.log('[More] Router object:', router);
-    try {
-      router.push(route as any);
-      console.log('[More] Navigation initiated successfully');
-    } catch (error) {
-      console.error('[More] Navigation error:', error);
-    }
-  };
 
   const handleLogout = async () => {
-    console.log('[More] User initiated logout');
+    console.log('User confirmed logout');
+    setShowLogoutModal(false);
     try {
       await logout();
       router.replace('/login');
     } catch (error) {
-      console.error('[More] Logout error:', error);
+      console.error('Logout error:', error);
     }
+  };
+
+  const handleAboutPress = () => {
+    console.log('User tapped About button');
+    router.push('/about');
+  };
+
+  const handleVenuePress = () => {
+    console.log('User tapped Venue button');
+    router.push('/venue');
+  };
+
+  const handleSpeakersPress = () => {
+    console.log('User tapped Speakers button');
+    router.push('/speakers');
   };
 
   return (
     <>
-      <Stack.Screen
-        options={{
-          headerShown: false,
-        }}
+      <Stack.Screen 
+        options={{ 
+          headerShown: true,
+          title: 'More',
+          headerStyle: {
+            backgroundColor: isDark ? colors.backgroundDark : colors.background,
+          },
+          headerTintColor: textColor,
+          headerLargeTitle: true,
+        }} 
       />
-
-      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['top', 'bottom']}>
-        <View style={[styles.header, { borderBottomColor: borderColorValue }]}>
-          <Text style={[styles.headerTitle, { color: textColor }]}>More</Text>
-        </View>
-
+      <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <View style={styles.menuSection}>
-            {MENU_ITEMS.map((item, index) => (
-              <React.Fragment key={item.id}>
-                <TouchableOpacity
-                  style={[
-                    styles.menuItem,
-                    { backgroundColor: cardBg, borderColor: borderColorValue },
-                  ]}
-                  onPress={() => handleMenuPress(item.route)}
-                  activeOpacity={0.7}
-                >
-                  <View style={styles.menuItemLeft}>
-                    <View style={[styles.iconCircle, { backgroundColor: colors.primary + '20' }]}>
-                      <IconSymbol
-                        ios_icon_name={item.ios_icon}
-                        android_material_icon_name={item.android_icon}
-                        size={22}
-                        color={colors.primary}
-                      />
-                    </View>
-                    <Text style={[styles.menuItemText, { color: textColor }]}>{item.title}</Text>
-                  </View>
-                  <IconSymbol
-                    ios_icon_name="chevron.right"
-                    android_material_icon_name="chevron-right"
-                    size={20}
-                    color={secondaryTextColor}
-                  />
-                </TouchableOpacity>
-                {index < MENU_ITEMS.length - 1 && (
-                  <View style={[styles.separator, { backgroundColor: borderColorValue }]} />
-                )}
-              </React.Fragment>
-            ))}
+          {user && (
+            <View style={[styles.card, { backgroundColor: cardBg }]}>
+              <View style={styles.profileHeader}>
+                <View style={[styles.avatar, { backgroundColor: colors.primary }]}>
+                  <Text style={styles.avatarText}>
+                    {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                  </Text>
+                </View>
+                <View style={styles.profileInfo}>
+                  <Text style={[styles.profileName, { color: textColor }]}>
+                    {user.displayName}
+                  </Text>
+                  <Text style={[styles.profileEmail, { color: secondaryTextColor }]}>
+                    {user.email}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
+
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: secondaryTextColor }]}>
+              CONFERENCE
+            </Text>
+            
+            <TouchableOpacity 
+              style={[styles.menuItem, { backgroundColor: cardBg }]}
+              onPress={handleAboutPress}
+            >
+              <IconSymbol
+                ios_icon_name="info.circle"
+                android_material_icon_name="info"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[styles.menuText, { color: textColor }]}>
+                About
+              </Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="arrow-forward"
+                size={20}
+                color={secondaryTextColor}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.menuItem, { backgroundColor: cardBg }]}
+              onPress={handleVenuePress}
+            >
+              <IconSymbol
+                ios_icon_name="building.2.fill"
+                android_material_icon_name="location-city"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[styles.menuText, { color: textColor }]}>
+                Venue
+              </Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="arrow-forward"
+                size={20}
+                color={secondaryTextColor}
+              />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.menuItem, { backgroundColor: cardBg }]}
+              onPress={handleSpeakersPress}
+            >
+              <IconSymbol
+                ios_icon_name="person.2"
+                android_material_icon_name="group"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[styles.menuText, { color: textColor }]}>
+                Speakers
+              </Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="arrow-forward"
+                size={20}
+                color={secondaryTextColor}
+              />
+            </TouchableOpacity>
           </View>
 
-          <TouchableOpacity
-            style={[styles.logoutButton, { backgroundColor: colors.error }]}
-            onPress={handleLogout}
-            activeOpacity={0.7}
-          >
-            <IconSymbol
-              ios_icon_name="arrow.right.square.fill"
-              android_material_icon_name="logout"
-              size={22}
-              color="#FFFFFF"
-            />
-            <Text style={styles.logoutButtonText}>Sign Out</Text>
-          </TouchableOpacity>
+          <View style={styles.section}>
+            <Text style={[styles.sectionTitle, { color: secondaryTextColor }]}>
+              ACCOUNT
+            </Text>
+
+            <TouchableOpacity
+              style={[styles.menuItem, { backgroundColor: cardBg }]}
+              onPress={() => router.push('/(tabs)/profile')}
+            >
+              <IconSymbol
+                ios_icon_name="person.circle.fill"
+                android_material_icon_name="account-circle"
+                size={24}
+                color={colors.primary}
+              />
+              <Text style={[styles.menuText, { color: textColor }]}>
+                My Profile & Privacy
+              </Text>
+              <IconSymbol
+                ios_icon_name="chevron.right"
+                android_material_icon_name="arrow-forward"
+                size={20}
+                color={secondaryTextColor}
+              />
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={[styles.menuItem, { backgroundColor: cardBg }]}
+              onPress={() => setShowLogoutModal(true)}
+            >
+              <IconSymbol
+                ios_icon_name="arrow.right.square"
+                android_material_icon_name="exit-to-app"
+                size={24}
+                color={colors.error}
+              />
+              <Text style={[styles.menuText, { color: colors.error }]}>
+                Sign Out
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.footer}>
+            <Text style={[styles.footerText, { color: secondaryTextColor }]}>
+              Port of the Future Conference 2026
+            </Text>
+            <Text style={[styles.footerText, { color: secondaryTextColor }]}>
+              Version 1.0.0
+            </Text>
+          </View>
         </ScrollView>
       </SafeAreaView>
+
+      <Modal
+        visible={showLogoutModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogoutModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: cardBg }]}>
+            <Text style={[styles.modalTitle, { color: textColor }]}>
+              Sign Out
+            </Text>
+            <Text style={[styles.modalMessage, { color: secondaryTextColor }]}>
+              Are you sure you want to sign out?
+            </Text>
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowLogoutModal(false)}
+              >
+                <Text style={[styles.modalButtonText, { color: textColor }]}>
+                  Cancel
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={handleLogout}
+              >
+                <Text style={[styles.modalButtonText, { color: '#FFFFFF' }]}>
+                  Sign Out
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -159,76 +245,120 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-  },
-  headerTitle: {
-    fontSize: 34,
-    fontWeight: 'bold',
-  },
   scrollView: {
     flex: 1,
   },
   scrollContent: {
     padding: 16,
   },
-  menuSection: {
+  card: {
     borderRadius: 12,
-    overflow: 'hidden',
+    padding: 16,
+    marginBottom: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
+  },
+  profileHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  avatar: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 16,
+  },
+  avatarText: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  profileInfo: {
+    flex: 1,
+  },
+  profileName: {
+    fontSize: 20,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  profileEmail: {
+    fontSize: 14,
+  },
+  section: {
+    marginBottom: 24,
+  },
+  sectionTitle: {
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    marginLeft: 4,
   },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 16,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-  },
-  menuItemLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  iconCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  menuItemText: {
-    fontSize: 17,
-    fontWeight: '500',
-  },
-  separator: {
-    height: 1,
-    marginLeft: 68,
-  },
-  logoutButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 24,
-    paddingVertical: 16,
+    padding: 16,
     borderRadius: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    marginBottom: 8,
   },
-  logoutButtonText: {
-    color: '#FFFFFF',
-    fontSize: 17,
+  menuText: {
+    fontSize: 16,
+    flex: 1,
+    marginLeft: 12,
+  },
+  footer: {
+    alignItems: 'center',
+    marginTop: 24,
+    marginBottom: 16,
+  },
+  footerText: {
+    fontSize: 12,
+    marginBottom: 4,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  modalContent: {
+    borderRadius: 12,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: 20,
     fontWeight: '600',
-    marginLeft: 8,
+    marginBottom: 12,
+  },
+  modalMessage: {
+    fontSize: 16,
+    marginBottom: 24,
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  modalButton: {
+    flex: 1,
+    padding: 14,
+    borderRadius: 8,
+    alignItems: 'center',
+  },
+  modalButtonCancel: {
+    backgroundColor: colors.border,
+  },
+  modalButtonConfirm: {
+    backgroundColor: colors.error,
+  },
+  modalButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
