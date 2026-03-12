@@ -68,7 +68,16 @@ async function fetchAirtableData(): Promise<PortResponse[]> {
     );
 
     clearTimeout(timeoutId);
+
+    if (!response.ok) {
+      return mockPorts;
+    }
+
     const data = (await response.json()) as { records: AirtableRecord[] };
+
+    if (!Array.isArray(data.records)) {
+      return mockPorts;
+    }
 
     const ports = data.records
       .map((record) => ({

@@ -1,8 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
-import { eq } from 'drizzle-orm';
-import * as schema from '../db/schema/schema.js';
 import type { App } from '../index.js';
-import { getAttendeesDirectory, type Attendee } from '../services/attendeeDirectory.js';
+import { getAttendeesDirectory } from '../services/attendeeDirectory.js';
 
 interface AttendeeListItem {
   email: string;
@@ -111,7 +109,7 @@ export function register(app: App, fastify: FastifyInstance) {
     {
       schema: {
         description:
-          'Get attendee details, respecting visibility toggles',
+          'Get attendee details from directory',
         tags: ['networking'],
         params: {
           type: 'object',
@@ -157,10 +155,9 @@ export function register(app: App, fastify: FastifyInstance) {
       reply: FastifyReply
     ) => {
       const { email } = request.params;
-      const { viewer_email } = request.query;
 
       app.logger.info(
-        { email, viewer_email },
+        { email },
         'Fetching attendee detail'
       );
 
@@ -180,40 +177,16 @@ export function register(app: App, fastify: FastifyInstance) {
         return reply.status(404).send({ error: 'Attendee not found' });
       }
 
-      let preferences = await app.db.query.userPreferences.findFirst({
-        where: eq(schema.userPreferences.email, attendee.email || ''),
-      });
-
-      if (!preferences) {
-        preferences = {
-          email: attendee.email || '',
-          acceptMessages: true,
-          showEmail: false,
-          showPhone: false,
-          showCompany: true,
-          showTitle: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-      }
-
-      const detail: any = {
+      const detail = {
         email: attendee.email,
         name: buildName(attendee.firstName, attendee.lastName),
+        title: attendee.title,
+        company: attendee.company,
+        registration_type: attendee.registrationType,
       };
 
-      if (preferences.showTitle) {
-        detail.title = attendee.title;
-      }
-
-      if (preferences.showCompany) {
-        detail.company = attendee.company;
-      }
-
-      detail.registration_type = attendee.registrationType;
-
       app.logger.info(
-        { email, viewer_email },
+        { email },
         'Attendee detail fetched successfully'
       );
       return detail;

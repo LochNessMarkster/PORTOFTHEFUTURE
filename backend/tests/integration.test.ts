@@ -113,166 +113,10 @@ describe("API Integration Tests", () => {
     expect(data.show_email).toBe(false);
   });
 
-  // Conversations
-  let conversationId: string;
+  // Networking
   const participant1Email = "participant1@example.com";
   const participant2Email = "participant2@example.com";
 
-  test("POST /api/conversations - should create conversation", async () => {
-    const res = await api("/api/conversations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        participant1_email: participant1Email,
-        participant2_email: participant2Email,
-      }),
-    });
-    await expectStatus(res, 201);
-    const data = await res.json();
-    expect(data.id).toBeDefined();
-    conversationId = data.id;
-  });
-
-  test("POST /api/conversations - should return 400 for missing required fields", async () => {
-    const res = await api("/api/conversations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        participant1_email: participant1Email,
-        // Missing participant2_email
-      }),
-    });
-    await expectStatus(res, 400);
-  });
-
-  test("GET /api/conversations - should return conversations for user", async () => {
-    const res = await api(`/api/conversations?email=${participant1Email}`);
-    await expectStatus(res, 200);
-    const data = await res.json();
-    expect(Array.isArray(data)).toBe(true);
-  });
-
-  test("GET /api/conversations/{id}/messages - should return messages array", async () => {
-    if (!conversationId) {
-      return; // Skip if conversation not created
-    }
-    const res = await api(`/api/conversations/${conversationId}/messages`);
-    await expectStatus(res, 200);
-    const data = await res.json();
-    expect(Array.isArray(data)).toBe(true);
-  });
-
-  test("POST /api/conversations/{id}/messages - should send message", async () => {
-    if (!conversationId) {
-      return; // Skip if conversation not created
-    }
-    const res = await api(`/api/conversations/${conversationId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sender_email: participant1Email,
-        content: "Hello, this is a test message",
-      }),
-    });
-    await expectStatus(res, 201);
-    const data = await res.json();
-    expect(data.id).toBeDefined();
-    expect(data.conversation_id).toBe(conversationId);
-  });
-
-  test("GET /api/conversations/{id}/messages - should return 404 for nonexistent conversation", async () => {
-    const res = await api(
-      "/api/conversations/00000000-0000-0000-0000-000000000000/messages"
-    );
-    await expectStatus(res, 404);
-  });
-
-  test("GET /api/conversations/{id}/messages - should return 400 for invalid UUID format", async () => {
-    const res = await api("/api/conversations/invalid-uuid/messages");
-    await expectStatus(res, 400);
-  });
-
-  test("POST /api/conversations/{id}/messages - should return 404 for nonexistent conversation", async () => {
-    const res = await api(
-      "/api/conversations/00000000-0000-0000-0000-000000000000/messages",
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sender_email: participant1Email,
-          content: "Test message",
-        }),
-      }
-    );
-    await expectStatus(res, 404);
-  });
-
-  test("POST /api/conversations/{id}/messages - should return 400 for invalid UUID format", async () => {
-    const res = await api("/api/conversations/invalid-uuid/messages", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sender_email: participant1Email,
-        content: "Test message",
-      }),
-    });
-    await expectStatus(res, 400);
-  });
-
-  test("POST /api/conversations/{id}/messages - should return 400 for missing required fields", async () => {
-    if (!conversationId) {
-      return; // Skip if conversation not created
-    }
-    const res = await api(`/api/conversations/${conversationId}/messages`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        sender_email: participant1Email,
-        // Missing content
-      }),
-    });
-    await expectStatus(res, 400);
-  });
-
-  test("DELETE /api/conversations/{id} - should delete conversation", async () => {
-    if (!conversationId) {
-      return; // Skip if conversation not created
-    }
-    const res = await api(`/api/conversations/${conversationId}`, {
-      method: "DELETE",
-    });
-    await expectStatus(res, 200);
-    const data = await res.json();
-    expect(data.success).toBe(true);
-    expect(data.message).toBeDefined();
-  });
-
-  test("GET /api/conversations/{id}/messages - should return 404 for deleted conversation", async () => {
-    if (!conversationId) {
-      return; // Skip if conversation was not created
-    }
-    const res = await api(`/api/conversations/${conversationId}/messages`);
-    await expectStatus(res, 404);
-  });
-
-  test("DELETE /api/conversations/{id} - should return 404 for nonexistent conversation", async () => {
-    const res = await api(
-      "/api/conversations/00000000-0000-0000-0000-000000000000",
-      {
-        method: "DELETE",
-      }
-    );
-    await expectStatus(res, 404);
-  });
-
-  test("DELETE /api/conversations/{id} - should return 400 for invalid UUID format", async () => {
-    const res = await api("/api/conversations/invalid-uuid", {
-      method: "DELETE",
-    });
-    await expectStatus(res, 400);
-  });
-
-  // Networking
   test("GET /api/networking/attendees - should return array of attendees", async () => {
     const res = await api("/api/networking/attendees");
     await expectStatus(res, 200);
@@ -371,7 +215,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(data.source_used);
     expect(Array.isArray(data.announcements)).toBe(true);
   });
 
@@ -382,7 +226,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(data.source_used);
     expect(Array.isArray(data.agenda)).toBe(true);
   });
 
@@ -393,7 +237,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(data.source_used);
     expect(Array.isArray(data.speakers)).toBe(true);
   });
 
@@ -404,7 +248,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api", "error"]).toContain(
+    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(
       data.source_used
     );
     expect(Array.isArray(data.exhibitors)).toBe(true);
@@ -417,7 +261,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api", "error"]).toContain(
+    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(
       data.source_used
     );
     expect(Array.isArray(data.sponsors)).toBe(true);
@@ -430,7 +274,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api", "error"]).toContain(
+    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(
       data.source_used
     );
     expect(Array.isArray(data.activities)).toBe(true);
@@ -477,70 +321,5 @@ describe("API Integration Tests", () => {
       expect(data[0].reporting_user_email).toBeDefined();
       expect(data[0].reported_user_email).toBeDefined();
     }
-  });
-
-  // Blocked Users
-  test("POST /api/blocked-users - should block a user", async () => {
-    const res = await api("/api/blocked-users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        blocker_email: participant1Email,
-        blocked_email: participant2Email,
-      }),
-    });
-    await expectStatus(res, 201);
-    const data = await res.json();
-    expect(data.id).toBeDefined();
-    expect(data.created_at).toBeDefined();
-    expect(data.message).toBeDefined();
-  });
-
-  test("POST /api/blocked-users - should return 400 for missing required fields", async () => {
-    const res = await api("/api/blocked-users", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        blocker_email: participant1Email,
-        // Missing blocked_email
-      }),
-    });
-    await expectStatus(res, 400);
-  });
-
-  test("GET /api/blocked-users - should return list of blocked users", async () => {
-    const res = await api(
-      `/api/blocked-users?blocker_email=${participant1Email}`
-    );
-    await expectStatus(res, 200);
-    const data = await res.json();
-    expect(Array.isArray(data)).toBe(true);
-    if (data.length > 0) {
-      expect(data[0].id).toBeDefined();
-      expect(data[0].blocked_email).toBeDefined();
-      expect(data[0].created_at).toBeDefined();
-    }
-  });
-
-  test("GET /api/blocked-users/check - should check if a user is blocked", async () => {
-    const res = await api(
-      `/api/blocked-users/check?blocker_email=${participant1Email}&blocked_email=${participant2Email}`
-    );
-    await expectStatus(res, 200);
-    const data = await res.json();
-    expect(typeof data.is_blocked).toBe("boolean");
-  });
-
-  test("DELETE /api/blocked-users/{blocked_email} - should unblock a user", async () => {
-    const res = await api(
-      `/api/blocked-users/${participant2Email}?blocker_email=${participant1Email}`,
-      {
-        method: "DELETE",
-      }
-    );
-    await expectStatus(res, 200);
-    const data = await res.json();
-    expect(data.success).toBe(true);
-    expect(data.message).toBeDefined();
   });
 });

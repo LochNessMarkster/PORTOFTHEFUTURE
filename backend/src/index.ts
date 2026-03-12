@@ -4,7 +4,6 @@ import * as portsRoutes from './routes/ports.js';
 import * as presentationsRoutes from './routes/presentations.js';
 import * as floorplanRoutes from './routes/floorplan.js';
 import * as preferencesRoutes from './routes/preferences.js';
-import * as conversationsRoutes from './routes/conversations.js';
 import * as networkingRoutes from './routes/networking.js';
 import * as attendeesDirectoryRoutes from './routes/attendeesDirectory.js';
 import * as authRoutes from './routes/auth.js';
@@ -15,7 +14,6 @@ import * as exhibitorsRoutes from './routes/exhibitors.js';
 import * as sponsorsRoutes from './routes/sponsors.js';
 import * as activitiesRoutes from './routes/activities.js';
 import * as reportsRoutes from './routes/reports.js';
-import * as blockedUsersRoutes from './routes/blockedUsers.js';
 
 // Create application with schema for full database type support
 export const app = await createApplication(schema);
@@ -29,7 +27,6 @@ portsRoutes.register(app, app.fastify);
 presentationsRoutes.register(app, app.fastify);
 floorplanRoutes.register(app, app.fastify);
 preferencesRoutes.register(app, app.fastify);
-conversationsRoutes.register(app, app.fastify);
 networkingRoutes.register(app, app.fastify);
 attendeesDirectoryRoutes.register(app, app.fastify);
 authRoutes.register(app, app.fastify);
@@ -40,7 +37,6 @@ exhibitorsRoutes.register(app, app.fastify);
 sponsorsRoutes.register(app, app.fastify);
 activitiesRoutes.register(app, app.fastify);
 reportsRoutes.register(app, app.fastify);
-blockedUsersRoutes.register(app, app.fastify);
 
 await app.run();
 app.logger.info('Application running');
