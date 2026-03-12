@@ -1,3 +1,4 @@
+
 import React, { useMemo } from 'react';
 import {
   View,
@@ -6,6 +7,7 @@ import {
   ScrollView,
   useColorScheme,
   TouchableOpacity,
+  Linking,
 } from 'react-native';
 import { Stack, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -126,42 +128,21 @@ export default function AttendeeDetailScreen() {
             ) : null}
           </View>
 
-          {ENABLE_MESSAGING ? (
+          {email ? (
             <View style={styles.actionsSection}>
               <TouchableOpacity
                 style={[styles.actionButton, { backgroundColor: cardBg }]}
                 activeOpacity={0.7}
+                onPress={() => Linking.openURL(`mailto:${email}`)}
               >
                 <IconSymbol
-                  ios_icon_name="message.fill"
-                  android_material_icon_name="message"
+                  ios_icon_name="envelope.fill"
+                  android_material_icon_name="email"
                   size={24}
                   color={colors.primary}
                 />
-                <Text style={[styles.actionButtonText, { color: textColor }]}>Message</Text>
+                <Text style={[styles.actionButtonText, { color: textColor }]}>Send Email</Text>
               </TouchableOpacity>
-            </View>
-          ) : null}
-
-          {!ENABLE_MESSAGING ? (
-            <View
-              style={[
-                styles.messageDisabledNote,
-                {
-                  backgroundColor: cardBg,
-                  borderColor: borderColorValue,
-                },
-              ]}
-            >
-              <IconSymbol
-                ios_icon_name="info.circle.fill"
-                android_material_icon_name="info"
-                size={20}
-                color={secondaryTextColor}
-              />
-              <Text style={[styles.messageDisabledText, { color: secondaryTextColor }]}>
-                Attendee messaging will be enabled during the conference.
-              </Text>
             </View>
           ) : null}
         </ScrollView>
@@ -258,25 +239,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     marginTop: 8,
-  },
-  messageDisabledNote: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 16,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 2,
-    elevation: 2,
-  },
-  messageDisabledText: {
-    fontSize: 13,
-    marginLeft: 8,
-    flex: 1,
-    lineHeight: 18,
   },
 });

@@ -5,41 +5,11 @@ import FloatingTabBar, { TabBarItem } from '@/components/FloatingTabBar';
 
 export default function TabLayout() {
   const tabs: TabBarItem[] = [
-    {
-      name: '(home)',
-      route: '/(tabs)/(home)/',
-      icon: 'home',
-      iosIcon: 'house.fill',
-      label: 'Home',
-    },
-    {
-      name: 'agenda',
-      route: '/agenda',
-      icon: 'calendar-today',
-      iosIcon: 'calendar',
-      label: 'Agenda',
-    },
-    {
-      name: 'my-schedule',
-      route: '/my-schedule',
-      icon: 'bookmark',
-      iosIcon: 'bookmark.fill',
-      label: 'My Schedule',
-    },
-    {
-      name: 'speakers',
-      route: '/speakers',
-      icon: 'person',
-      iosIcon: 'person.fill',
-      label: 'Speakers',
-    },
-    {
-      name: 'more',
-      route: '/(tabs)/more',
-      icon: 'menu',
-      iosIcon: 'line.3.horizontal',
-      label: 'More',
-    },
+    { name: '(home)', route: '/(tabs)/(home)/', icon: 'home', iosIcon: 'house.fill', label: 'Home' },
+    { name: 'agenda', route: '/agenda', icon: 'calendar-today', iosIcon: 'calendar', label: 'Agenda' },
+    { name: 'my-schedule', route: '/my-schedule', icon: 'bookmark', iosIcon: 'bookmark.fill', label: 'My Schedule' },
+    { name: 'speakers', route: '/speakers', icon: 'person', iosIcon: 'person.fill', label: 'Speakers' },
+    { name: 'more', route: '/(tabs)/more', icon: 'menu', iosIcon: 'line.3.horizontal', label: 'More' },
   ];
 
   // Debug logging for tab configuration

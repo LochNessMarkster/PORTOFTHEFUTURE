@@ -51,7 +51,6 @@ export default function RootLayout() {
           <Stack.Screen name="floor-plan" options={{ headerShown: true, title: 'Floor Plan' }} />
           <Stack.Screen name="networking" options={{ headerShown: true, title: 'Networking' }} />
           <Stack.Screen name="attendee-detail" options={{ headerShown: true, title: 'Attendee Details' }} />
-          <Stack.Screen name="conversation/[id]" options={{ headerShown: true, title: 'Conversation' }} />
           <Stack.Screen name="blocked-users" options={{ headerShown: true, title: 'Blocked Users' }} />
           <Stack.Screen name="announcement-detail" options={{ headerShown: true, title: 'Announcement' }} />
           <Stack.Screen name="about" options={{ headerShown: true, title: 'About' }} />
