@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -260,23 +261,6 @@ export default function NetworkingScreen() {
           </View>
         </View>
 
-        <View
-          style={[
-            styles.messagingBanner,
-            { backgroundColor: cardBg, borderColor: borderColorValue },
-          ]}
-        >
-          <IconSymbol
-            ios_icon_name="message.fill"
-            android_material_icon_name="message"
-            size={20}
-            color={secondaryTextColor}
-          />
-          <Text style={[styles.messagingBannerText, { color: secondaryTextColor }]}>
-            Attendee messaging will be enabled during the conference.
-          </Text>
-        </View>
-
         <View style={styles.searchContainer}>
           <View
             style={[
@@ -333,22 +317,6 @@ const styles = StyleSheet.create({
   headerBarText: {
     fontSize: 15,
     fontWeight: '600',
-  },
-  messagingBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginHorizontal: 16,
-    marginTop: 12,
-    marginBottom: 4,
-    padding: 12,
-    borderRadius: 12,
-    borderWidth: 1,
-    gap: 8,
-  },
-  messagingBannerText: {
-    fontSize: 13,
-    lineHeight: 18,
-    flex: 1,
   },
   searchContainer: {
     paddingHorizontal: 16,

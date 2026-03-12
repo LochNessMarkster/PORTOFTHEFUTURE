@@ -1,17 +1,21 @@
 
 import React, { useState, useCallback } from "react";
-import { View, Text, StyleSheet, ScrollView, Platform, TouchableOpacity, Switch, ActivityIndicator, useColorScheme } from "react-native";
-
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, Switch, ActivityIndicator, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { IconSymbol } from "@/components/IconSymbol";
 import { Stack, useRouter, useFocusEffect } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { colors } from "@/styles/commonStyles";
-import { fetchPreferences, updatePreferences, UserPreferences } from "@/utils/airtable";
+import * as SecureStore from 'expo-secure-store';
 
+interface UserPreferences {
+  show_email: boolean;
+  show_phone: boolean;
+  show_company: boolean;
+  show_title: boolean;
+}
 
 export default function ProfileScreen() {
-
   const colorScheme = useColorScheme();
   const isDark = colorScheme === 'dark';
   const { user } = useAuth();
@@ -30,25 +34,29 @@ export default function ProfileScreen() {
 
   const loadPreferences = useCallback(async () => {
     if (!user?.email) {
-      console.log('[Profile] No user email available, skipping preferences load');
       setLoadingPrefs(false);
       return;
     }
-    console.log('[Profile] Loading preferences for:', user.email);
     try {
       setLoadingPrefs(true);
       setPrefsError(null);
-      const prefs = await fetchPreferences(user.email);
-      console.log('[Profile] Preferences loaded successfully:', prefs);
-      setPreferences(prefs);
+      const stored = await SecureStore.getItemAsync('potf_preferences');
+      if (stored) {
+        setPreferences(JSON.parse(stored));
+      } else {
+        const defaults: UserPreferences = {
+          show_email: false,
+          show_phone: false,
+          show_company: true,
+          show_title: true,
+        };
+        await SecureStore.setItemAsync('potf_preferences', JSON.stringify(defaults));
+        setPreferences(defaults);
+      }
     } catch (err) {
-      console.error('[Profile] Error loading preferences:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load preferences';
-      console.error('[Profile] Error message:', errorMessage);
-      setPrefsError(errorMessage);
+      setPrefsError('Failed to load preferences');
     } finally {
       setLoadingPrefs(false);
-      console.log('[Profile] Preferences loading complete');
     }
   }, [user?.email]);
 
@@ -64,24 +72,16 @@ export default function ProfileScreen() {
     }, [user?.email, loadPreferences])
   );
 
-  const handleToggle = async (key: keyof Omit<UserPreferences, 'email'>, value: boolean) => {
-    if (!user?.email || !preferences) return;
-    console.log('[Profile] Updating preference:', key, '=', value);
-
-    // Optimistic update
+  const handleToggle = async (key: keyof UserPreferences, value: boolean) => {
+    if (!preferences) return;
     const updated = { ...preferences, [key]: value };
     setPreferences(updated);
-
     try {
       setSavingPrefs(true);
-      const saved = await updatePreferences(user.email, { [key]: value });
-      setPreferences(saved);
-      console.log('[Profile] Preference saved successfully:', key);
+      await SecureStore.setItemAsync('potf_preferences', JSON.stringify(updated));
     } catch (err) {
-      console.error('[Profile] Error saving preference:', err);
-      // Revert on error
       setPreferences(preferences);
-      setPrefsError(err instanceof Error ? err.message : 'Failed to save preference');
+      setPrefsError('Failed to save preference');
     } finally {
       setSavingPrefs(false);
     }
@@ -95,8 +95,6 @@ export default function ProfileScreen() {
     return initials || user.email.charAt(0).toUpperCase();
   };
 
-
-
   return (
     <React.Fragment>
       <Stack.Screen
@@ -109,197 +107,133 @@ export default function ProfileScreen() {
       />
       <SafeAreaView style={styles.safeArea} edges={['bottom']}>
         <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
-
-
-
-        {/* Profile Header */}
-        <View style={[styles.profileHeader, { backgroundColor: cardBg }]}>
-          <View style={[styles.avatarCircle, { backgroundColor: colors.primary + '20' }]}>
-            <Text style={[styles.avatarText, { color: colors.primary }]}>{getInitials()}</Text>
-          </View>
-          <Text style={[styles.name, { color: textColor }]}>{user?.displayName || 'Attendee'}</Text>
-          <Text style={[styles.email, { color: secondaryTextColor }]}>{user?.email || ''}</Text>
-          {user?.company ? (
-            <Text style={[styles.company, { color: secondaryTextColor }]}>{user.company}</Text>
-          ) : null}
-          {user?.title ? (
-            <Text style={[styles.title, { color: secondaryTextColor }]}>{user.title}</Text>
-          ) : null}
-        </View>
-
-        {/* Messages Button */}
-        <TouchableOpacity
-          style={[styles.messagesButton, { backgroundColor: colors.primary }]}
-          onPress={() => router.push('/networking')}
-          activeOpacity={0.8}
-        >
-          <IconSymbol
-            ios_icon_name="message.fill"
-            android_material_icon_name="message"
-            size={22}
-            color="#FFFFFF"
-          />
-          <Text style={styles.messagesButtonText}>My Messages</Text>
-          <IconSymbol
-            ios_icon_name="chevron.right"
-            android_material_icon_name="chevron-right"
-            size={18}
-            color="#FFFFFF"
-          />
-        </TouchableOpacity>
-
-        {/* Blocked Users Button */}
-        <TouchableOpacity
-          style={[styles.blockedUsersButton, { backgroundColor: cardBg, borderColor: borderColorValue }]}
-          onPress={() => router.push('/blocked-users')}
-          activeOpacity={0.7}
-        >
-          <IconSymbol
-            ios_icon_name="hand.raised.fill"
-            android_material_icon_name="block"
-            size={22}
-            color={colors.error}
-          />
-          <Text style={[styles.blockedUsersButtonText, { color: textColor }]}>Blocked Users</Text>
-          <IconSymbol
-            ios_icon_name="chevron.right"
-            android_material_icon_name="chevron-right"
-            size={18}
-            color={secondaryTextColor}
-          />
-        </TouchableOpacity>
-
-        {/* Privacy Preferences */}
-        <View style={[styles.section, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
-          <View style={styles.sectionHeader}>
-            <IconSymbol
-              ios_icon_name="lock.shield.fill"
-              android_material_icon_name="security"
-              size={20}
-              color={colors.primary}
-            />
-            <Text style={[styles.sectionTitle, { color: textColor }]}>Privacy Settings</Text>
-            {savingPrefs && <ActivityIndicator size="small" color={colors.primary} style={styles.savingIndicator} />}
+          {/* Profile Header */}
+          <View style={[styles.profileHeader, { backgroundColor: cardBg }]}>
+            <View style={[styles.avatarCircle, { backgroundColor: colors.primary + '20' }]}>
+              <Text style={[styles.avatarText, { color: colors.primary }]}>{getInitials()}</Text>
+            </View>
+            <Text style={[styles.name, { color: textColor }]}>{user?.displayName || 'Attendee'}</Text>
+            <Text style={[styles.email, { color: secondaryTextColor }]}>{user?.email || ''}</Text>
+            {user?.company ? (
+              <Text style={[styles.company, { color: secondaryTextColor }]}>{user.company}</Text>
+            ) : null}
+            {user?.title ? (
+              <Text style={[styles.title, { color: secondaryTextColor }]}>{user.title}</Text>
+            ) : null}
           </View>
 
-          {prefsError ? (
-            <View style={styles.errorContainer}>
-              <Text style={[styles.errorText, { color: colors.error }]}>{prefsError}</Text>
-              <TouchableOpacity
-                style={[styles.retryButton, { backgroundColor: colors.primary }]}
-                onPress={loadPreferences}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.retryButtonText}>Retry</Text>
-              </TouchableOpacity>
+          {/* Privacy Preferences */}
+          <View style={[styles.section, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+            <View style={styles.sectionHeader}>
+              <IconSymbol
+                ios_icon_name="lock.shield.fill"
+                android_material_icon_name="security"
+                size={20}
+                color={colors.primary}
+              />
+              <Text style={[styles.sectionTitle, { color: textColor }]}>Privacy Settings</Text>
+              {savingPrefs && <ActivityIndicator size="small" color={colors.primary} style={styles.savingIndicator} />}
             </View>
-          ) : null}
 
-          {loadingPrefs ? (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="small" color={colors.primary} />
-              <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading privacy settings...</Text>
-            </View>
-          ) : preferences ? (
-            <>
-              <View style={[styles.preferenceRow, { borderBottomColor: borderColorValue }]}>
-                <View style={styles.preferenceInfo}>
-                  <Text style={[styles.preferenceLabel, { color: textColor }]}>Accept Messages</Text>
-                  <Text style={[styles.preferenceDesc, { color: secondaryTextColor }]}>
-                    Allow other attendees to message you
-                  </Text>
-                </View>
-                <Switch
-                  value={preferences.accept_messages}
-                  onValueChange={(v) => handleToggle('accept_messages', v)}
-                  trackColor={{ false: borderColorValue, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
+            {prefsError ? (
+              <View style={styles.errorContainer}>
+                <Text style={[styles.errorText, { color: colors.error }]}>{prefsError}</Text>
+                <TouchableOpacity
+                  style={[styles.retryButton, { backgroundColor: colors.primary }]}
+                  onPress={loadPreferences}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.retryButtonText}>Retry</Text>
+                </TouchableOpacity>
               </View>
+            ) : null}
 
-              <View style={[styles.preferenceRow, { borderBottomColor: borderColorValue }]}>
-                <View style={styles.preferenceInfo}>
-                  <Text style={[styles.preferenceLabel, { color: textColor }]}>Show Email</Text>
-                  <Text style={[styles.preferenceDesc, { color: secondaryTextColor }]}>
-                    Display your email on your profile
-                  </Text>
-                </View>
-                <Switch
-                  value={preferences.show_email}
-                  onValueChange={(v) => handleToggle('show_email', v)}
-                  trackColor={{ false: borderColorValue, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
+            {loadingPrefs ? (
+              <View style={styles.loadingContainer}>
+                <ActivityIndicator size="small" color={colors.primary} />
+                <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading privacy settings...</Text>
               </View>
+            ) : preferences ? (
+              <>
+                <View style={[styles.preferenceRow, { borderBottomColor: borderColorValue }]}>
+                  <View style={styles.preferenceInfo}>
+                    <Text style={[styles.preferenceLabel, { color: textColor }]}>Show Email</Text>
+                    <Text style={[styles.preferenceDesc, { color: secondaryTextColor }]}>
+                      Display your email on your profile
+                    </Text>
+                  </View>
+                  <Switch
+                    value={preferences.show_email}
+                    onValueChange={(v) => handleToggle('show_email', v)}
+                    trackColor={{ false: borderColorValue, true: colors.primary }}
+                    thumbColor="#FFFFFF"
+                  />
+                </View>
 
-              <View style={[styles.preferenceRow, { borderBottomColor: borderColorValue }]}>
-                <View style={styles.preferenceInfo}>
-                  <Text style={[styles.preferenceLabel, { color: textColor }]}>Show Phone</Text>
-                  <Text style={[styles.preferenceDesc, { color: secondaryTextColor }]}>
-                    Display your phone number on your profile
-                  </Text>
+                <View style={[styles.preferenceRow, { borderBottomColor: borderColorValue }]}>
+                  <View style={styles.preferenceInfo}>
+                    <Text style={[styles.preferenceLabel, { color: textColor }]}>Show Phone</Text>
+                    <Text style={[styles.preferenceDesc, { color: secondaryTextColor }]}>
+                      Display your phone number on your profile
+                    </Text>
+                  </View>
+                  <Switch
+                    value={preferences.show_phone}
+                    onValueChange={(v) => handleToggle('show_phone', v)}
+                    trackColor={{ false: borderColorValue, true: colors.primary }}
+                    thumbColor="#FFFFFF"
+                  />
                 </View>
-                <Switch
-                  value={preferences.show_phone}
-                  onValueChange={(v) => handleToggle('show_phone', v)}
-                  trackColor={{ false: borderColorValue, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
 
-              <View style={[styles.preferenceRow, { borderBottomColor: borderColorValue }]}>
-                <View style={styles.preferenceInfo}>
-                  <Text style={[styles.preferenceLabel, { color: textColor }]}>Show Company</Text>
-                  <Text style={[styles.preferenceDesc, { color: secondaryTextColor }]}>
-                    Display your company on your profile
-                  </Text>
+                <View style={[styles.preferenceRow, { borderBottomColor: borderColorValue }]}>
+                  <View style={styles.preferenceInfo}>
+                    <Text style={[styles.preferenceLabel, { color: textColor }]}>Show Company</Text>
+                    <Text style={[styles.preferenceDesc, { color: secondaryTextColor }]}>
+                      Display your company on your profile
+                    </Text>
+                  </View>
+                  <Switch
+                    value={preferences.show_company}
+                    onValueChange={(v) => handleToggle('show_company', v)}
+                    trackColor={{ false: borderColorValue, true: colors.primary }}
+                    thumbColor="#FFFFFF"
+                  />
                 </View>
-                <Switch
-                  value={preferences.show_company}
-                  onValueChange={(v) => handleToggle('show_company', v)}
-                  trackColor={{ false: borderColorValue, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
-              </View>
 
-              <View style={[styles.preferenceRow, { borderBottomColor: 'transparent' }]}>
-                <View style={styles.preferenceInfo}>
-                  <Text style={[styles.preferenceLabel, { color: textColor }]}>Show Title</Text>
-                  <Text style={[styles.preferenceDesc, { color: secondaryTextColor }]}>
-                    Display your job title on your profile
-                  </Text>
+                <View style={[styles.preferenceRow, { borderBottomColor: 'transparent' }]}>
+                  <View style={styles.preferenceInfo}>
+                    <Text style={[styles.preferenceLabel, { color: textColor }]}>Show Title</Text>
+                    <Text style={[styles.preferenceDesc, { color: secondaryTextColor }]}>
+                      Display your job title on your profile
+                    </Text>
+                  </View>
+                  <Switch
+                    value={preferences.show_title}
+                    onValueChange={(v) => handleToggle('show_title', v)}
+                    trackColor={{ false: borderColorValue, true: colors.primary }}
+                    thumbColor="#FFFFFF"
+                  />
                 </View>
-                <Switch
-                  value={preferences.show_title}
-                  onValueChange={(v) => handleToggle('show_title', v)}
-                  trackColor={{ false: borderColorValue, true: colors.primary }}
-                  thumbColor="#FFFFFF"
-                />
+              </>
+            ) : !loadingPrefs && !prefsError ? (
+              <View style={styles.emptyContainer}>
+                <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
+                  No preferences available. Please try refreshing.
+                </Text>
+                <TouchableOpacity
+                  style={[styles.retryButton, { backgroundColor: colors.primary }]}
+                  onPress={loadPreferences}
+                  activeOpacity={0.7}
+                >
+                  <Text style={styles.retryButtonText}>Refresh</Text>
+                </TouchableOpacity>
               </View>
-            </>
-          ) : !loadingPrefs && !prefsError ? (
-            <View style={styles.emptyContainer}>
-              <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
-                No preferences available. Please try refreshing.
-              </Text>
-              <TouchableOpacity
-                style={[styles.retryButton, { backgroundColor: colors.primary }]}
-                onPress={loadPreferences}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.retryButtonText}>Refresh</Text>
-              </TouchableOpacity>
-            </View>
-          ) : null}
-        </View>
+            ) : null}
+          </View>
         </ScrollView>
       </SafeAreaView>
     </React.Fragment>
   );
-
-
-
-
 }
 
 const styles = StyleSheet.create({
@@ -312,9 +246,6 @@ const styles = StyleSheet.create({
   contentContainer: {
     padding: 16,
     paddingBottom: 40,
-  },
-  contentContainerWithTabBar: {
-    paddingBottom: 100,
   },
   profileHeader: {
     alignItems: 'center',
@@ -358,44 +289,6 @@ const styles = StyleSheet.create({
   title: {
     fontSize: 14,
     textAlign: 'center',
-  },
-  messagesButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    elevation: 4,
-  },
-  messagesButtonText: {
-    flex: 1,
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 12,
-  },
-  blockedUsersButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  blockedUsersButtonText: {
-    flex: 1,
-    fontSize: 16,
-    fontWeight: '600',
-    marginLeft: 12,
   },
   section: {
     borderRadius: 16,
