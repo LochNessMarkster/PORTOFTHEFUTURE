@@ -1,3 +1,4 @@
+
 {
   "expo": {
     "name": "Port of the Future Conference 2026",
@@ -16,7 +17,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.p225e5c6ed6234f6e9b3fb38923ce8d13.app",
-      "buildNumber": "12",
+      "buildNumber": "13",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app uses the camera to scan QR codes for networking.",
@@ -57,7 +58,7 @@
       "eas": {
         "projectId": "506e7535-6838-41bb-9454-d7521612e9ae"
       },
-      "backendUrl": "https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev"
+      "backendUrl": "https://portofthefuturecon-backend.specular.app"
     }
   }
 }
