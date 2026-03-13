@@ -27,7 +27,6 @@ function resolveImageSource(source: string | number | ImageSourcePropType | unde
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -38,20 +37,17 @@ export default function LoginScreen() {
     console.log('User tapped Login button');
     setError('');
     
-    if (!email.trim()) {
-      setError('Please enter your email');
-      return;
-    }
+    const trimmedEmail = email.trim();
     
-    if (!password) {
-      setError('Please enter your password');
+    if (!trimmedEmail) {
+      setError('Please enter your email');
       return;
     }
 
     setLoading(true);
     
     try {
-      await login(email, password);
+      await login(trimmedEmail);
       console.log('Navigating to home screen');
       router.replace('/(tabs)/(home)/');
     } catch (err: any) {
@@ -101,26 +97,15 @@ export default function LoginScreen() {
                 <Text style={styles.label}>Email</Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Enter your email"
+                  placeholder="Enter your registration email"
                   placeholderTextColor="rgba(255, 255, 255, 0.5)"
                   value={email}
                   onChangeText={setEmail}
                   autoCapitalize="none"
                   keyboardType="email-address"
                   editable={!loading}
-                />
-              </View>
-
-              <View style={styles.inputContainer}>
-                <Text style={styles.label}>Password</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter password"
-                  placeholderTextColor="rgba(255, 255, 255, 0.5)"
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                  editable={!loading}
+                  returnKeyType="go"
+                  onSubmitEditing={handleLogin}
                 />
               </View>
 
@@ -144,7 +129,7 @@ export default function LoginScreen() {
 
               <View style={styles.infoContainer}>
                 <Text style={styles.infoText}>
-                  Use your registered email and the conference password
+                  Please use the email address you used to register for the conference
                 </Text>
               </View>
             </View>

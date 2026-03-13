@@ -1,50 +1,13 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
-import { BACKEND_URL, Attendee } from '@/utils/airtable';
-
-// Cross-platform storage helpers (SecureStore doesn't work on web - use localStorage instead)
-const storage = {
-  getItem: async (key: string): Promise<string | null> => {
-    if (Platform.OS === 'web') {
-      try {
-        return localStorage.getItem(key);
-      } catch {
-        return null;
-      }
-    }
-    return SecureStore.getItemAsync(key);
-  },
-  setItem: async (key: string, value: string): Promise<void> => {
-    if (Platform.OS === 'web') {
-      try {
-        localStorage.setItem(key, value);
-      } catch {
-        // ignore
-      }
-      return;
-    }
-    await SecureStore.setItemAsync(key, value);
-  },
-  deleteItem: async (key: string): Promise<void> => {
-    if (Platform.OS === 'web') {
-      try {
-        localStorage.removeItem(key);
-      } catch {
-        // ignore
-      }
-      return;
-    }
-    await SecureStore.deleteItemAsync(key);
-  },
-};
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Attendee } from '@/utils/airtable';
 
 interface AuthContextType {
   user: Attendee | null;
   isLoading: boolean;
   isFirstLogin: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   markMessagingNoticeShown: () => Promise<void>;
 }
@@ -52,6 +15,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const MESSAGING_NOTICE_KEY = 'potf_messaging_notice_shown';
+const USER_KEY = 'potf_user';
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<Attendee | null>(null);
@@ -64,7 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loadUser = async () => {
     try {
-      const userJson = await storage.getItem('potf_user');
+      const userJson = await AsyncStorage.getItem(USER_KEY);
       if (userJson) {
         setUser(JSON.parse(userJson));
       }
@@ -75,55 +39,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (email: string, password: string) => {
-    console.log('[API] Login attempt:', email);
+  const login = async (email: string) => {
+    console.log('[Auth] Login attempt for email:', email);
 
     try {
-      // Call the backend /api/login endpoint which handles Airtable lookup and caching
-      console.log('[API] POST /api/login');
-      const response = await fetch(`${BACKEND_URL}/api/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.trim(), password }),
-      });
+      const normalizedEmail = email.toLowerCase().trim();
+      
+      // Fetch from the new Airtable cache endpoint
+      const airtableCacheUrl = 'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblqe1kPM95Cp4Srn';
+      
+      console.log('[Auth] Fetching from Airtable cache:', airtableCacheUrl);
+      const response = await fetch(airtableCacheUrl);
+      
+      if (!response.ok) {
+        throw new Error('Failed to connect to registration database. Please try again.');
+      }
 
       const data = await response.json();
+      console.log('[Auth] Received records:', data.records?.length || 0);
 
-      if (!response.ok) {
-        // Backend returns { error: string } on 401
-        throw new Error(data.error || 'Login failed. Please check your credentials.');
+      // Find matching email (case-insensitive)
+      const foundRecord = data.records?.find((record: any) => 
+        record.fields['Email']?.toLowerCase().trim() === normalizedEmail
+      );
+
+      if (!foundRecord) {
+        throw new Error('Email not found. Please use your registration email.');
       }
 
-      if (!data.success || !data.attendee) {
-        throw new Error('Login failed. Please try again.');
-      }
-
-      // Backend returns attendee with camelCase properties (firstName, lastName, etc.)
-      const foundAttendee = data.attendee;
-
-      // Ensure displayName is computed
-      const displayName = foundAttendee.displayName || `${foundAttendee.firstName} ${foundAttendee.lastName}`.trim();
+      // Map the Airtable fields to our Attendee interface
+      const fields = foundRecord.fields;
+      const firstName = (fields['First Name'] || '').trim();
+      const lastName = (fields['Last Name'] || '').trim();
+      const displayName = `${firstName} ${lastName}`.trim();
 
       const attendee: Attendee = {
-        firstName: foundAttendee.firstName || '',
-        lastName: foundAttendee.lastName || '',
-        email: foundAttendee.email || '',
-        company: foundAttendee.company,
-        title: foundAttendee.title,
-        phone: foundAttendee.phone,
-        registrationType: foundAttendee.registrationType,
-        emailLower: (foundAttendee.email || '').toLowerCase().trim(),
+        firstName,
+        lastName,
+        email: (fields['Email'] || '').trim(),
+        company: fields['Company'],
+        title: fields['Title'],
+        phone: fields['Phone'],
+        registrationType: fields['Registration Type'],
+        emailLower: normalizedEmail,
         displayName,
       };
 
-      console.log('[API] Login successful for:', attendee.displayName);
+      console.log('[Auth] Login successful for:', attendee.displayName);
 
-      // Store user
-      await storage.setItem('potf_user', JSON.stringify(attendee));
+      // Store user locally
+      await AsyncStorage.setItem(USER_KEY, JSON.stringify(attendee));
       setUser(attendee);
 
       // Check if this is the first time the user is logging in (messaging notice not shown)
-      const hasShownNotice = await storage.getItem(MESSAGING_NOTICE_KEY);
+      const hasShownNotice = await AsyncStorage.getItem(MESSAGING_NOTICE_KEY);
       console.log('[Auth] Messaging notice shown before:', hasShownNotice);
       
       if (!hasShownNotice) {
@@ -133,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setIsFirstLogin(false);
       }
     } catch (error) {
-      console.error('[API] Login error:', error);
+      console.error('[Auth] Login error:', error);
       if (error instanceof Error) {
         throw error;
       }
@@ -145,9 +114,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear local state immediately (don't wait for storage)
     setUser(null);
     setIsFirstLogin(false);
-    console.log('[API] User logged out');
+    console.log('[Auth] User logged out');
     try {
-      await storage.deleteItem('potf_user');
+      await AsyncStorage.removeItem(USER_KEY);
     } catch (error) {
       console.error('Error clearing stored user:', error);
     }
@@ -156,7 +125,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const markMessagingNoticeShown = async () => {
     console.log('[Auth] Marking messaging notice as shown');
     try {
-      await storage.setItem(MESSAGING_NOTICE_KEY, 'true');
+      await AsyncStorage.setItem(MESSAGING_NOTICE_KEY, 'true');
       setIsFirstLogin(false);
     } catch (error) {
       console.error('[Auth] Error marking messaging notice as shown:', error);

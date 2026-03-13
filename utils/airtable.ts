@@ -185,6 +185,22 @@ export interface RawPresentationFields {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// ATTENDEE (used for authentication)
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface Attendee {
+  firstName: string;
+  lastName: string;
+  email: string;
+  company?: string;
+  title?: string;
+  phone?: string;
+  registrationType?: string;
+  emailLower: string;
+  displayName: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SPEAKERS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -516,18 +532,6 @@ export const fetchPresentations = async (): Promise<Presentation[]> => {
 // ─────────────────────────────────────────────────────────────────────────────
 // ATTENDEES DIRECTORY
 // ─────────────────────────────────────────────────────────────────────────────
-
-export interface Attendee {
-  firstName: string;
-  lastName: string;
-  email: string;
-  company?: string;
-  title?: string;
-  phone?: string;
-  registrationType?: string;
-  emailLower: string;
-  displayName: string;
-}
 
 export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
   console.log('[Attendees] Fetching attendees from Airtable cache...');
