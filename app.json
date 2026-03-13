@@ -6,7 +6,7 @@
     "version": "1.0.2",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "portofthefuturecon",
+    "scheme": "portofthefuture",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
@@ -16,10 +16,12 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.portofthefutureconference.app",
+      "bundleIdentifier": "com.p225e5c6ed6234f6e9b3fb38923ce8d13.app",
       "buildNumber": "12",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for networking.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to let you share images."
       }
     },
     "android": {
