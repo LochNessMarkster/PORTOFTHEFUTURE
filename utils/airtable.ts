@@ -1,9 +1,5 @@
-
 // Airtable data fetching utilities for Port of the Future Conference
-// NOTE: Public conference data now uses Airtable cache directly for stability.
-// Messaging, conversations, reports, blocked users, and preferences still use backend API.
-
-import Constants from 'expo-constants';
+// All data uses Airtable cache directly for stability.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // AIRTABLE CACHE BASE
@@ -185,7 +181,7 @@ export interface RawPresentationFields {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ATTENDEE (used for authentication)
+// ATTENDEE
 // ─────────────────────────────────────────────────────────────────────────────
 
 export interface Attendee {
@@ -222,7 +218,7 @@ export interface Speaker {
 
 export interface SpeakersResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable' | 'airtable_api' | 'cached_stale' | 'error';
+  source_used: 'airtablecache';
   speakers: Speaker[];
 }
 
@@ -281,7 +277,7 @@ export interface Activity {
 
 export interface ActivitiesResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'airtable' | 'cached_stale' | 'error';
+  source_used: 'airtablecache';
   activities: Activity[];
 }
 
@@ -343,7 +339,7 @@ export interface Exhibitor {
 
 export interface ExhibitorsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
+  source_used: 'airtablecache';
   exhibitors: Exhibitor[];
 }
 
@@ -405,7 +401,7 @@ export interface Sponsor {
 
 export interface SponsorsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
+  source_used: 'airtablecache';
   sponsors: Sponsor[];
 }
 
@@ -478,9 +474,7 @@ export const fetchPorts = async (): Promise<Port[]> => {
   console.log('[Ports] Fetching ports...');
   const rawRecords = await fetchPaginatedAirtableData<RawPortFields>('tblrXosiVXKhJHYLu');
   const ports = rawRecords.map(mapAirtablePort).filter((p) => p.name);
-
   ports.sort((a, b) => a.name.localeCompare(b.name));
-
   console.log('[Ports] Ports sorted:', ports.length);
   return ports;
 };
@@ -512,7 +506,6 @@ export const mapAirtablePresentation = (
 
 export const fetchPresentations = async (): Promise<Presentation[]> => {
   console.log('[Presentations] Fetching presentations...');
-
   const rawRecords =
     await fetchPaginatedAirtableData<RawPresentationFields>('tblm5YCpC7ZwRSYWy');
 
@@ -535,7 +528,7 @@ export const fetchPresentations = async (): Promise<Presentation[]> => {
 
 export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
   console.log('[Attendees] Fetching attendees from Airtable cache...');
-  const rawRecords = await fetchPaginatedAirtableData<RawAttendeeFields>('tblIwt4FWHtNm01Z4');
+  const rawRecords = await fetchPaginatedAirtableData<RawAttendeeFields>('tblqe1kPM95Cp4Srn');
 
   console.log('[Attendees] Raw records fetched:', rawRecords.length);
 
@@ -565,87 +558,6 @@ export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// BACKEND API (kept for messaging / preferences / moderation features)
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const BACKEND_URL: string =
-  (Constants.expoConfig?.extra?.backendUrl as string) ||
-  'https://bx6j3d44584xqpqwnmp8vpuneqcrrymr.app.specular.dev';
-
-async function apiGet<T>(path: string): Promise<T> {
-  console.log(`[API] GET ${BACKEND_URL}${path}`);
-
-  if (
-    path.includes('/api/preferences') ||
-    path.includes('/api/blocked-users') ||
-    path.includes('/api/conversations')
-  ) {
-    console.log('[API TRACE] Caller for backend route:', path);
-    console.trace();
-  }
-
-  const response = await fetch(`${BACKEND_URL}${path}`, {
-    method: 'GET',
-    headers: { 'Content-Type': 'application/json' },
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`GET ${path} failed (${response.status}): ${errorBody}`);
-  }
-
-  return response.json() as Promise<T>;
-}
-
-async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  console.log(`[API] POST ${BACKEND_URL}${path}`);
-
-  if (
-    path.includes('/api/conversations') ||
-    path.includes('/api/blocked-users') ||
-    path.includes('/api/reports')
-  ) {
-    console.log('[API TRACE] Caller for backend POST route:', path);
-    console.trace();
-  }
-
-  const response = await fetch(`${BACKEND_URL}${path}`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`POST ${path} failed (${response.status}): ${errorBody}`);
-  }
-
-  return response.json() as Promise<T>;
-}
-
-async function apiPut<T>(path: string, body: unknown): Promise<T> {
-  console.log(`[API] PUT ${BACKEND_URL}${path}`);
-
-  if (path.includes('/api/preferences')) {
-    console.log('[API TRACE] Caller for backend PUT route:', path);
-    console.trace();
-  }
-
-  const response = await fetch(`${BACKEND_URL}${path}`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(`PUT ${path} failed (${response.status}): ${errorBody}`);
-  }
-
-  return response.json() as Promise<T>;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
 // ANNOUNCEMENTS
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -661,7 +573,7 @@ export interface AnnouncementItem {
 
 export interface AnnouncementsResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error';
+  source_used: 'airtablecache';
   announcements: AnnouncementItem[];
 }
 
@@ -713,13 +625,12 @@ export interface AgendaItem {
 
 export interface AgendaResponse {
   updated_at: string;
-  source_used: 'airtablecache' | 'airtable_api';
+  source_used: 'airtablecache';
   agenda: AgendaItem[];
 }
 
 function convertTimeToMinutes(timeStr: string): number {
   if (!timeStr) return 0;
-
   const trimmed = timeStr.trim();
   const match = trimmed.match(/(\d{1,2}):(\d{2})\s*(AM|PM)/i);
   if (!match) return 0;
@@ -785,250 +696,3 @@ export const fetchAgenda = async (): Promise<AgendaResponse> => {
     agenda,
   };
 };
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BACKEND TYPES
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface BackendPort {
-  id: string;
-  name: string;
-  intro?: string;
-  bio?: string;
-  url?: string;
-  logo_url?: string;
-  featured_image_url?: string;
-}
-
-export interface BackendPresentation {
-  id: string;
-  title: string;
-  description?: string;
-  file_url?: string;
-}
-
-export interface FloorPlan {
-  image_url: string;
-  venue_notes: string;
-}
-
-export interface UserPreferences {
-  email: string;
-  accept_messages: boolean;
-  show_email: boolean;
-  show_phone: boolean;
-  show_company: boolean;
-  show_title: boolean;
-}
-
-export interface NetworkingAttendee {
-  email: string;
-  name: string;
-  company?: string;
-  title?: string;
-}
-
-export interface AttendeeDetail {
-  email: string;
-  name: string;
-  title?: string;
-  company?: string;
-  registration_type?: string;
-}
-
-export interface Conversation {
-  id: string;
-  participant1_email: string;
-  participant2_email: string;
-  last_message?: string;
-  last_message_at?: string;
-  other_participant_name?: string;
-  created_at: string;
-}
-
-export interface ConversationMessage {
-  id: string;
-  conversation_id?: string;
-  sender_email: string;
-  content: string;
-  created_at: string;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// BACKEND FUNCTIONS STILL USING SPECULAR / BACKEND API
-// ─────────────────────────────────────────────────────────────────────────────
-
-export const fetchBackendPorts = (search?: string): Promise<BackendPort[]> =>
-  apiGet<BackendPort[]>(
-    search ? `/api/ports?search=${encodeURIComponent(search)}` : '/api/ports'
-  );
-
-export const fetchBackendPortById = (id: string): Promise<BackendPort> =>
-  apiGet<BackendPort>(`/api/ports/${encodeURIComponent(id)}`);
-
-export const fetchBackendPresentations = (search?: string): Promise<BackendPresentation[]> =>
-  apiGet<BackendPresentation[]>(
-    search ? `/api/presentations?search=${encodeURIComponent(search)}` : '/api/presentations'
-  );
-
-export const fetchFloorPlan = (): Promise<FloorPlan> => apiGet<FloorPlan>('/api/floor-plan');
-
-export const fetchPreferences = (email: string): Promise<UserPreferences> =>
-  apiGet<UserPreferences>(`/api/preferences/${encodeURIComponent(email)}`);
-
-export const updatePreferences = (
-  email: string,
-  prefs: Partial<Omit<UserPreferences, 'email'>>
-): Promise<UserPreferences> =>
-  apiPut<UserPreferences>(`/api/preferences/${encodeURIComponent(email)}`, prefs);
-
-export const fetchNetworkingAttendees = (search?: string): Promise<NetworkingAttendee[]> =>
-  apiGet<NetworkingAttendee[]>(
-    search
-      ? `/api/networking/attendees?search=${encodeURIComponent(search)}`
-      : '/api/networking/attendees'
-  );
-
-export const fetchAttendeeDetail = (
-  email: string,
-  viewerEmail?: string
-): Promise<AttendeeDetail> =>
-  apiGet<AttendeeDetail>(
-    viewerEmail
-      ? `/api/networking/attendees/${encodeURIComponent(
-          email
-        )}?viewer_email=${encodeURIComponent(viewerEmail)}`
-      : `/api/networking/attendees/${encodeURIComponent(email)}`
-  );
-
-export const fetchConversations = (email: string): Promise<Conversation[]> =>
-  apiGet<Conversation[]>(`/api/conversations?email=${encodeURIComponent(email)}`);
-
-export const createOrGetConversation = (
-  participant1_email: string,
-  participant2_email: string
-): Promise<{
-  id: string;
-  participant1_email: string;
-  participant2_email: string;
-  created_at: string;
-}> => apiPost('/api/conversations', { participant1_email, participant2_email });
-
-export const fetchMessages = (conversationId: string): Promise<ConversationMessage[]> =>
-  apiGet<ConversationMessage[]>(
-    `/api/conversations/${encodeURIComponent(conversationId)}/messages`
-  );
-
-export const sendMessage = (
-  conversationId: string,
-  sender_email: string,
-  content: string
-): Promise<ConversationMessage> =>
-  apiPost<ConversationMessage>(
-    `/api/conversations/${encodeURIComponent(conversationId)}/messages`,
-    { sender_email, content }
-  );
-
-export const deleteConversation = async (
-  conversationId: string
-): Promise<{ success: boolean; message: string }> => {
-  console.log(`[API] DELETE /api/conversations/${conversationId}`);
-
-  const response = await fetch(
-    `${BACKEND_URL}/api/conversations/${encodeURIComponent(conversationId)}`,
-    { method: 'DELETE', headers: { 'Content-Type': 'application/json' } }
-  );
-
-  if (!response.ok) {
-    const errorBody = await response.text();
-    throw new Error(
-      `DELETE /api/conversations/${conversationId} failed (${response.status}): ${errorBody}`
-    );
-  }
-
-  return response.json() as Promise<{ success: boolean; message: string }>;
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// REPORTS & MODERATION
-// ─────────────────────────────────────────────────────────────────────────────
-
-export interface UserReport {
-  id: string;
-  reporting_user_email: string;
-  reported_user_email: string;
-  reason: string;
-  notes?: string;
-  conversation_id?: string;
-  message_id?: string;
-  created_at: string;
-  status: string;
-}
-
-export interface BlockedUser {
-  id: string;
-  blocked_email: string;
-  created_at: string;
-}
-
-export const submitReport = (
-  reporting_user_email: string,
-  reported_user_email: string,
-  reason: string,
-  notes?: string,
-  conversation_id?: string,
-  message_id?: string
-): Promise<{ id: string; created_at: string; message: string }> =>
-  apiPost('/api/reports', {
-    reporting_user_email,
-    reported_user_email,
-    reason,
-    notes,
-    conversation_id,
-    message_id,
-  });
-
-export const blockUser = (
-  blocker_email: string,
-  blocked_email: string
-): Promise<{ id: string; created_at: string; message: string }> =>
-  apiPost('/api/blocked-users', { blocker_email, blocked_email });
-
-export const unblockUser = (
-  blocker_email: string,
-  blocked_email: string
-): Promise<{ success: boolean; message: string }> => {
-  console.log(
-    `[API] DELETE /api/blocked-users/${encodeURIComponent(
-      blocked_email
-    )}?blocker_email=${encodeURIComponent(blocker_email)}`
-  );
-
-  return fetch(
-    `${BACKEND_URL}/api/blocked-users/${encodeURIComponent(
-      blocked_email
-    )}?blocker_email=${encodeURIComponent(blocker_email)}`,
-    { method: 'DELETE' }
-  ).then(async (response) => {
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `DELETE /api/blocked-users/${blocked_email} failed (${response.status}): ${errorBody}`
-      );
-    }
-    return response.json();
-  });
-};
-
-export const fetchBlockedUsers = (blocker_email: string): Promise<BlockedUser[]> =>
-  apiGet<BlockedUser[]>(`/api/blocked-users?blocker_email=${encodeURIComponent(blocker_email)}`);
-
-export const checkIfBlocked = (
-  blocker_email: string,
-  blocked_email: string
-): Promise<{ is_blocked: boolean }> =>
-  apiGet<{ is_blocked: boolean }>(
-    `/api/blocked-users/check?blocker_email=${encodeURIComponent(
-      blocker_email
-    )}&blocked_email=${encodeURIComponent(blocked_email)}`
-  );
