@@ -4,12 +4,12 @@
     "slug": "portofthefuturecon",
     "version": "1.0.1",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/images/POF-APP-LOGO.png",
     "scheme": "portofthefuturecon",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/poflogoappicon.png",
+      "image": "./assets/images/POF-APP-LOGO.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
@@ -23,7 +23,7 @@
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
+        "foregroundImage": "./assets/images/POF-APP-LOGO.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.portofthefutureconference.app",
