@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -24,6 +23,8 @@ interface NetworkingAttendee {
   name: string;
   company?: string;
   title?: string;
+  phone?: string;
+  optInNetworking?: string;
 }
 
 export default function NetworkingScreen() {
@@ -56,10 +57,11 @@ export default function NetworkingScreen() {
         name: attendee.displayName || `${attendee.firstName} ${attendee.lastName}`.trim(),
         company: attendee.company || '',
         title: attendee.title || '',
+        phone: attendee.phone || '',
+        optInNetworking: attendee.optInNetworking || '',
       }));
 
       console.log('[Networking] Attendees loaded:', mappedAttendees.length);
-
       setAttendees(mappedAttendees);
       setFilteredAttendees(mappedAttendees);
     } catch (err) {
@@ -103,7 +105,6 @@ export default function NetworkingScreen() {
   const getInitials = (name: string): string => {
     const trimmed = name.trim();
     if (!trimmed) return '?';
-
     const parts = trimmed.split(' ');
     if (parts.length >= 2) {
       return `${parts[0].charAt(0)}${parts[parts.length - 1].charAt(0)}`.toUpperCase();
@@ -119,6 +120,8 @@ export default function NetworkingScreen() {
         displayName: attendee.name,
         company: attendee.company || '',
         title: attendee.title || '',
+        phone: attendee.phone || '',
+        optInNetworking: attendee.optInNetworking || '',
       },
     });
   };
@@ -140,18 +143,13 @@ export default function NetworkingScreen() {
           <Text style={[styles.attendeeName, { color: textColor }]} numberOfLines={1}>
             {item.name}
           </Text>
-
           {item.title ? (
             <Text style={[styles.attendeeTitle, { color: secondaryTextColor }]} numberOfLines={1}>
               {item.title}
             </Text>
           ) : null}
-
           {item.company ? (
-            <Text
-              style={[styles.attendeeCompany, { color: secondaryTextColor }]}
-              numberOfLines={1}
-            >
+            <Text style={[styles.attendeeCompany, { color: secondaryTextColor }]} numberOfLines={1}>
               {item.company}
             </Text>
           ) : null}
@@ -172,9 +170,7 @@ export default function NetworkingScreen() {
       return (
         <View style={styles.centerContainer}>
           <ActivityIndicator size="large" color={colors.primary} />
-          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>
-            Loading attendees...
-          </Text>
+          <Text style={[styles.loadingText, { color: secondaryTextColor }]}>Loading attendees...</Text>
         </View>
       );
     }
@@ -182,17 +178,9 @@ export default function NetworkingScreen() {
     if (error) {
       return (
         <View style={styles.centerContainer}>
-          <IconSymbol
-            ios_icon_name="exclamationmark.triangle.fill"
-            android_material_icon_name="warning"
-            size={48}
-            color={colors.error}
-          />
+          <IconSymbol ios_icon_name="exclamationmark.triangle.fill" android_material_icon_name="warning" size={48} color={colors.error} />
           <Text style={[styles.errorText, { color: colors.error }]}>{error}</Text>
-          <TouchableOpacity
-            style={[styles.retryButton, { backgroundColor: colors.primary }]}
-            onPress={loadAttendees}
-          >
+          <TouchableOpacity style={[styles.retryButton, { backgroundColor: colors.primary }]} onPress={loadAttendees}>
             <Text style={styles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
         </View>
@@ -202,12 +190,7 @@ export default function NetworkingScreen() {
     if (filteredAttendees.length === 0) {
       return (
         <View style={styles.centerContainer}>
-          <IconSymbol
-            ios_icon_name="person.3.fill"
-            android_material_icon_name="people"
-            size={48}
-            color={secondaryTextColor}
-          />
+          <IconSymbol ios_icon_name="person.3.fill" android_material_icon_name="people" size={48} color={secondaryTextColor} />
           <Text style={[styles.emptyText, { color: secondaryTextColor }]}>
             {searchQuery ? 'No attendees found' : 'No attendees available'}
           </Text>
@@ -234,46 +217,21 @@ export default function NetworkingScreen() {
         options={{
           headerShown: true,
           title: 'Networking',
-          headerStyle: {
-            backgroundColor: isDark ? colors.backgroundDark : colors.background,
-          },
+          headerStyle: { backgroundColor: isDark ? colors.backgroundDark : colors.background },
           headerTintColor: textColor,
         }}
       />
-
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
-        <View
-          style={[
-            styles.headerBar,
-            { backgroundColor: cardBg, borderBottomColor: borderColorValue },
-          ]}
-        >
+        <View style={[styles.headerBar, { backgroundColor: cardBg, borderBottomColor: borderColorValue }]}>
           <View style={styles.headerBarContent}>
-            <IconSymbol
-              ios_icon_name="person.3.fill"
-              android_material_icon_name="people"
-              size={18}
-              color={colors.primary}
-            />
-            <Text style={[styles.headerBarText, { color: colors.primary }]}>
-              Attendees
-            </Text>
+            <IconSymbol ios_icon_name="person.3.fill" android_material_icon_name="people" size={18} color={colors.primary} />
+            <Text style={[styles.headerBarText, { color: colors.primary }]}>Attendees</Text>
           </View>
         </View>
 
         <View style={styles.searchContainer}>
-          <View
-            style={[
-              styles.searchBar,
-              { backgroundColor: cardBg, borderColor: borderColorValue },
-            ]}
-          >
-            <IconSymbol
-              ios_icon_name="magnifyingglass"
-              android_material_icon_name="search"
-              size={20}
-              color={secondaryTextColor}
-            />
+          <View style={[styles.searchBar, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+            <IconSymbol ios_icon_name="magnifyingglass" android_material_icon_name="search" size={20} color={secondaryTextColor} />
             <TextInput
               style={[styles.searchInput, { color: textColor }]}
               placeholder="Search name, company, or title..."
@@ -283,12 +241,7 @@ export default function NetworkingScreen() {
             />
             {searchQuery.length > 0 ? (
               <TouchableOpacity onPress={() => setSearchQuery('')}>
-                <IconSymbol
-                  ios_icon_name="xmark.circle.fill"
-                  android_material_icon_name="cancel"
-                  size={20}
-                  color={secondaryTextColor}
-                />
+                <IconSymbol ios_icon_name="xmark.circle.fill" android_material_icon_name="cancel" size={20} color={secondaryTextColor} />
               </TouchableOpacity>
             ) : null}
           </View>
@@ -301,115 +254,25 @@ export default function NetworkingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  headerBar: {
-    borderBottomWidth: 1,
-  },
-  headerBarContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 12,
-    gap: 6,
-  },
-  headerBarText: {
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  searchContainer: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  searchBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderWidth: 1,
-  },
-  searchInput: {
-    flex: 1,
-    marginLeft: 8,
-    fontSize: 16,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    padding: 24,
-  },
-  loadingText: {
-    marginTop: 12,
-    fontSize: 15,
-    textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 15,
-    marginTop: 12,
-    textAlign: 'center',
-  },
-  retryButton: {
-    marginTop: 16,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-  },
-  retryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  emptyText: {
-    fontSize: 15,
-    marginTop: 12,
-    textAlign: 'center',
-    lineHeight: 22,
-  },
-  listContent: {
-    padding: 16,
-  },
-  attendeeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    borderWidth: 1,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  avatarCircle: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  avatarText: {
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  attendeeInfo: {
-    flex: 1,
-  },
-  attendeeName: {
-    fontSize: 17,
-    fontWeight: '600',
-    marginBottom: 2,
-    flex: 1,
-  },
-  attendeeTitle: {
-    fontSize: 14,
-    marginBottom: 2,
-  },
-  attendeeCompany: {
-    fontSize: 14,
-  },
+  container: { flex: 1 },
+  headerBar: { borderBottomWidth: 1 },
+  headerBarContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', paddingVertical: 12, gap: 6 },
+  headerBarText: { fontSize: 15, fontWeight: '600' },
+  searchContainer: { paddingHorizontal: 16, paddingVertical: 12 },
+  searchBar: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, borderWidth: 1 },
+  searchInput: { flex: 1, marginLeft: 8, fontSize: 16 },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 24 },
+  loadingText: { marginTop: 12, fontSize: 15, textAlign: 'center' },
+  errorText: { fontSize: 15, marginTop: 12, textAlign: 'center' },
+  retryButton: { marginTop: 16, paddingHorizontal: 24, paddingVertical: 12, borderRadius: 8 },
+  retryButtonText: { color: '#FFFFFF', fontSize: 15, fontWeight: '600' },
+  emptyText: { fontSize: 15, marginTop: 12, textAlign: 'center', lineHeight: 22 },
+  listContent: { padding: 16 },
+  attendeeCard: { flexDirection: 'row', alignItems: 'center', borderRadius: 12, padding: 16, marginBottom: 12, borderWidth: 1, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 4, elevation: 3 },
+  avatarCircle: { width: 50, height: 50, borderRadius: 25, justifyContent: 'center', alignItems: 'center', marginRight: 12 },
+  avatarText: { fontSize: 18, fontWeight: '600' },
+  attendeeInfo: { flex: 1 },
+  attendeeName: { fontSize: 17, fontWeight: '600', marginBottom: 2, flex: 1 },
+  attendeeTitle: { fontSize: 14, marginBottom: 2 },
+  attendeeCompany: { fontSize: 14 },
 });

@@ -195,6 +195,7 @@ export interface Attendee {
   registrationType?: string;
   emailLower: string;
   displayName: string;
+	optInNetworking?: string;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -548,6 +549,7 @@ export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
         company: f['Company'],
         title: f['Title'],
         phone: f['Phone'],
+				optInNetworking: f['Opt In Networking'],
         registrationType: f['Registration Type'],
         emailLower: email.toLowerCase(),
         displayName: `${firstName} ${lastName}`.trim(),

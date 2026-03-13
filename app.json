@@ -1,7 +1,6 @@
-
 {
   "expo": {
-    "name": "Port of the Future Conference 2026",
+    "name": "Port of the Future",
     "slug": "port-of-the-future",
     "version": "1.0.2",
     "orientation": "portrait",
@@ -17,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.p225e5c6ed6234f6e9b3fb38923ce8d13.app",
-      "buildNumber": "13",
+      "buildNumber": "14",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "This app uses the camera to scan QR codes for networking.",
