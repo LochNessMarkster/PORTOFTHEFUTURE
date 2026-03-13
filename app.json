@@ -1,48 +1,66 @@
+
 {
   "expo": {
-    "name": "Port of the Future",
-    "slug": "port-of-the-future",
-    "version": "1.0.0",
+    "name": "Port of the Future Conference 2026",
+    "slug": "portofthefuturecon",
+    "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
+    "scheme": "portofthefuturecon",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/natively-dark.png",
+      "image": "./assets/images/poflogoappicon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#000000"
+      "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.placeholder.app",
+      "bundleIdentifier": "com.p225e5c6ed6234f6e9b3fb38923ce8d13.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for networking.",
+        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to let you share images."
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/natively-dark.png",
-        "backgroundColor": "#000000"
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true,
-      "package": "com.placeholder.app"
+      "package": "com.portofthefutureconference.app",
+      "permissions": [
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE"
+      ]
     },
     "web": {
-      "favicon": "./assets/images/final_quest_240x240.png",
-      "bundler": "metro"
+      "bundler": "metro",
+      "output": "static",
+      "favicon": "./assets/icon.png"
     },
     "plugins": [
-      "expo-font",
       "expo-router",
-      "expo-web-browser"
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#ffffff",
+          "image": "./assets/images/poflogoappicon.png",
+          "imageWidth": 200
+        }
+      ]
     ],
-    "scheme": "portofthefuture",
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": {},
-      "backendUrl": "https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev"
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "your-project-id"
+      },
+      "backendUrl": "https://portofthefutureconference-production.up.railway.app"
     }
   }
 }
