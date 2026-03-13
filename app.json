@@ -1,64 +1,47 @@
 {
   "expo": {
-    "name": "Port of the Future Conference 2026",
-    "slug": "portofthefuturecon",
-    "version": "1.0.1",
+    "name": "Port of the Future",
+    "slug": "port-of-the-future",
+    "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
-    "scheme": "portofthefuturecon",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/poflogoappicon.png",
+      "image": "./assets/images/natively-dark.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#000000"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.p225e5c6ed6234f6e9b3fb38923ce8d13.app",
+      "bundleIdentifier": "com.placeholder.app",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for networking.",
-        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to let you share images."
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icon.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/images/natively-dark.png",
+        "backgroundColor": "#000000"
       },
-      "package": "com.portofthefutureconference.app",
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+      "edgeToEdgeEnabled": true,
+      "package": "com.placeholder.app"
     },
     "web": {
-      "bundler": "metro",
-      "output": "static",
-      "favicon": "./assets/icon.png"
+      "favicon": "./assets/images/final_quest_240x240.png",
+      "bundler": "metro"
     },
     "plugins": [
+      "expo-font",
       "expo-router",
-      [
-        "expo-splash-screen",
-        {
-          "backgroundColor": "#ffffff",
-          "image": "./assets/images/poflogoappicon.png",
-          "imageWidth": 200
-        }
-      ]
+      "expo-web-browser"
     ],
+    "scheme": "portofthefuture",
     "experiments": {
       "typedRoutes": true
     },
     "extra": {
-      "router": {
-        "origin": false
-      },
-      "eas": {
-        "projectId": "your-project-id"
-      },
+      "router": {},
       "backendUrl": "https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev"
     }
   }
