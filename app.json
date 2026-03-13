@@ -1,37 +1,34 @@
+
 {
   "expo": {
-    "name": "Port of the Future",
+    "name": "Port of the Future Conference 2026",
     "slug": "port-of-the-future",
-    "version": "1.0.1",
+    "version": "1.0.2",
     "orientation": "portrait",
-    "icon": "./assets/images/POF-APP-LOGO.png",
-    "scheme": "portofthefuture",
+    "icon": "./assets/icon.png",
+    "scheme": "portofthefuturecon",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {
-      "image": "./assets/images/POF-APP-LOGO.png",
+      "image": "./assets/Splash-Screen.png",
       "resizeMode": "contain",
       "backgroundColor": "#ffffff"
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.p225e5c6ed6234f6e9b3fb38923ce8d13.app",
+      "bundleIdentifier": "com.portofthefutureconference.app",
+      "buildNumber": "12",
       "infoPlist": {
-        "NSCameraUsageDescription": "This app uses the camera to scan QR codes for networking.",
-        "NSPhotoLibraryUsageDescription": "This app accesses your photo library to let you share images."
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
       "adaptiveIcon": {
-        "foregroundImage": "./assets/images/POF-APP-LOGO.png",
+        "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#ffffff"
       },
       "package": "com.portofthefutureconference.app",
-      "permissions": [
-        "CAMERA",
-        "READ_EXTERNAL_STORAGE",
-        "WRITE_EXTERNAL_STORAGE"
-      ]
+      "versionCode": 4
     },
     "web": {
       "bundler": "metro",
@@ -43,9 +40,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#ffffff",
-          "image": "./assets/images/poflogoappicon.png",
-          "imageWidth": 200
+          "image": "./assets/Splash-Screen.png",
+          "resizeMode": "contain",
+          "backgroundColor": "#ffffff"
         }
       ]
     ],
@@ -59,7 +56,7 @@
       "eas": {
         "projectId": "506e7535-6838-41bb-9454-d7521612e9ae"
       },
-      "backendUrl": "https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev"
+      "backendUrl": "https://portofthefuturecon-backend.specular.app"
     }
   }
 }
