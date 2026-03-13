@@ -1,4 +1,3 @@
-
 {
   "expo": {
     "name": "Port of the Future Conference 2026",
@@ -60,7 +59,7 @@
       "eas": {
         "projectId": "your-project-id"
       },
-      "backendUrl": "https://portofthefutureconference-production.up.railway.app"
+      "backendUrl": "https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev"
     }
   }
 }
