@@ -1,7 +1,8 @@
+
 {
   "expo": {
     "name": "Port of the Future Conference 2026",
-    "slug": "portofthefuturecon",
+    "slug": "port-of-the-future",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/POF-APP-LOGO.png",
@@ -57,7 +58,7 @@
         "origin": false
       },
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "506e7535-6838-41bb-9454-d7521612e9ae"
       },
       "backendUrl": "https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev"
     }
