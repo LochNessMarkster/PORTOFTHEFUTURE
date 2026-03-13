@@ -156,6 +156,7 @@ interface RawAttendeeFields {
   'Title'?: string;
   'Phone'?: string;
   'Registration Type'?: string;
+  'Opt In Networking'?: string;
 }
 
 interface RawPortFields {
@@ -529,16 +530,17 @@ export const fetchPresentations = async (): Promise<Presentation[]> => {
 export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
   console.log('[Attendees] Fetching attendees from Airtable cache...');
   const rawRecords = await fetchPaginatedAirtableData<RawAttendeeFields>('tblqe1kPM95Cp4Srn');
-
+ 
   console.log('[Attendees] Raw records fetched:', rawRecords.length);
-
+ 
   const attendees = rawRecords
+    .filter((record) => record.fields['Opt In Networking'] === 'YES')
     .map((record) => {
       const f = record.fields;
       const firstName = (f['First Name'] || '').trim();
       const lastName = (f['Last Name'] || '').trim();
       const email = (f['Email'] || '').trim();
-
+ 
       return {
         firstName,
         lastName,
@@ -552,11 +554,10 @@ export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
       };
     })
     .filter((a) => a.email);
-
-  console.log('[Attendees] Mapped attendees:', attendees.length);
+ 
+  console.log('[Attendees] Opted-in attendees:', attendees.length);
   return attendees;
 };
-
 // ─────────────────────────────────────────────────────────────────────────────
 // ANNOUNCEMENTS
 // ─────────────────────────────────────────────────────────────────────────────
