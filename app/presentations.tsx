@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
@@ -105,6 +106,12 @@ export default function PresentationsScreen() {
     }
   };
 
+  const handleEmailPress = () => {
+    const emailAddress = 'momalley@portofthefutureconference.com';
+    console.log('[PresentationsScreen] Opening email to:', emailAddress);
+    Linking.openURL(`mailto:${emailAddress}`);
+  };
+
   const renderPresentationCard = ({ item }: { item: Presentation }) => {
     return (
       <View
@@ -170,6 +177,9 @@ export default function PresentationsScreen() {
     );
   };
 
+  const messageText = 'Presentations will be added here as they become available. Speakers: please email your presentations to ';
+  const emailAddress = 'momalley@portofthefutureconference.com';
+
   return (
     <>
       <Stack.Screen
@@ -186,6 +196,25 @@ export default function PresentationsScreen() {
         style={[styles.container, { backgroundColor: bgColor }]}
         edges={['bottom']}
       >
+        <View style={[styles.messageContainer, { backgroundColor: cardBg, borderColor: borderColorValue }]}>
+          <IconSymbol
+            ios_icon_name="info.circle.fill"
+            android_material_icon_name="info"
+            size={20}
+            color={colors.primary}
+          />
+          <View style={styles.messageTextContainer}>
+            <Text style={[styles.messageText, { color: textColor }]}>
+              {messageText}
+            </Text>
+            <TouchableOpacity onPress={handleEmailPress} activeOpacity={0.7}>
+              <Text style={[styles.emailLink, { color: colors.primary }]}>
+                {emailAddress}
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+
         <View style={styles.searchContainer}>
           <View
             style={[
@@ -271,6 +300,33 @@ export default function PresentationsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  messageContainer: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginHorizontal: 16,
+    marginTop: 12,
+    marginBottom: 8,
+    padding: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  messageTextContainer: {
+    flex: 1,
+    marginLeft: 10,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+  },
+  messageText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  emailLink: {
+    fontSize: 14,
+    lineHeight: 20,
+    fontWeight: '600',
+    textDecorationLine: 'underline',
   },
   searchContainer: {
     paddingHorizontal: 16,
