@@ -1,11 +1,11 @@
 {
   "expo": {
-    "name": "Port of the Future Conference 2026",
+    "name": "Port of the Future",
     "slug": "port-of-the-future",
     "version": "1.0.1",
     "orientation": "portrait",
     "icon": "./assets/images/POF-APP-LOGO.png",
-    "scheme": "portofthefuturecon",
+    "scheme": "portofthefuture",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "splash": {

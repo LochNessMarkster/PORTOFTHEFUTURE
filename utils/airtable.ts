@@ -1,3 +1,4 @@
+
 // Airtable data fetching utilities for Port of the Future Conference
 // NOTE: Public conference data now uses Airtable cache directly for stability.
 // Messaging, conversations, reports, blocked users, and preferences still use backend API.
@@ -155,9 +156,7 @@ interface RawAttendeeFields {
   'First Name'?: string;
   'Last Name'?: string;
   'Email'?: string;
-  'Company Name'?: string;
   'Company'?: string;
-  'Job Title'?: string;
   'Title'?: string;
   'Phone'?: string;
   'Registration Type'?: string;
@@ -522,37 +521,43 @@ export interface Attendee {
   firstName: string;
   lastName: string;
   email: string;
-  company: string;
-  title: string;
-  phone: string;
-  registrationType: string;
+  company?: string;
+  title?: string;
+  phone?: string;
+  registrationType?: string;
   emailLower: string;
   displayName: string;
 }
 
 export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
+  console.log('[Attendees] Fetching attendees from Airtable cache...');
   const rawRecords = await fetchPaginatedAirtableData<RawAttendeeFields>('tblIwt4FWHtNm01Z4');
 
-  return rawRecords
+  console.log('[Attendees] Raw records fetched:', rawRecords.length);
+
+  const attendees = rawRecords
     .map((record) => {
-      const f = record.fields as RawAttendeeFields & Record<string, any>;
-      const firstName = f['First Name'] || '';
-      const lastName = f['Last Name'] || '';
-      const email = f['Email'] || '';
+      const f = record.fields;
+      const firstName = (f['First Name'] || '').trim();
+      const lastName = (f['Last Name'] || '').trim();
+      const email = (f['Email'] || '').trim();
 
       return {
         firstName,
         lastName,
         email,
-        company: f['Company Name'] || f['Company'] || '',
-        title: f['Job Title'] || f['Title'] || '',
-        phone: f['Phone'] || '',
-        registrationType: f['Registration Type'] || '',
+        company: f['Company'],
+        title: f['Title'],
+        phone: f['Phone'],
+        registrationType: f['Registration Type'],
         emailLower: email.toLowerCase(),
         displayName: `${firstName} ${lastName}`.trim(),
       };
     })
     .filter((a) => a.email);
+
+  console.log('[Attendees] Mapped attendees:', attendees.length);
+  return attendees;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

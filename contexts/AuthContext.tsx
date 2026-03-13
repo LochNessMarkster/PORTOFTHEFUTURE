@@ -98,14 +98,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         throw new Error('Login failed. Please try again.');
       }
 
+      // Backend returns attendee with camelCase properties (firstName, lastName, etc.)
       const foundAttendee = data.attendee;
 
-      // Compute display name
-      const displayName = `${foundAttendee.firstName} ${foundAttendee.lastName}`.trim();
+      // Ensure displayName is computed
+      const displayName = foundAttendee.displayName || `${foundAttendee.firstName} ${foundAttendee.lastName}`.trim();
 
       const attendee: Attendee = {
-        ...foundAttendee,
-        emailLower: (foundAttendee.email || '').toLowerCase(),
+        firstName: foundAttendee.firstName || '',
+        lastName: foundAttendee.lastName || '',
+        email: foundAttendee.email || '',
+        company: foundAttendee.company,
+        title: foundAttendee.title,
+        phone: foundAttendee.phone,
+        registrationType: foundAttendee.registrationType,
+        emailLower: (foundAttendee.email || '').toLowerCase().trim(),
         displayName,
       };
 
