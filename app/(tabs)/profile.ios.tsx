@@ -6,14 +6,7 @@ import { IconSymbol } from "@/components/IconSymbol";
 import { Stack, useRouter, useFocusEffect } from "expo-router";
 import { useAuth } from "@/contexts/AuthContext";
 import { colors } from "@/styles/commonStyles";
-import * as SecureStore from 'expo-secure-store';
-
-interface UserPreferences {
-  show_email: boolean;
-  show_phone: boolean;
-  show_company: boolean;
-  show_title: boolean;
-}
+import { fetchPreferences, updatePreferences, UserPreferences } from "@/utils/airtable";
 
 export default function ProfileScreen() {
   const colorScheme = useColorScheme();
@@ -40,19 +33,8 @@ export default function ProfileScreen() {
     try {
       setLoadingPrefs(true);
       setPrefsError(null);
-      const stored = await SecureStore.getItemAsync('potf_preferences');
-      if (stored) {
-        setPreferences(JSON.parse(stored));
-      } else {
-        const defaults: UserPreferences = {
-          show_email: false,
-          show_phone: false,
-          show_company: true,
-          show_title: true,
-        };
-        await SecureStore.setItemAsync('potf_preferences', JSON.stringify(defaults));
-        setPreferences(defaults);
-      }
+      const prefs = await fetchPreferences(user.email);
+      setPreferences(prefs);
     } catch (err) {
       setPrefsError('Failed to load preferences');
     } finally {
@@ -72,13 +54,13 @@ export default function ProfileScreen() {
     }, [user?.email, loadPreferences])
   );
 
-  const handleToggle = async (key: keyof UserPreferences, value: boolean) => {
-    if (!preferences) return;
+  const handleToggle = async (key: keyof Omit<UserPreferences, 'email'>, value: boolean) => {
+    if (!user?.email || !preferences) return;
     const updated = { ...preferences, [key]: value };
     setPreferences(updated);
     try {
       setSavingPrefs(true);
-      await SecureStore.setItemAsync('potf_preferences', JSON.stringify(updated));
+      await updatePreferences(user.email, { [key]: value });
     } catch (err) {
       setPreferences(preferences);
       setPrefsError('Failed to save preference');
