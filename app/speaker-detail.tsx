@@ -68,37 +68,42 @@ export default function SpeakerDetailScreen() {
   const secondaryTextColor = isDark ? colors.textSecondaryDark : colors.textSecondary;
   const cardBg = isDark ? colors.cardDark : colors.card;
 
-  const firstName = params.firstName as string;
-  const lastName = params.lastName as string;
-  const speakerTitle = params.speakerTitle as string;
-  const speakingTopic = params.speakingTopic as string;
-  const synopsis = params.synopsis as string;
-  const bio = params.bio as string;
-  const photoUrl = params.photoUrl as string;
-  const publicPersonalData = params.publicPersonalData === 'true';
-  const email = params.email as string;
-  const phone = params.phone as string;
-
-  const fullName = `${firstName} ${lastName}`.trim();
+  const firstName = normalizeParam(params.firstName as string | string[] | undefined);
+  const lastName = normalizeParam(params.lastName as string | string[] | undefined);
+  const speakerTitle = normalizeParam(params.speakerTitle as string | string[] | undefined);
+  const speakingTopic = normalizeParam(params.speakingTopic as string | string[] | undefined);
+  const synopsis = normalizeParam(params.synopsis as string | string[] | undefined);
+  const bio = normalizeParam(params.bio as string | string[] | undefined);
+  const photoUrl = normalizeParam(params.photoUrl as string | string[] | undefined);
+  const email = normalizeParam(params.email as string | string[] | undefined);
+  const phone = normalizeParam(params.phone as string | string[] | undefined);
   const speakerId = normalizeParam(params.id as string | string[] | undefined);
 
-  useEffect(() => {
-    loadSpeakerSessions();
-  }, []);
+  const publicPersonalData = params.publicPersonalData === 'true';
+  const fullName = `${firstName} ${lastName}`.trim();
 
   const loadSpeakerSessions = async () => {
-    console.log('[SpeakerDetail] Loading sessions for:', fullName);
     try {
       setLoadingSessions(true);
-      const response = await fetch('https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblHaxjP8sWviBQjD');
-      if (!response.ok) {
-        throw new Error(`Failed to fetch sessions: ${response.status}`);
-      }
-      const data = await response.json();
-      const allSessions: Session[] = (data.records || []).map((r: { id: string; fields: Record<string, unknown> }) => ({
+      let allRecords: { id: string; fields: Record<string, unknown> }[] = [];
+      let offset: string | undefined;
+
+      do {
+        const url = new URL('https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblHaxjP8sWviBQjD');
+        if (offset) url.searchParams.set('offset', offset);
+        const response = await fetch(url.toString());
+        if (!response.ok) throw new Error(`Failed to fetch sessions: ${response.status}`);
+        const data = await response.json();
+        const records = Array.isArray(data.records) ? data.records : [];
+        allRecords = allRecords.concat(records);
+        offset = data.offset;
+      } while (offset);
+
+      const allSessions: Session[] = allRecords.map((r) => ({
         id: r.id,
-        ...r.fields,
+        ...(r.fields as Omit<Session, 'id'>),
       }));
+
       const normalizedFullName = normalizeText(fullName);
 
       const filtered = allSessions.filter((session) => {
@@ -106,23 +111,17 @@ export default function SpeakerDetailScreen() {
           ? session['Speaker(s)']!.map((id) => String(id))
           : [];
 
-        if (speakerId && linkedSpeakerIds.includes(speakerId)) {
-          return true;
-        }
+        if (speakerId && linkedSpeakerIds.includes(speakerId)) return true;
 
         const names = splitSpeakerNames(session['Speaker Names']);
-        if (normalizedFullName && names.includes(normalizedFullName)) {
-          return true;
-        }
+        if (normalizedFullName && names.includes(normalizedFullName)) return true;
 
         const rawSpeakerNames = normalizeText(session['Speaker Names']);
-        if (normalizedFullName && rawSpeakerNames.includes(normalizedFullName)) {
-          return true;
-        }
+        if (normalizedFullName && rawSpeakerNames.includes(normalizedFullName)) return true;
 
         return false;
       });
-      console.log('[SpeakerDetail] Found', filtered.length, 'sessions');
+
       setSessions(filtered);
     } catch (err) {
       console.error('[SpeakerDetail] Error loading sessions:', err);
@@ -131,6 +130,10 @@ export default function SpeakerDetailScreen() {
       setLoadingSessions(false);
     }
   };
+
+  useEffect(() => {
+    loadSpeakerSessions();
+  }, [speakerId, fullName]);
 
   const handleEmailPress = () => {
     if (email) {
@@ -298,32 +301,30 @@ export default function SpeakerDetailScreen() {
             </View>
           )}
 
-          {/* Sessions — shown while loading or when sessions exist */}
-          {(loadingSessions || sessions.length > 0) && (
-            <View style={styles.section}>
-              <View style={styles.sectionHeader}>
-                <IconSymbol
-                  ios_icon_name="calendar.badge.clock"
-                  android_material_icon_name="event"
-                  size={20}
-                  color={colors.accent}
-                />
-                <Text style={[styles.sectionTitle, { color: textColor }]}>Sessions</Text>
-              </View>
-              {loadingSessions ? (
-                <View style={styles.sessionsLoading}>
-                  <ActivityIndicator size="small" color={colors.accent} />
-                  <Text style={[styles.sessionsLoadingText, { color: secondaryTextColor }]}>
-                    Loading sessions...
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.sessionsList}>
-                  {sessions.map(renderSessionBullet)}
-                </View>
-              )}
+          {/* Sessions */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <IconSymbol
+                ios_icon_name="calendar.badge.clock"
+                android_material_icon_name="event"
+                size={20}
+                color={colors.accent}
+              />
+              <Text style={[styles.sectionTitle, { color: textColor }]}>Sessions</Text>
             </View>
-          )}
+            {loadingSessions ? (
+              <View style={styles.sessionsLoading}>
+                <ActivityIndicator size="small" color={colors.accent} />
+                <Text style={[styles.sessionsLoadingText, { color: secondaryTextColor }]}>
+                  Loading sessions...
+                </Text>
+              </View>
+            ) : sessions.length > 0 ? (
+              <View style={styles.sessionsList}>{sessions.map(renderSessionBullet)}</View>
+            ) : (
+              <Text style={[styles.noSessions, { color: secondaryTextColor }]}>No sessions found for this speaker.</Text>
+            )}
+          </View>
         </ScrollView>
       </SafeAreaView>
     </>
