@@ -25,8 +25,9 @@ interface Session {
   Date: string | null;
   'Start Time': string | null;
   'End Time': string | null;
-  Location: string | null;
-  Description: string | null;
+  'Room': string | null;
+  'Type/Track': string | null;
+  'Session Description': string | null;
   'Speaker Names': string | null;
 }
 
@@ -71,14 +72,23 @@ export default function SpeakerDetailScreen() {
     console.log('[SpeakerDetail] Loading sessions for:', fullName);
     try {
       setLoadingSessions(true);
-      const encoded = encodeURIComponent(fullName);
-      const response = await fetch(`${API_BASE_URL}/api/sessions/by-speaker?speakerName=${encoded}`);
+      const response = await fetch('https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblHaxjP8sWviBQjD');
       if (!response.ok) {
         throw new Error(`Failed to fetch sessions: ${response.status}`);
       }
-      const data: Session[] = await response.json();
-      console.log('[SpeakerDetail] Found', data.length, 'sessions');
-      setSessions(data);
+      const data = await response.json();
+      const allSessions: Session[] = (data.records || []).map((r: { id: string; fields: Record<string, unknown> }) => ({
+        id: r.id,
+        ...r.fields,
+      }));
+      const lowerName = fullName.toLowerCase();
+      const filtered = allSessions.filter((s) => {
+        const speakerNames = s['Speaker Names'];
+        if (!speakerNames) return false;
+        return String(speakerNames).toLowerCase().includes(lowerName);
+      });
+      console.log('[SpeakerDetail] Found', filtered.length, 'sessions');
+      setSessions(filtered);
     } catch (err) {
       console.error('[SpeakerDetail] Error loading sessions:', err);
       setSessions([]);
@@ -111,8 +121,9 @@ export default function SpeakerDetailScreen() {
         date: session.Date || '',
         startTime: session['Start Time'] || '',
         endTime: session['End Time'] || '',
-        location: session.Location || '',
-        description: session.Description || '',
+        room: session['Room'] || '',
+        typeTrack: session['Type/Track'] || '',
+        sessionDescription: session['Session Description'] || '',
         speakerNames: session['Speaker Names'] || '',
       },
     });
