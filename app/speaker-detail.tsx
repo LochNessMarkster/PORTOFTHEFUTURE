@@ -53,8 +53,7 @@ export default function SpeakerDetailScreen() {
 
   const firstName = params.firstName as string;
   const lastName = params.lastName as string;
-  const title = params.title as string;
-  const company = params.company as string;
+  const speakerTitle = params.speakerTitle as string;
   const speakingTopic = params.speakingTopic as string;
   const synopsis = params.synopsis as string;
   const bio = params.bio as string;
@@ -231,11 +230,8 @@ export default function SpeakerDetailScreen() {
           {/* Name and Title */}
           <View style={styles.headerSection}>
             <Text style={[styles.name, { color: textColor }]}>{fullName}</Text>
-            {title && (
-              <Text style={[styles.title, { color: secondaryTextColor }]}>{title}</Text>
-            )}
-            {company && (
-              <Text style={[styles.company, { color: secondaryTextColor }]}>{company}</Text>
+            {speakerTitle && (
+              <Text style={[styles.speakerTitle, { color: secondaryTextColor }]}>{speakerTitle}</Text>
             )}
           </View>
 
@@ -383,16 +379,11 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: 8,
   },
-  title: {
+  speakerTitle: {
     fontSize: 16,
     textAlign: 'center',
     lineHeight: 22,
     marginBottom: 4,
-  },
-  company: {
-    fontSize: 15,
-    textAlign: 'center',
-    lineHeight: 20,
   },
   contactSection: {
     borderRadius: 12,

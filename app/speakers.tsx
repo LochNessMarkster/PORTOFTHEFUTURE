@@ -24,7 +24,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 const SPEAKERS_CACHE_KEY = '@speakers_cache';
 const SPEAKERS_CACHE_TIMESTAMP_KEY = '@speakers_cache_timestamp';
 const SPEAKERS_CACHE_VERSION_KEY = '@speakers_cache_version';
-const CACHE_VERSION = '2'; // bump this to invalidate stale caches missing title/company
+const CACHE_VERSION = '4'; // bumped to force fresh fetch with speakerTitle field
 const CACHE_DURATION = 60 * 1000; // 60 seconds (1 minute)
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -168,16 +168,15 @@ export default function SpeakersScreen() {
       });
     }
 
-    // Filter by search query (first name, last name, organization, job title)
+    // Filter by search query (first name, last name, speaker title)
     if (searchQuery.trim()) {
       const lowerQuery = searchQuery.toLowerCase();
       filtered = filtered.filter(speaker => {
         const firstNameMatch = (speaker.firstName || '').toLowerCase().includes(lowerQuery);
         const lastNameMatch = (speaker.lastName || '').toLowerCase().includes(lowerQuery);
-        const organizationMatch = (speaker.company || '').toLowerCase().includes(lowerQuery);
-        const titleMatch = (speaker.title || '').toLowerCase().includes(lowerQuery);
+        const titleMatch = (speaker.speakerTitle || '').toLowerCase().includes(lowerQuery);
         
-        return firstNameMatch || lastNameMatch || organizationMatch || titleMatch;
+        return firstNameMatch || lastNameMatch || titleMatch;
       });
     }
 
@@ -223,8 +222,7 @@ export default function SpeakersScreen() {
         id: speaker.id,
         firstName: speaker.firstName || '',
         lastName: speaker.lastName || '',
-        title: speaker.title || '',
-        company: speaker.company || '',
+        speakerTitle: speaker.speakerTitle || '',
         speakingTopic: speaker.speakingTopic || '',
         synopsis: speaker.synopsis || '',
         bio: speaker.bio || '',
@@ -238,8 +236,7 @@ export default function SpeakersScreen() {
 
   const renderSpeakerCard = ({ item }: { item: Speaker }) => {
     const displayName = `${item.firstName || ''} ${item.lastName || ''}`.trim();
-    const displayTitle = item.title || '';
-    const displayOrganization = item.company || '';
+    const displayTitle = item.speakerTitle || '';
     
     return (
       <TouchableOpacity
@@ -274,11 +271,6 @@ export default function SpeakersScreen() {
               {displayTitle}
             </Text>
           )}
-          {displayOrganization && (
-            <Text style={[styles.speakerOrganization, { color: secondaryTextColor }]} numberOfLines={2}>
-              {displayOrganization}
-            </Text>
-          )}
         </View>
       </TouchableOpacity>
     );
@@ -300,7 +292,7 @@ export default function SpeakersScreen() {
           />
           <TextInput
             style={[styles.searchInput, { color: textColor }]}
-            placeholder="Search by name, title, or organization..."
+            placeholder="Search by name or title..."
             placeholderTextColor={secondaryTextColor}
             value={searchQuery}
             onChangeText={setSearchQuery}
@@ -573,11 +565,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     marginBottom: 4,
-    lineHeight: 16,
-  },
-  speakerOrganization: {
-    fontSize: 12,
-    textAlign: 'center',
     lineHeight: 16,
   },
 });

@@ -62,7 +62,7 @@ export async function fetchPaginatedAirtableData<T>(
 interface RawSpeakerFields {
   'First Name'?: string;
   'Last Name'?: string;
-  'Title'?: string;
+  'Speaker Title'?: string;
   'Speaking Topic'?: string;
   'Synopsis'?: string;
   'Bio'?: string;
@@ -71,7 +71,6 @@ interface RawSpeakerFields {
   'Photo'?: { url: string; thumbnails?: { large?: { url: string } } }[];
   'Email'?: string;
   'Phone'?: string;
-  'Company'?: string;
 }
 
 interface RawActivityFields {
@@ -206,7 +205,7 @@ export interface Speaker {
   id: string;
   firstName: string;
   lastName: string;
-  title?: string;
+  speakerTitle?: string;
   speakingTopic?: string;
   synopsis?: string;
   bio?: string;
@@ -215,7 +214,6 @@ export interface Speaker {
   photoUrl?: string;
   email?: string;
   phone?: string;
-  company?: string;
 }
 
 export interface SpeakersResponse {
@@ -237,7 +235,7 @@ export const fetchSpeakers = async (): Promise<SpeakersResponse> => {
         id: record.id,
         firstName: f['First Name'] || '',
         lastName: f['Last Name'] || '',
-        title: f['Title'],
+        speakerTitle: f['Speaker Title'],
         speakingTopic: f['Speaking Topic'],
         synopsis: f['Synopsis'],
         bio: f['Bio'],
@@ -246,7 +244,6 @@ export const fetchSpeakers = async (): Promise<SpeakersResponse> => {
         photoUrl: photo?.thumbnails?.large?.url || photo?.url,
         email: f['Email'],
         phone: f['Phone'],
-        company: f['Company'],
       };
     })
     .sort((a, b) => {
@@ -549,7 +546,7 @@ export const fetchAttendeesDirectory = async (): Promise<Attendee[]> => {
         company: f['Company'],
         title: f['Title'],
         phone: f['Phone'],
-				optInNetworking: f['Opt In Networking'],
+			optInNetworking: f['Opt In Networking'],
         registrationType: f['Registration Type'],
         emailLower: email.toLowerCase(),
         displayName: `${firstName} ${lastName}`.trim(),
