@@ -194,20 +194,21 @@ export default function SpeakersScreen() {
   }, [allSpeakers]);
 
   const handleSpeakerPress = (speaker: Speaker) => {
+    console.log('[Speakers] Speaker pressed:', speaker.id, speaker.firstName, speaker.lastName);
     router.push({
       pathname: '/speaker-detail',
       params: {
         id: speaker.id,
-        firstName: speaker.firstName || '',
-        lastName: speaker.lastName || '',
-        speakerTitle: speaker.speakerTitle || '',
-        speakingTopic: speaker.speakingTopic || '',
-        synopsis: speaker.synopsis || '',
-        bio: speaker.bio || '',
-        photoUrl: speaker.photoUrl || '',
+        firstName: speaker.firstName ?? '',
+        lastName: speaker.lastName ?? '',
+        speakerTitle: speaker.speakerTitle ?? '',
+        speakingTopic: speaker.speakingTopic ?? '',
+        synopsis: speaker.synopsis ?? '',
+        bio: speaker.bio ?? '',
+        photoUrl: speaker.photoUrl ?? '',
         publicPersonalData: speaker.publicPersonalData ? 'true' : 'false',
-        email: speaker.email || '',
-        phone: speaker.phone || '',
+        email: speaker.email ?? '',
+        phone: speaker.phone ?? '',
       },
     });
   };
