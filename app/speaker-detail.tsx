@@ -16,7 +16,20 @@ import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { colors } from '@/styles/commonStyles';
 import { IconSymbol } from '@/components/IconSymbol';
-import { fetchAgenda, AgendaItem } from '@/utils/airtable';
+
+const API_BASE_URL = 'https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev';
+
+interface Session {
+  id: string;
+  title: string;
+  date: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  room: string | null;
+  typeTrack: string | null;
+  sessionDescription: string | null;
+  speakerNames: string | string[] | null;
+}
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
@@ -30,7 +43,7 @@ export default function SpeakerDetailScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
 
-  const [sessions, setSessions] = useState<AgendaItem[]>([]);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [loadingSessions, setLoadingSessions] = useState(true);
 
   const bgColor = isDark ? colors.backgroundDark : colors.background;
@@ -60,27 +73,14 @@ export default function SpeakerDetailScreen() {
     console.log('[SpeakerDetail] Loading sessions for:', fullName);
     try {
       setLoadingSessions(true);
-      const agendaResponse = await fetchAgenda();
-      
-      // Filter sessions where this speaker is listed
-      const speakerSessions = agendaResponse.agenda.filter(session => {
-        const speakerNames = session.SpeakerNames;
-        if (!speakerNames) return false;
-        
-        if (Array.isArray(speakerNames)) {
-          return speakerNames.some(name => 
-            name.toLowerCase().includes(firstName.toLowerCase()) && 
-            name.toLowerCase().includes(lastName.toLowerCase())
-          );
-        } else if (typeof speakerNames === 'string') {
-          return speakerNames.toLowerCase().includes(firstName.toLowerCase()) && 
-                 speakerNames.toLowerCase().includes(lastName.toLowerCase());
-        }
-        return false;
-      });
-
-      console.log('[SpeakerDetail] Found', speakerSessions.length, 'sessions');
-      setSessions(speakerSessions);
+      const encoded = encodeURIComponent(fullName);
+      const response = await fetch(`${API_BASE_URL}/api/sessions/by-speaker?speakerName=${encoded}`);
+      if (!response.ok) {
+        throw new Error(`Failed to fetch sessions: ${response.status}`);
+      }
+      const data: Session[] = await response.json();
+      console.log('[SpeakerDetail] Found', data.length, 'sessions');
+      setSessions(data);
     } catch (err) {
       console.error('[SpeakerDetail] Error loading sessions:', err);
       setSessions([]);
@@ -103,31 +103,41 @@ export default function SpeakerDetailScreen() {
     }
   };
 
-  const handleSessionPress = (session: AgendaItem) => {
-    console.log('[SpeakerDetail] Session pressed:', session.Title);
+  const handleSessionPress = (session: Session) => {
+    console.log('[SpeakerDetail] Session pressed:', session.title, '| id:', session.id);
     router.push({
       pathname: '/agenda-detail',
       params: {
-        sessionData: JSON.stringify(session),
+        id: session.id,
+        title: session.title,
+        date: session.date || '',
+        startTime: session.startTime || '',
+        endTime: session.endTime || '',
+        room: session.room || '',
+        typeTrack: session.typeTrack || '',
+        sessionDescription: session.sessionDescription || '',
+        speakerNames: Array.isArray(session.speakerNames)
+          ? session.speakerNames.join(', ')
+          : session.speakerNames || '',
       },
     });
   };
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', { 
-      weekday: 'long', 
-      month: 'long', 
-      day: 'numeric' 
+    return date.toLocaleDateString('en-US', {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
     });
   };
 
-  const renderSessionCard = (session: AgendaItem) => {
-    const dateDisplay = formatDate(session.Date);
-    const timeDisplay = session.EndTime 
-      ? `${session.StartTime} - ${session.EndTime}`
-      : session.StartTime;
-    const roomDisplay = session.Room || '';
+  const renderSessionCard = (session: Session) => {
+    const dateDisplay = session.date ? formatDate(session.date) : '';
+    const timeDisplay = session.endTime
+      ? `${session.startTime} - ${session.endTime}`
+      : session.startTime || '';
+    const roomDisplay = session.room || '';
 
     return (
       <TouchableOpacity
@@ -137,32 +147,36 @@ export default function SpeakerDetailScreen() {
         activeOpacity={0.7}
       >
         <Text style={[styles.sessionTitle, { color: textColor }]} numberOfLines={2}>
-          {session.Title}
+          {session.title}
         </Text>
         <View style={styles.sessionMeta}>
-          <View style={styles.sessionMetaRow}>
-            <IconSymbol
-              ios_icon_name="calendar"
-              android_material_icon_name="calendar-today"
-              size={14}
-              color={secondaryTextColor}
-            />
-            <Text style={[styles.sessionMetaText, { color: secondaryTextColor }]}>
-              {dateDisplay}
-            </Text>
-          </View>
-          <View style={styles.sessionMetaRow}>
-            <IconSymbol
-              ios_icon_name="clock"
-              android_material_icon_name="access-time"
-              size={14}
-              color={secondaryTextColor}
-            />
-            <Text style={[styles.sessionMetaText, { color: secondaryTextColor }]}>
-              {timeDisplay}
-            </Text>
-          </View>
-          {roomDisplay && (
+          {dateDisplay ? (
+            <View style={styles.sessionMetaRow}>
+              <IconSymbol
+                ios_icon_name="calendar"
+                android_material_icon_name="calendar-today"
+                size={14}
+                color={secondaryTextColor}
+              />
+              <Text style={[styles.sessionMetaText, { color: secondaryTextColor }]}>
+                {dateDisplay}
+              </Text>
+            </View>
+          ) : null}
+          {timeDisplay ? (
+            <View style={styles.sessionMetaRow}>
+              <IconSymbol
+                ios_icon_name="clock"
+                android_material_icon_name="access-time"
+                size={14}
+                color={secondaryTextColor}
+              />
+              <Text style={[styles.sessionMetaText, { color: secondaryTextColor }]}>
+                {timeDisplay}
+              </Text>
+            </View>
+          ) : null}
+          {roomDisplay ? (
             <View style={styles.sessionMetaRow}>
               <IconSymbol
                 ios_icon_name="location.fill"
@@ -174,7 +188,7 @@ export default function SpeakerDetailScreen() {
                 {roomDisplay}
               </Text>
             </View>
-          )}
+          ) : null}
         </View>
       </TouchableOpacity>
     );
@@ -301,34 +315,32 @@ export default function SpeakerDetailScreen() {
             </View>
           )}
 
-          {/* Sessions */}
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <IconSymbol
-                ios_icon_name="calendar.badge.clock"
-                android_material_icon_name="event"
-                size={20}
-                color={colors.accent}
-              />
-              <Text style={[styles.sectionTitle, { color: textColor }]}>Sessions</Text>
+          {/* Sessions — shown while loading or when sessions exist */}
+          {(loadingSessions || sessions.length > 0) && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <IconSymbol
+                  ios_icon_name="calendar.badge.clock"
+                  android_material_icon_name="event"
+                  size={20}
+                  color={colors.accent}
+                />
+                <Text style={[styles.sectionTitle, { color: textColor }]}>Sessions</Text>
+              </View>
+              {loadingSessions ? (
+                <View style={styles.sessionsLoading}>
+                  <ActivityIndicator size="small" color={colors.accent} />
+                  <Text style={[styles.sessionsLoadingText, { color: secondaryTextColor }]}>
+                    Loading sessions...
+                  </Text>
+                </View>
+              ) : (
+                <View style={styles.sessionsList}>
+                  {sessions.map(renderSessionCard)}
+                </View>
+              )}
             </View>
-            {loadingSessions ? (
-              <View style={styles.sessionsLoading}>
-                <ActivityIndicator size="small" color={colors.accent} />
-                <Text style={[styles.sessionsLoadingText, { color: secondaryTextColor }]}>
-                  Loading sessions...
-                </Text>
-              </View>
-            ) : sessions.length === 0 ? (
-              <Text style={[styles.noSessions, { color: secondaryTextColor }]}>
-                No sessions scheduled
-              </Text>
-            ) : (
-              <View style={styles.sessionsList}>
-                {sessions.map(renderSessionCard)}
-              </View>
-            )}
-          </View>
+          )}
         </ScrollView>
       </SafeAreaView>
     </>
