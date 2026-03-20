@@ -21,14 +21,13 @@ const API_BASE_URL = 'https://njmpxm8a52cjnjaq9huyy39kwmavs4hc.app.specular.dev'
 
 interface Session {
   id: string;
-  title: string;
-  date: string | null;
-  startTime: string | null;
-  endTime: string | null;
-  room: string | null;
-  typeTrack: string | null;
-  sessionDescription: string | null;
-  speakerNames: string | string[] | null;
+  Title: string;
+  Date: string | null;
+  'Start Time': string | null;
+  'End Time': string | null;
+  Location: string | null;
+  Description: string | null;
+  'Speaker Names': string | null;
 }
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
@@ -103,92 +102,34 @@ export default function SpeakerDetailScreen() {
   };
 
   const handleSessionPress = (session: Session) => {
-    console.log('[SpeakerDetail] Session pressed:', session.title, '| id:', session.id);
+    console.log('[SpeakerDetail] Session pressed:', session.Title, '| id:', session.id);
     router.push({
       pathname: '/agenda-detail',
       params: {
         id: session.id,
-        title: session.title,
-        date: session.date || '',
-        startTime: session.startTime || '',
-        endTime: session.endTime || '',
-        room: session.room || '',
-        typeTrack: session.typeTrack || '',
-        sessionDescription: session.sessionDescription || '',
-        speakerNames: Array.isArray(session.speakerNames)
-          ? session.speakerNames.join(', ')
-          : session.speakerNames || '',
+        title: session.Title,
+        date: session.Date || '',
+        startTime: session['Start Time'] || '',
+        endTime: session['End Time'] || '',
+        location: session.Location || '',
+        description: session.Description || '',
+        speakerNames: session['Speaker Names'] || '',
       },
     });
   };
 
-  const formatDate = (dateString: string) => {
-    const date = new Date(dateString);
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      month: 'long',
-      day: 'numeric',
-    });
-  };
-
-  const renderSessionCard = (session: Session) => {
-    const dateDisplay = session.date ? formatDate(session.date) : '';
-    const timeDisplay = session.endTime
-      ? `${session.startTime} - ${session.endTime}`
-      : session.startTime || '';
-    const roomDisplay = session.room || '';
-
+  const renderSessionBullet = (session: Session) => {
     return (
       <TouchableOpacity
         key={session.id}
-        style={[styles.sessionCard, { backgroundColor: cardBg }]}
+        style={styles.sessionBullet}
         onPress={() => handleSessionPress(session)}
         activeOpacity={0.7}
       >
-        <Text style={[styles.sessionTitle, { color: textColor }]} numberOfLines={2}>
-          {session.title}
+        <Text style={[styles.sessionBulletDot, { color: colors.accent }]}>{'\u2022'}</Text>
+        <Text style={[styles.sessionBulletTitle, { color: colors.accent }]} numberOfLines={2}>
+          {session.Title}
         </Text>
-        <View style={styles.sessionMeta}>
-          {dateDisplay ? (
-            <View style={styles.sessionMetaRow}>
-              <IconSymbol
-                ios_icon_name="calendar"
-                android_material_icon_name="calendar-today"
-                size={14}
-                color={secondaryTextColor}
-              />
-              <Text style={[styles.sessionMetaText, { color: secondaryTextColor }]}>
-                {dateDisplay}
-              </Text>
-            </View>
-          ) : null}
-          {timeDisplay ? (
-            <View style={styles.sessionMetaRow}>
-              <IconSymbol
-                ios_icon_name="clock"
-                android_material_icon_name="access-time"
-                size={14}
-                color={secondaryTextColor}
-              />
-              <Text style={[styles.sessionMetaText, { color: secondaryTextColor }]}>
-                {timeDisplay}
-              </Text>
-            </View>
-          ) : null}
-          {roomDisplay ? (
-            <View style={styles.sessionMetaRow}>
-              <IconSymbol
-                ios_icon_name="location.fill"
-                android_material_icon_name="location-on"
-                size={14}
-                color={secondaryTextColor}
-              />
-              <Text style={[styles.sessionMetaText, { color: secondaryTextColor }]}>
-                {roomDisplay}
-              </Text>
-            </View>
-          ) : null}
-        </View>
       </TouchableOpacity>
     );
   };
@@ -332,7 +273,7 @@ export default function SpeakerDetailScreen() {
                 </View>
               ) : (
                 <View style={styles.sessionsList}>
-                  {sessions.map(renderSessionCard)}
+                  {sessions.map(renderSessionBullet)}
                 </View>
               )}
             </View>
@@ -430,31 +371,21 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   sessionsList: {
-    gap: 12,
+    gap: 8,
   },
-  sessionCard: {
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  sessionTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 12,
-  },
-  sessionMeta: {
-    gap: 6,
-  },
-  sessionMetaRow: {
+  sessionBullet: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
+    alignItems: 'flex-start',
+    gap: 8,
   },
-  sessionMetaText: {
-    fontSize: 14,
+  sessionBulletDot: {
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  sessionBulletTitle: {
+    fontSize: 15,
+    lineHeight: 22,
+    flex: 1,
+    textDecorationLine: 'underline',
   },
 });
