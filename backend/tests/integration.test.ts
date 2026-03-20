@@ -288,9 +288,11 @@ describe("API Integration Tests", () => {
     expect(Array.isArray(data)).toBe(true);
   });
 
-  test("GET /api/sessions/by-speaker - should return 400 when speakerName parameter is missing", async () => {
+  test("GET /api/sessions/by-speaker - should return sessions without speakerName parameter", async () => {
     const res = await api("/api/sessions/by-speaker");
-    await expectStatus(res, 400);
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
   });
 
   // Reports

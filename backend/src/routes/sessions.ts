@@ -8,10 +8,9 @@ interface AirtableRecord {
     'Date'?: string;
     'Start Time'?: string;
     'End Time'?: string;
-    'Room'?: string;
-    'Type/Track'?: string;
-    'Session Description'?: string;
-    'Speaker Names'?: string | string[];
+    'Location'?: string;
+    'Description'?: string;
+    'Speaker Names'?: string;
   };
   createdTime: string;
 }
@@ -23,48 +22,60 @@ interface AirtableResponse {
 
 interface SessionResponse {
   id: string;
-  title: string;
-  date: string | null;
-  startTime: string | null;
-  endTime: string | null;
-  room: string | null;
-  typeTrack: string | null;
-  sessionDescription: string | null;
-  speakerNames: string | string[] | null;
+  Title?: string;
+  Date?: string;
+  'Start Time'?: string;
+  'End Time'?: string;
+  Location?: string;
+  Description?: string;
+  'Speaker Names'?: string;
 }
 
-const AIRTABLE_BASE_URL =
-  'https://airtablecache.portofthefutureconference.com/v0/appkKjciinTlnsbkd/tblHaxjP8sWviBQjD';
+const TABLE_ID = 'tblHaxjP8sWviBQjD';
 
-async function fetchAllSessionRecords(): Promise<AirtableRecord[]> {
+function buildAirtableUrl(baseId: string, tableId: string, offset?: string): string {
+  const url = `https://api.airtable.com/v0/${baseId}/${tableId}`;
+  if (offset) {
+    return `${url}?offset=${encodeURIComponent(offset)}`;
+  }
+  return url;
+}
+
+async function fetchAllSessionRecords(
+  baseId: string,
+  apiKey: string
+): Promise<AirtableRecord[]> {
   let allRecords: AirtableRecord[] = [];
   let offset: string | undefined;
 
   do {
-    const url = offset
-      ? `${AIRTABLE_BASE_URL}?offset=${encodeURIComponent(offset)}`
-      : AIRTABLE_BASE_URL;
+    const url = buildAirtableUrl(baseId, TABLE_ID, offset);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 5000);
 
     try {
-      const response = await fetch(url, { signal: controller.signal });
+      const response = await fetch(url, {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+        },
+        signal: controller.signal,
+      });
 
       if (!response.ok) {
-        return allRecords;
+        break;
       }
 
       const data = (await response.json()) as AirtableResponse;
 
       if (!Array.isArray(data.records)) {
-        return allRecords;
+        break;
       }
 
       allRecords = allRecords.concat(data.records);
       offset = data.offset;
     } catch (error) {
-      return allRecords;
+      break;
     } finally {
       clearTimeout(timeoutId);
     }
@@ -74,40 +85,19 @@ async function fetchAllSessionRecords(): Promise<AirtableRecord[]> {
 }
 
 function speakerNameMatches(
-  speakerNames: string | string[] | undefined,
+  speakerNames: string | undefined,
   searchName: string
 ): boolean {
   if (!speakerNames) {
     return false;
   }
 
-  const searchLower = searchName.toLowerCase();
+  const searchLower = searchName.toLowerCase().trim();
+  const names = speakerNames
+    .split(',')
+    .map((name) => name.trim().toLowerCase());
 
-  if (Array.isArray(speakerNames)) {
-    return speakerNames.some((name) =>
-      name.toLowerCase().includes(searchLower)
-    );
-  }
-
-  return speakerNames.toLowerCase().includes(searchLower);
-}
-
-function sortSessions(sessions: SessionResponse[]): SessionResponse[] {
-  return sessions.sort((a, b) => {
-    // Sort by date ascending
-    const dateA = a.date ? new Date(a.date).getTime() : Infinity;
-    const dateB = b.date ? new Date(b.date).getTime() : Infinity;
-
-    if (dateA !== dateB) {
-      return dateA - dateB;
-    }
-
-    // Then sort by start time ascending
-    const timeA = a.startTime ? a.startTime : 'ZZZ';
-    const timeB = b.startTime ? b.startTime : 'ZZZ';
-
-    return timeA.localeCompare(timeB);
-  });
+  return names.some((name) => name.includes(searchLower));
 }
 
 export function register(app: App, fastify: FastifyInstance) {
@@ -119,7 +109,6 @@ export function register(app: App, fastify: FastifyInstance) {
         tags: ['sessions'],
         querystring: {
           type: 'object',
-          required: ['speakerName'],
           properties: {
             speakerName: {
               type: 'string',
@@ -134,21 +123,14 @@ export function register(app: App, fastify: FastifyInstance) {
               type: 'object',
               properties: {
                 id: { type: 'string' },
-                title: { type: 'string' },
-                date: { type: ['string', 'null'] },
-                startTime: { type: ['string', 'null'] },
-                endTime: { type: ['string', 'null'] },
-                room: { type: ['string', 'null'] },
-                typeTrack: { type: ['string', 'null'] },
-                sessionDescription: { type: ['string', 'null'] },
-                speakerNames: { type: ['string', 'array', 'null'] },
+                Title: { type: 'string' },
+                Date: { type: 'string' },
+                'Start Time': { type: 'string' },
+                'End Time': { type: 'string' },
+                Location: { type: 'string' },
+                Description: { type: 'string' },
+                'Speaker Names': { type: 'string' },
               },
-            },
-          },
-          400: {
-            type: 'object',
-            properties: {
-              error: { type: 'string' },
             },
           },
         },
@@ -157,26 +139,36 @@ export function register(app: App, fastify: FastifyInstance) {
     async (
       request: FastifyRequest<{
         Querystring: { speakerName?: string };
-      }>,
-      reply: FastifyReply
+      }>
     ) => {
       const { speakerName } = request.query;
-
-      // Validate required parameter
-      if (!speakerName || !speakerName.trim()) {
-        app.logger.warn(
-          { speakerName },
-          'Missing or empty speakerName parameter'
-        );
-        return reply.status(400).send({ error: 'speakerName parameter is required' });
-      }
 
       app.logger.info(
         { speakerName },
         'Fetching sessions by speaker'
       );
 
-      const records = await fetchAllSessionRecords();
+      // If speakerName is not provided, return empty array
+      if (!speakerName || !speakerName.trim()) {
+        app.logger.info(
+          { speakerName },
+          'No speaker name provided, returning empty array'
+        );
+        return [];
+      }
+
+      const baseId = process.env.AIRTABLE_BASE_ID;
+      const apiKey = process.env.AIRTABLE_API_KEY;
+
+      if (!baseId || !apiKey) {
+        app.logger.error(
+          {},
+          'Missing AIRTABLE_BASE_ID or AIRTABLE_API_KEY environment variables'
+        );
+        return [];
+      }
+
+      const records = await fetchAllSessionRecords(baseId, apiKey);
 
       // Filter records by speaker name
       const matchingSessions: SessionResponse[] = records
@@ -188,24 +180,21 @@ export function register(app: App, fastify: FastifyInstance) {
         )
         .map((record) => ({
           id: record.id,
-          title: record.fields['Title'] || '',
-          date: record.fields['Date'] || null,
-          startTime: record.fields['Start Time'] || null,
-          endTime: record.fields['End Time'] || null,
-          room: record.fields['Room'] || null,
-          typeTrack: record.fields['Type/Track'] || null,
-          sessionDescription: record.fields['Session Description'] || null,
-          speakerNames: record.fields['Speaker Names'] || null,
+          Title: record.fields['Title'],
+          Date: record.fields['Date'],
+          'Start Time': record.fields['Start Time'],
+          'End Time': record.fields['End Time'],
+          Location: record.fields['Location'],
+          Description: record.fields['Description'],
+          'Speaker Names': record.fields['Speaker Names'],
         }));
 
-      const sorted = sortSessions(matchingSessions);
-
       app.logger.info(
-        { speakerName, count: sorted.length },
+        { speakerName, count: matchingSessions.length },
         'Sessions by speaker fetched successfully'
       );
 
-      return sorted;
+      return matchingSessions;
     }
   );
 }
