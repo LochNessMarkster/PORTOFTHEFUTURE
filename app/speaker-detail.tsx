@@ -150,7 +150,7 @@ export default function SpeakerDetailScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Speaker Details TEST',
+          title: 'Speaker Details',
           headerStyle: {
             backgroundColor: isDark ? colors.backgroundDark : colors.background,
           },
@@ -159,7 +159,6 @@ export default function SpeakerDetailScreen() {
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <Text style={{ color: 'red', fontSize: 24 }}>TEST DETAIL SCREEN</Text>
           {/* Photo */}
           <View style={styles.photoSection}>
             {photoUrl ? (
