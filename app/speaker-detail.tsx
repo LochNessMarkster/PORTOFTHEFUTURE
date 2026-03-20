@@ -28,13 +28,30 @@ interface Session {
   'Room': string | null;
   'Type/Track': string | null;
   'Session Description': string | null;
-  'Speaker Names': string | null;
+  'Speaker Names'?: string | null;
+  'Speaker(s)'?: string[] | null;
 }
 
 function resolveImageSource(source: string | number | ImageSourcePropType | undefined): ImageSourcePropType {
   if (!source) return { uri: '' };
   if (typeof source === 'string') return { uri: source };
   return source as ImageSourcePropType;
+}
+
+function normalizeParam(param: string | string[] | undefined): string {
+  if (Array.isArray(param)) return param[0] ?? '';
+  return param ?? '';
+}
+
+function normalizeText(value: unknown): string {
+  return String(value ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+}
+
+function splitSpeakerNames(value: unknown): string[] {
+  return String(value ?? '')
+    .split(',')
+    .map((name) => normalizeText(name))
+    .filter(Boolean);
 }
 
 export default function SpeakerDetailScreen() {
@@ -63,6 +80,7 @@ export default function SpeakerDetailScreen() {
   const phone = params.phone as string;
 
   const fullName = `${firstName} ${lastName}`.trim();
+  const speakerId = normalizeParam(params.id as string | string[] | undefined);
 
   useEffect(() => {
     loadSpeakerSessions();
@@ -81,11 +99,28 @@ export default function SpeakerDetailScreen() {
         id: r.id,
         ...r.fields,
       }));
-      const lowerName = fullName.toLowerCase();
-      const filtered = allSessions.filter((s) => {
-        const speakerNames = s['Speaker Names'];
-        if (!speakerNames) return false;
-        return String(speakerNames).toLowerCase().includes(lowerName);
+      const normalizedFullName = normalizeText(fullName);
+
+      const filtered = allSessions.filter((session) => {
+        const linkedSpeakerIds = Array.isArray(session['Speaker(s)'])
+          ? session['Speaker(s)']!.map((id) => String(id))
+          : [];
+
+        if (speakerId && linkedSpeakerIds.includes(speakerId)) {
+          return true;
+        }
+
+        const names = splitSpeakerNames(session['Speaker Names']);
+        if (normalizedFullName && names.includes(normalizedFullName)) {
+          return true;
+        }
+
+        const rawSpeakerNames = normalizeText(session['Speaker Names']);
+        if (normalizedFullName && rawSpeakerNames.includes(normalizedFullName)) {
+          return true;
+        }
+
+        return false;
       });
       console.log('[SpeakerDetail] Found', filtered.length, 'sessions');
       setSessions(filtered);
@@ -150,7 +185,7 @@ export default function SpeakerDetailScreen() {
       <Stack.Screen
         options={{
           headerShown: true,
-          title: 'Speaker Details TEST',
+          title: 'Speaker Details',
           headerStyle: {
             backgroundColor: isDark ? colors.backgroundDark : colors.background,
           },
@@ -159,7 +194,6 @@ export default function SpeakerDetailScreen() {
       />
       <SafeAreaView style={[styles.container, { backgroundColor: bgColor }]} edges={['bottom']}>
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
-          <Text style={{ color: 'red', fontSize: 24 }}>TEST DETAIL SCREEN</Text>
           {/* Photo */}
           <View style={styles.photoSection}>
             {photoUrl ? (
