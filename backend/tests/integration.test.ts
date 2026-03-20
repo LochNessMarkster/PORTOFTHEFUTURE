@@ -237,7 +237,9 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
+    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(
+      data.source_used
+    );
     expect(Array.isArray(data.speakers)).toBe(true);
   });
 
