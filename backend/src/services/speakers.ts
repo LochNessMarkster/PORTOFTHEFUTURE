@@ -40,7 +40,7 @@ export interface Speaker {
   id: string;
   firstName?: string;
   lastName?: string;
-  title?: string;
+  speakerTitle?: string;
   speakingTopic?: string;
   synopsis?: string;
   bio?: string;
@@ -76,7 +76,7 @@ function mapSpeaker(record: AirtableRecord): Speaker {
     id: record.id,
     firstName: record.fields['First Name'],
     lastName: record.fields['Last Name'],
-    title: record.fields['Speaker Title'],
+    speakerTitle: record.fields['Speaker Title'],
     speakingTopic: record.fields['Speaking Topic'],
     synopsis: record.fields['Synopsis of Speaking topic'],
     bio: record.fields.Bio,
@@ -116,8 +116,13 @@ async function fetchFromUrl(
     clearTimeout(timeoutId);
 
     if (!response.ok) {
-      return { data: {} as AirtableResponse, status: response.status, statusText: response.statusText };
+      return {
+        data: {} as AirtableResponse,
+        status: response.status,
+        statusText: response.statusText,
+      };
     }
+
     const data = (await response.json()) as AirtableResponse;
     return { data, status: response.status, statusText: response.statusText };
   } catch (error) {
@@ -164,8 +169,8 @@ async function fetchAllSpeakers(
       const mapped = response.data.records
         .filter((record) => record.fields.Published === true)
         .map(mapSpeaker);
-      speakers.push(...mapped);
 
+      speakers.push(...mapped);
       offset = response.data.offset;
     } while (offset);
 
@@ -194,12 +199,13 @@ export async function getSpeakers(): Promise<SpeakersResponse> {
   let fetchResult = await fetchAllSpeakers(cacheBaseUrl);
   let sourceUsed: 'airtablecache' | 'airtable_api' | 'cached_stale' | 'error' = 'airtablecache';
 
-  // If cache failed with 400 (branch merged), try API immediately
   if (fetchResult.speakers === null && fetchResult.status === 400) {
-    fetchResult = await fetchAllSpeakers(apiBaseUrl, airtablePat ? { Authorization: `Bearer ${airtablePat}` } : {});
+    fetchResult = await fetchAllSpeakers(
+      apiBaseUrl,
+      airtablePat ? { Authorization: `Bearer ${airtablePat}` } : {}
+    );
     sourceUsed = 'airtable_api';
   } else if (fetchResult.speakers === null) {
-    // Try API fallback
     sourceUsed = 'airtable_api';
     const authHeaders = airtablePat
       ? { Authorization: `Bearer ${airtablePat}` }
@@ -207,7 +213,6 @@ export async function getSpeakers(): Promise<SpeakersResponse> {
     fetchResult = await fetchAllSpeakers(apiBaseUrl, authHeaders);
   }
 
-  // If both fail but we have stale cache, use it
   if (fetchResult.speakers === null) {
     if (speakersCache) {
       const staleResponse: SpeakersResponse = {
@@ -218,12 +223,11 @@ export async function getSpeakers(): Promise<SpeakersResponse> {
       return staleResponse;
     }
 
-    const response: SpeakersResponse = {
+    return {
       updated_at: new Date().toISOString(),
       source_used: 'error',
       speakers: [],
     };
-    return response;
   }
 
   const sorted = sortSpeakers(fetchResult.speakers);

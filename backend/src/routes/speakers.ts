@@ -16,7 +16,7 @@ export function register(app: App, fastify: FastifyInstance) {
               updated_at: { type: 'string', description: 'ISO timestamp' },
               source_used: {
                 type: 'string',
-                enum: ['airtablecache', 'airtable_api'],
+                enum: ['airtablecache', 'airtable_api', 'cached_stale', 'error'],
               },
               speakers: {
                 type: 'array',
@@ -26,7 +26,7 @@ export function register(app: App, fastify: FastifyInstance) {
                     id: { type: 'string' },
                     firstName: { type: 'string' },
                     lastName: { type: 'string' },
-                    title: { type: 'string' },
+                    speakerTitle: { type: 'string' },
                     speakingTopic: { type: 'string' },
                     synopsis: { type: 'string' },
                     bio: { type: 'string' },
@@ -64,10 +64,7 @@ export function register(app: App, fastify: FastifyInstance) {
         );
         return result;
       } catch (error) {
-        app.logger.error(
-          { err: error },
-          'Failed to fetch speakers'
-        );
+        app.logger.error({ err: error }, 'Failed to fetch speakers');
         return reply.status(500).send({
           error: 'Failed to fetch speakers from Airtable',
         });
