@@ -215,7 +215,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(data.source_used);
+    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
     expect(Array.isArray(data.announcements)).toBe(true);
   });
 
@@ -226,7 +226,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(data.source_used);
+    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
     expect(Array.isArray(data.agenda)).toBe(true);
   });
 
@@ -237,7 +237,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(data.source_used);
+    expect(["airtablecache", "airtable_api"]).toContain(data.source_used);
     expect(Array.isArray(data.speakers)).toBe(true);
   });
 
@@ -248,7 +248,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(
+    expect(["airtablecache", "airtable_api", "error"]).toContain(
       data.source_used
     );
     expect(Array.isArray(data.exhibitors)).toBe(true);
@@ -261,7 +261,7 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(
+    expect(["airtablecache", "airtable_api", "error"]).toContain(
       data.source_used
     );
     expect(Array.isArray(data.sponsors)).toBe(true);
@@ -274,10 +274,23 @@ describe("API Integration Tests", () => {
     const data = await res.json();
     expect(typeof data).toBe("object");
     expect(data.updated_at).toBeDefined();
-    expect(["airtablecache", "airtable_api", "cached_stale", "error"]).toContain(
+    expect(["airtablecache", "airtable_api", "error"]).toContain(
       data.source_used
     );
     expect(Array.isArray(data.activities)).toBe(true);
+  });
+
+  // Sessions by Speaker
+  test("GET /api/sessions/by-speaker - should return sessions for valid speaker", async () => {
+    const res = await api("/api/sessions/by-speaker?speakerName=John");
+    await expectStatus(res, 200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  test("GET /api/sessions/by-speaker - should return 400 when speakerName parameter is missing", async () => {
+    const res = await api("/api/sessions/by-speaker");
+    await expectStatus(res, 400);
   });
 
   // Reports
