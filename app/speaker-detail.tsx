@@ -105,23 +105,48 @@ export default function SpeakerDetailScreen() {
       }));
 
       const normalizedFullName = normalizeText(fullName);
+      const normalizedFirstName = normalizeText(firstName);
+      const normalizedLastName = normalizeText(lastName);
+
+      // Debug: log first 3 sessions to see actual field structure
+      if (allSessions.length > 0) {
+        console.log('[SpeakerDetail] speakerId:', speakerId, '| fullName:', fullName);
+        console.log('[SpeakerDetail] Sample session fields:', JSON.stringify({
+          id: allSessions[0].id,
+          speakerField: allSessions[0]['Speaker(s)'],
+          speakerNames: allSessions[0]['Speaker Names'],
+        }));
+      }
 
       const filtered = allSessions.filter((session) => {
+        // 1. Match by linked Airtable record ID in Speaker(s) field
         const linkedSpeakerIds = Array.isArray(session['Speaker(s)'])
-          ? session['Speaker(s)']!.map((id) => String(id))
+          ? session['Speaker(s)']!.map((id) => String(id).trim())
           : [];
+        if (speakerId && linkedSpeakerIds.includes(speakerId.trim())) return true;
 
-        if (speakerId && linkedSpeakerIds.includes(speakerId)) return true;
-
+        // 2. Match by exact normalized full name in comma-split Speaker Names
         const names = splitSpeakerNames(session['Speaker Names']);
         if (normalizedFullName && names.includes(normalizedFullName)) return true;
 
+        // 3. Match by substring of full name in raw Speaker Names string
         const rawSpeakerNames = normalizeText(session['Speaker Names']);
         if (normalizedFullName && rawSpeakerNames.includes(normalizedFullName)) return true;
+
+        // 4. Match by last name + first name (reversed order, e.g. "Smith, John")
+        if (normalizedLastName && normalizedFirstName) {
+          const reversedName = `${normalizedLastName}, ${normalizedFirstName}`;
+          if (rawSpeakerNames.includes(reversedName)) return true;
+          if (rawSpeakerNames.includes(normalizedLastName) && rawSpeakerNames.includes(normalizedFirstName)) return true;
+        }
+
+        // 5. Match by last name alone as a fallback (only if last name is reasonably unique — length > 3)
+        if (normalizedLastName && normalizedLastName.length > 3 && rawSpeakerNames.includes(normalizedLastName)) return true;
 
         return false;
       });
 
+      console.log('[SpeakerDetail] Matched', filtered.length, 'sessions out of', allSessions.length);
       setSessions(filtered);
     } catch (err) {
       console.error('[SpeakerDetail] Error loading sessions:', err);
