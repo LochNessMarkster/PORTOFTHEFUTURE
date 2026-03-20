@@ -23,6 +23,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 const SPEAKERS_CACHE_KEY = '@speakers_cache';
 const SPEAKERS_CACHE_TIMESTAMP_KEY = '@speakers_cache_timestamp';
+const SPEAKERS_CACHE_VERSION_KEY = '@speakers_cache_version';
+const CACHE_VERSION = '2'; // bump this to invalidate stale caches missing title/company
 const CACHE_DURATION = 60 * 1000; // 60 seconds (1 minute)
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
 
@@ -83,9 +85,10 @@ export default function SpeakersScreen() {
       if (!refreshing) {
         const cachedData = await AsyncStorage.getItem(SPEAKERS_CACHE_KEY);
         const cachedTimestamp = await AsyncStorage.getItem(SPEAKERS_CACHE_TIMESTAMP_KEY);
+        const cachedVersion = await AsyncStorage.getItem(SPEAKERS_CACHE_VERSION_KEY);
         const now = Date.now();
 
-        if (cachedData && cachedTimestamp) {
+        if (cachedData && cachedTimestamp && cachedVersion === CACHE_VERSION) {
           const timestamp = parseInt(cachedTimestamp, 10);
           if (now - timestamp < CACHE_DURATION) {
             console.log('[Speakers] Using cached data (age:', Math.round((now - timestamp) / 1000), 'seconds)');
@@ -97,6 +100,8 @@ export default function SpeakersScreen() {
           } else {
             console.log('[Speakers] Cache expired (age:', Math.round((now - timestamp) / 1000), 'seconds)');
           }
+        } else if (cachedVersion !== CACHE_VERSION) {
+          console.log('[Speakers] Cache version mismatch — discarding stale cache');
         }
       }
 
@@ -129,7 +134,8 @@ export default function SpeakersScreen() {
       const now = Date.now();
       await AsyncStorage.setItem(SPEAKERS_CACHE_KEY, JSON.stringify(sortedSpeakers));
       await AsyncStorage.setItem(SPEAKERS_CACHE_TIMESTAMP_KEY, now.toString());
-      console.log('[Speakers] Data cached for 60 seconds');
+      await AsyncStorage.setItem(SPEAKERS_CACHE_VERSION_KEY, CACHE_VERSION);
+      console.log('[Speakers] Data cached for 60 seconds (version', CACHE_VERSION + ')');
 
     } catch (err) {
       console.error('[Speakers] Error loading speakers:', err);
