@@ -2,7 +2,7 @@
   "expo": {
     "name": "Port of the Future",
     "slug": "port-of-the-future",
-    "version": "1.0.3",
+    "version": "1.0.4",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "scheme": "portofthefuture",
@@ -16,7 +16,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.p225e5c6ed6234f6e9b3fb38923ce8d13.app",
-      "buildNumber": "15",
+      "buildNumber": "16",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
       },
