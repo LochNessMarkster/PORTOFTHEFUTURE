@@ -105,7 +105,8 @@ export function hasSameStartTime(
  */
 export function isSessionNow(date: string, startTime: string, endTime: string): boolean {
   const now = new Date();
-  const sessionDate = new Date(date);
+  const [year, month, day] = date.split('-').map(Number);
+  const sessionDate = new Date(year, month - 1, day);
   
   // Check if same date
   if (
@@ -128,7 +129,8 @@ export function isSessionNow(date: string, startTime: string, endTime: string): 
  */
 export function isSessionNext(date: string, startTime: string): boolean {
   const now = new Date();
-  const sessionDate = new Date(date);
+  const [year, month, day] = date.split('-').map(Number);
+  const sessionDate = new Date(year, month - 1, day);
   
   // Check if same date
   if (

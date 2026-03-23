@@ -407,9 +407,22 @@ export default function AgendaScreen() {
     loadAgenda();
   }, []);
 
+  // Helper to parse "9:00 AM" / "12:30 PM" + "YYYY-MM-DD" into a local Date
+  const parseSessionDateTime = (date: string, time: string): Date => {
+    const match = time.match(/(\d+):(\d+)\s*(AM|PM)/i);
+    if (!match) return new Date(date);
+    let hours = parseInt(match[1], 10);
+    const minutes = parseInt(match[2], 10);
+    const period = match[3].toUpperCase();
+    if (period === 'PM' && hours !== 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
+    const [year, month, day] = date.split('-').map(Number);
+    return new Date(year, month - 1, day, hours, minutes);
+  };
+
   // Helper function to check if a session is past
   const isPastSession = (sessionStartTime: string, sessionDate: string): boolean => {
-    const sessionDateTime = new Date(`${sessionDate}T${sessionStartTime}`);
+    const sessionDateTime = parseSessionDateTime(sessionDate, sessionStartTime);
     const now = new Date();
     // A session is considered "past" if current time > session start time + 60 minutes
     return now.getTime() > sessionDateTime.getTime() + 60 * 60 * 1000;
@@ -457,8 +470,8 @@ export default function AgendaScreen() {
       if (!aIsPast && bIsPast) return -1;
 
       // Then sort by date and time
-      const dateA = new Date(`${a.Date}T${a.StartTime}`);
-      const dateB = new Date(`${b.Date}T${b.StartTime}`);
+      const dateA = parseSessionDateTime(a.Date, a.StartTime);
+      const dateB = parseSessionDateTime(b.Date, b.StartTime);
       return dateA.getTime() - dateB.getTime();
     });
 
